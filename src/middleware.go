@@ -4,7 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
+
+	jwt "github.com/dgrijalva/jwt-go"
 )
+
+type contextKey string
 
 func secureHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -38,10 +43,34 @@ func (app *application) recoverPanic(next http.Handler) http.Handler {
 
 func (app *application) validateToken(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		ctx = context.WithValue(ctx, "user", "user")
+		rt := r.Header.Get("Authorization")
+		if rt == "" {
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
 
+		rt = strings.TrimSpace(strings.Split(rt, "Bearer")[1])
+		token, err := jwt.Parse(rt, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Error parsing token")
+			}
+			return app.secret, nil
+		})
+		if err != nil {
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, contextKey("User"), claims)
 		r = r.WithContext(ctx)
+
 		next.ServeHTTP(w, r)
 	})
 }

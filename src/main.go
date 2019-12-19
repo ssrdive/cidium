@@ -14,12 +14,14 @@ import (
 type application struct {
 	errorLog *log.Logger
 	infoLog  *log.Logger
+	secret   []byte
 	user     *mysql.UserModel
 }
 
 func main() {
 	addr := flag.String("addr", ":4000", "HTTP network address")
 	dsn := flag.String("dsn", "user:password@tcp(host)/database_name?parseTime=true", "MySQL data source name")
+	secret := flag.String("secret", "cidium", "Secret key for generating jwts")
 	flag.Parse()
 
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
@@ -35,6 +37,7 @@ func main() {
 	app := &application{
 		errorLog: errorLog,
 		infoLog:  infoLog,
+		secret:   []byte(*secret),
 		user:     &mysql.UserModel{DB: db},
 	}
 

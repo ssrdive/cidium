@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"net/http"
 	"runtime/debug"
 )
@@ -19,4 +20,9 @@ func (app *application) clientError(w http.ResponseWriter, status int) {
 
 func (app *application) notFound(w http.ResponseWriter) {
 	app.clientError(w, http.StatusNotFound)
+}
+
+func (app *application) extractUser(r *http.Request) jwt.Claims {
+	ctx := r.Context()
+	return ctx.Value(contextKey("User")).(jwt.MapClaims)
 }
