@@ -15,6 +15,7 @@ func (app *application) routes() http.Handler {
 	r.Handle("/", app.validateToken(http.HandlerFunc(app.home))).Methods("GET")
 	r.HandleFunc("/dropdown/{name}", http.HandlerFunc(app.dropdownHandler)).Methods("GET")
 	r.HandleFunc("/authenticate", http.HandlerFunc(app.authenticate)).Methods("POST")
+	r.HandleFunc("/contract/new", http.HandlerFunc(app.newContract)).Methods("POST")
 
 	fileServer := http.FileServer(http.Dir("./ui/static/"))
 	r.Handle("/static/", http.StripPrefix("/static", fileServer))

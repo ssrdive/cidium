@@ -17,6 +17,7 @@ type application struct {
 	secret   []byte
 	user     *mysql.UserModel
 	dropdown *mysql.DropdownModel
+	contract *mysql.ContractModel
 }
 
 func main() {
@@ -41,6 +42,7 @@ func main() {
 		secret:   []byte(*secret),
 		user:     &mysql.UserModel{DB: db},
 		dropdown: &mysql.DropdownModel{DB: db},
+		contract: &mysql.ContractModel{DB: db},
 	}
 
 	srv := &http.Server{
