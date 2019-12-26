@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
 	"github.com/ssrdive/cidium/pkg/models"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -26,6 +28,8 @@ func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	username := r.PostForm.Get("username")
 	password := r.PostForm.Get("password")
+
+	fmt.Println(r.PostForm)
 
 	u, err := app.user.Get(username, password)
 	if err != nil {
@@ -50,5 +54,32 @@ func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "%v", ts)
+	user := models.UserResponse{u.ID, u.Username, u.Name, "Admin", ts}
+	js, err := json.Marshal(user)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+}
+
+func (app *application) dropdownHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+	if name == "" {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	items, err := app.dropdown.Get(name)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items)
+
 }

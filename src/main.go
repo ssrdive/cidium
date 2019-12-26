@@ -16,6 +16,7 @@ type application struct {
 	infoLog  *log.Logger
 	secret   []byte
 	user     *mysql.UserModel
+	dropdown *mysql.DropdownModel
 }
 
 func main() {
@@ -39,6 +40,7 @@ func main() {
 		infoLog:  infoLog,
 		secret:   []byte(*secret),
 		user:     &mysql.UserModel{DB: db},
+		dropdown: &mysql.DropdownModel{DB: db},
 	}
 
 	srv := &http.Server{
