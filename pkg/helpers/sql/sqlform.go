@@ -1,71 +1,47 @@
-// Package sqlform provides helpers to insert form data directly to database
+// Package sql provides helpers to insert form data directly to database
 package sql
 
 import (
 	"database/sql"
+	"fmt"
 	"net/url"
 )
 
-type SqlForm struct {
+// FormTable holds data to be inserted
+type FormTable struct {
 	TableName string
 	RCols     []string
 	OCols     []string
 	Form      url.Values
+	Tx        *sql.Tx
 }
 
-// QuestionMark holds ?
-const QuestionMark = "?"
+// Name returns table name
+func (s FormTable) Name() string {
+	return fmt.Sprintf("`%s`", s.TableName)
+}
 
-// NewNullString fuctions returns a NULL if the passed string is empty
-func NewNullString(s string) sql.NullString {
-	if len(s) == 0 {
-		return sql.NullString{}
+// Cols returns column names
+func (s FormTable) Cols() ([]string, int) {
+	cols := append(s.RCols, s.OCols...)
+	return cols, len(cols)
+}
+
+// Values returns column values
+func (s FormTable) Values() []interface{} {
+	cols, len := s.Cols()
+	values := make([]interface{}, len)
+	for i, col := range cols {
+		if v, ok := s.Form[col]; ok {
+			values[i] = NewNullString(v[0])
+		} else {
+			values[i] = NewNullString("")
+		}
 	}
-	return sql.NullString{
-		String: s,
-		Valid:  true,
-	}
+	return values
 }
 
-func InsertForm(tx *sql.Tx, table string, rcols, ocols []string, form url.Values) (int64, error) {
-	return 0, nil
+// Transaction returns transaction object to query results from
+func (s FormTable) Transaction() *sql.Tx {
+	return s.Tx
 }
-
-// InsertForm Inserts a row to the table.
-// ocols slice can be empty while rcols should at least have one element.
-// func InsertForm(tx *sql.Tx, table string, rcols, ocols []string, form url.Values) (int64, error) {
-// 	cols := append(rcols, ocols...)
-// 	ln := len(cols)
-// 	pholders := make([]interface{}, ln)
-// 	values := make([]interface{}, ln)
-
-// 	for _, param := range cols {
-// 		pholders = append(pholders, QuestionMark)
-// 		if v, ok := form[param]; ok {
-// 			values = append(values, NewNullString(v[0]))
-// 		} else {
-// 			values = append(values, NewNullString(""))
-// 		}
-// 	}
-
-// 	ftable := fmt.Sprintf("`%s`", table)
-// 	stmt, _, err := sq.
-// 		Insert(ftable).Columns(cols...).
-// 		Values(pholders[len(pholders)-ln:]...).
-// 		ToSql()
-// 	if err != nil {
-// 		return 0, err
-// 	}
-// 	r, err := tx.Exec(stmt, values[len(values)-ln:]...)
-// 	if err != nil {
-// 		tx.Rollback()
-// 		return 0, err
-// 	}
-// 	id, err := r.LastInsertId()
-// 	if err != nil {
-// 		tx.Rollback()
-// 		return 0, err
-// 	}
-
-// 	return id, nil
-// }

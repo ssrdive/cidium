@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"net/url"
 
-	"github.com/ssrdive/cidium/pkg/helpers/sql"
+	msql "github.com/ssrdive/cidium/pkg/helpers/sql"
 )
 
 // ContractModel struct holds database instance
@@ -13,19 +13,28 @@ type ContractModel struct {
 }
 
 // Insert creates a new contract
-func (m *ContractModel) Insert(table string, rParams, oParams []string, form url.Values) (int64, error) {
+func (m *ContractModel) Insert(table string, rparams, oparams []string, form url.Values) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
 	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
 
-	id, err := sql.InsertForm(tx, "group", []string{"id", "name"}, []string{}, form)
-	if err != nil {
-		tx.Rollback()
-		return 0, err
+	contract := msql.FormTable{
+		TableName: "group",
+		RCols:     []string{"id", "name"},
+		OCols:     []string{},
+		Form:      form,
+		Tx:        tx,
 	}
-
-	if err = tx.Commit(); err != nil {
+	id, err := msql.Insert(contract)
+	if err != nil {
 		return 0, err
 	}
 

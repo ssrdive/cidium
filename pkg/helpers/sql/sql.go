@@ -2,50 +2,69 @@ package sql
 
 import (
 	"database/sql"
+
+	sq "github.com/Masterminds/squirrel"
 )
 
-// QuestionMark holds ?
-const QuestionMark = "?"
+const questionMark = "?"
 
+// Table interface holders to generic table to
+// perform INSERT, UPDATE and DELETE queries
 type Table interface {
-	name() string
-	// cols() []string{}
-	// values() []interface{}
-	transaction() *sql.Tx
+	Name() string
+	Cols() ([]string, int)
+	Values() []interface{}
+	Transaction() *sql.Tx
 }
 
-func Insert(t Table) int64, error {
-	cols := t.cols()
-	pholders := make([]interface{}, ln)
-	values := t.getValues()
+// NewNullString fuctions returns a NULL if the passed string is empty
+func NewNullString(s string) sql.NullString {
+	if len(s) == 0 {
+		return sql.NullString{}
+	}
+	return sql.NullString{
+		String: s,
+		Valid:  true,
+	}
+}
 
-	for _, param := range cols {
-		pholders = append(pholders, QuestionMark)
-		if v, ok := form[param]; ok {
-			values = append(values, NewNullString(v[0]))
-		} else {
-			values = append(values, NewNullString(""))
-		}
+func placeholders(size int) []interface{} {
+	p := make([]interface{}, size)
+	for i := range p {
+		p[i] = questionMark
 	}
+	return p
+}
 
-	ftable := fmt.Sprintf("`%s`", table)
-	stmt, _, err := sq.
-		Insert(ftable).Columns(cols...).
-		Values(values...).
-		ToSql()
-	if err != nil {
-		return 0, err
-	}
-	r, err := tx.Exec(stmt, values[len(values)-ln:]...)
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-	id, err := r.LastInsertId()
+func prepareInsert(tablename string, cols []string, size int) (string, []interface{}, error) {
+	placeholders := placeholders(size)
+	return sq.Insert(tablename).Columns(cols...).Values(placeholders...).ToSql()
+}
+
+func executeInsert(tx *sql.Tx, stmt string, values []interface{}) (int64, error) {
+	result, err := tx.Exec(stmt, values...)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+	return id, nil
+}
 
+// Insert prepares INSERT statement and executes it
+func Insert(t Table) (int64, error) {
+	cols, ln := t.Cols()
+	stmt, _, err := prepareInsert(t.Name(), cols, ln)
+	if err != nil {
+		return 0, err
+	}
+	id, err := executeInsert(t.Transaction(), stmt, t.Values())
+	if err != nil {
+		return 0, err
+	}
 	return id, nil
 }
