@@ -95,15 +95,17 @@ func (app *application) newContract(w http.ResponseWriter, r *http.Request) {
 	id, err := app.contract.Insert("contract", requiredParams, optionalParams, r.PostForm)
 	if err != nil {
 		app.serverError(w, err)
+		return
 	}
 
 	fmt.Println(id)
+	return
 
-	for _, param := range requiredParams {
-		if v := r.PostForm.Get(param); v == "" {
-			app.clientError(w, http.StatusBadRequest)
-			return
-		}
-	}
+	// for _, param := range requiredParams {
+	// 	if v := r.PostForm.Get(param); v == "" {
+	// 		app.clientError(w, http.StatusBadRequest)
+	// 		return
+	// 	}
+	// }
 
 }
