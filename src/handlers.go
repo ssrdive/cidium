@@ -29,8 +29,6 @@ func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {
 	username := r.PostForm.Get("username")
 	password := r.PostForm.Get("password")
 
-	fmt.Println(r.PostForm)
-
 	u, err := app.user.Get(username, password)
 	if err != nil {
 		if errors.Is(err, models.ErrNoRecord) || errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
@@ -91,19 +89,16 @@ func (app *application) newContract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requiredParams := []string{"user_id", "contract_type_id", "contract_state_id", "institute_dealer_id", "contract_batch_id", "model_id", "chassis_number", "customer_nic", "customer_name", "customer_address", "customer_contact", "price"}
+	requiredParams := []string{"user_id", "contract_type_id", "institute_dealer_id", "contract_batch_id", "model_id", "chassis_number", "customer_nic", "customer_name", "customer_address", "customer_contact", "price"}
 	optionalParams := []string{"institute_id", "liaison_name", "liaison_contact", "liaison_comment", "downpayment"}
 
-	allParams := append(requiredParams, optionalParams...)
-
-	fmt.Println(r.PostForm)
-	id, err := app.contract.Insert(allParams, r.PostForm)
+	id, err := app.contract.Insert("contract", requiredParams, optionalParams, r.PostForm)
 	if err != nil {
 		app.serverError(w, err)
 	}
 
 	fmt.Println(id)
-	
+
 	for _, param := range requiredParams {
 		if v := r.PostForm.Get(param); v == "" {
 			app.clientError(w, http.StatusBadRequest)
