@@ -3,6 +3,7 @@ package mysql
 import (
 	"database/sql"
 	"net/url"
+	"strconv"
 
 	msql "github.com/ssrdive/cidium/pkg/sql"
 )
@@ -13,7 +14,7 @@ type ContractModel struct {
 }
 
 // Insert creates a new contract
-func (m *ContractModel) Insert(table string, rparams, oparams []string, form url.Values) (int64, error) {
+func (m *ContractModel) Insert(rparams, oparams []string, form url.Values) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -26,28 +27,40 @@ func (m *ContractModel) Insert(table string, rparams, oparams []string, form url
 		_ = tx.Commit()
 	}()
 
-	// contract := msql.Table{
-	// 	TableName: "group",
-	// 	Columns:   []string{"id", "name"},
-	// 	Vals:      []string{"4", "Love Quinn"},
-	// 	Tx:        tx,
-	// }
-
-	group := msql.UpdateTable{
-		Table: msql.Table{
-			TableName: "group",
-			Columns:   []string{"name"},
-			Vals:      []string{"Hello World from Go!"},
-			Tx:        tx,
-		},
-		WColumns: []string{"id"},
-		WVals:    []string{"23423"},
-	}
-
-	id, err := msql.Update(group)
+	cid, err := msql.Insert(msql.FormTable{
+		TableName: "contract",
+		RCols:     oparams,
+		OCols:     rparams,
+		Form:      form,
+		Tx:        tx,
+	})
 	if err != nil {
 		return 0, err
 	}
 
-	return id, nil
+	sid, err := msql.Insert(msql.Table{
+		TableName: "contract_state",
+		Columns:   []string{"contract_id", "state_id"},
+		Vals:      []string{strconv.FormatInt(cid, 10), strconv.FormatInt(int64(1), 10)},
+		Tx:        tx,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	_, err = msql.Update(msql.UpdateTable{
+		Table: msql.Table{
+			TableName: "contract",
+			Columns:   []string{"contract_state_id"},
+			Vals:      []string{strconv.FormatInt(sid, 10)},
+			Tx:        tx,
+		},
+		WColumns: []string{"id"},
+		WVals:    []string{strconv.FormatInt(cid, 10)},
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return cid, nil
 }
