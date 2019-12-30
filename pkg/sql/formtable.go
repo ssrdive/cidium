@@ -22,16 +22,15 @@ func (t FormTable) Name() string {
 }
 
 // Cols returns column names
-func (t FormTable) Cols() ([]string, int) {
+func (t FormTable) Cols() []string {
 	cols := append(t.RCols, t.OCols...)
-	return cols, len(cols)
+	return cols
 }
 
 // Values returns column values
 func (t FormTable) Values() []interface{} {
-	cols, len := t.Cols()
-	values := make([]interface{}, len)
-	for i, col := range cols {
+	values := make([]interface{}, len(t.Cols()))
+	for i, col := range t.Cols() {
 		if v, ok := t.Form[col]; ok {
 			values[i] = NewNullString(v[0])
 		} else {
