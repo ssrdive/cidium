@@ -115,7 +115,9 @@ func (app *application) newContract(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) searchContract(w http.ResponseWriter, r *http.Request) {
-
+	vars := mux.Vars(r)
+	fmt.Println(vars)
+	w.Write([]byte("search results"))
 }
 
 func (app *application) workDocuments(w http.ResponseWriter, r *http.Request) {
