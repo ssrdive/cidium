@@ -17,6 +17,11 @@ func (app *application) routes() http.Handler {
 	r.Handle("/contract/search/{search}/{stateid}/{rofficer}/{batchid}", app.validateToken(http.HandlerFunc(app.searchContract))).Methods("GET")
 	r.HandleFunc("/authenticate", http.HandlerFunc(app.authenticate)).Methods("POST")
 	r.HandleFunc("/contract/new", http.HandlerFunc(app.newContract)).Methods("POST")
+	r.Handle("/contract/work/documents/{cid}", app.validateToken(http.HandlerFunc(app.workDocuments))).Methods("GET")
+	r.Handle("/contract/work/questions/{cid}", app.validateToken(http.HandlerFunc(app.workQuestions))).Methods("GET")
+	r.Handle("/contract/answer", app.validateToken(http.HandlerFunc(app.contractAnswer))).Methods("POST")
+	r.Handle("/contract/document", app.validateToken(http.HandlerFunc(app.contractDocument))).Methods("POST")
+	r.Handle("/contract/document/download", app.validateToken(http.HandlerFunc(app.contractDocumentDownload))).Methods("GET")
 
 	fileServer := http.FileServer(http.Dir("./ui/static/"))
 	r.Handle("/static/", http.StripPrefix("/static", fileServer))
