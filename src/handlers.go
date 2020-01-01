@@ -316,19 +316,71 @@ func (app *application) contractRequestability(w http.ResponseWriter, r *http.Re
 		}
 	}
 
-	var ts []models.Dropdown
-	if requestable {
-		ts, err = app.contract.ContractTransionableStates(cid)
-		if err != nil {
-			app.serverError(w, err)
+	if requestable == false {
+		cr := models.ContractRequestable{
+			Requestable:           requestable,
+			NonRequestableMessage: "Required answers and/or documents are not complete",
+			States:                nil,
 		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cr)
+		return
+	}
+
+	requestExists, err := app.contract.CurrentRequetExists(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	if requestExists {
+		cr := models.ContractRequestable{
+			Requestable:           false,
+			NonRequestableMessage: " A request is currently pending for this contract",
+			States:                nil,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cr)
+		return
+	}
+
+	var ts []models.Dropdown
+	ts, err = app.contract.ContractTransionableStates(cid)
+	if err != nil {
+		app.serverError(w, err)
 	}
 
 	cr := models.ContractRequestable{
-		Requestable: requestable,
-		States:      ts,
+		Requestable:           requestable,
+		NonRequestableMessage: "",
+		States:                ts,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(cr)
+}
+
+func (app *application) contractRequest(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"contract_id", "state_id", "user_id", "remarks"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	rid, err := app.contract.Request([]string{"contract_id", "state_id"}, []string{}, r.PostForm)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", rid)
 }

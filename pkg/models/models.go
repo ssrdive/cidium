@@ -72,6 +72,11 @@ type ContractDetail struct {
 }
 
 type ContractRequestable struct {
-	Requestable bool       `json:"transitionalble"`
-	States      []Dropdown `json:"states"`
+	Requestable           bool       `json:"transitionalble"`
+	NonRequestableMessage string     `json:"non_requestable_message"`
+	States                []Dropdown `json:"states"`
+}
+
+type ID struct {
+	ID int `json:"id"`
 }

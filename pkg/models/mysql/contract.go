@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/ssrdive/cidium/pkg/models"
 	msql "github.com/ssrdive/cidium/pkg/sql"
@@ -30,8 +31,8 @@ func (m *ContractModel) Insert(rparams, oparams []string, form url.Values) (int6
 
 	cid, err := msql.Insert(msql.FormTable{
 		TableName: "contract",
-		RCols:     oparams,
-		OCols:     rparams,
+		RCols:     rparams,
+		OCols:     oparams,
 		Form:      form,
 		Tx:        tx,
 	})
@@ -48,6 +49,13 @@ func (m *ContractModel) Insert(rparams, oparams []string, form url.Values) (int6
 	if err != nil {
 		return 0, err
 	}
+
+	_, err = msql.Insert(msql.Table{
+		TableName: "contract_state_transition",
+		Columns:   []string{"to_contract_state_id", "transition_date"},
+		Vals:      []string{strconv.FormatInt(sid, 10), time.Now().Format("2006-01-02 15:04:05")},
+		Tx:        tx,
+	})
 
 	_, err = msql.Update(msql.UpdateTable{
 		Table: msql.Table{
@@ -133,8 +141,8 @@ func (m *ContractModel) StateAnswer(rparams, oparams []string, form url.Values) 
 
 	cid, err := msql.Insert(msql.FormTable{
 		TableName: "contract_state_question_answer",
-		RCols:     oparams,
-		OCols:     rparams,
+		RCols:     rparams,
+		OCols:     oparams,
 		Form:      form,
 		Tx:        tx,
 	})
@@ -160,8 +168,8 @@ func (m *ContractModel) StateDocument(rparams, oparams []string, form url.Values
 
 	cid, err := msql.Insert(msql.FormTable{
 		TableName: "contract_state_document",
-		RCols:     oparams,
-		OCols:     rparams,
+		RCols:     rparams,
+		OCols:     oparams,
 		Form:      form,
 		Tx:        tx,
 	})
@@ -215,4 +223,76 @@ func (m *ContractModel) ContractTransionableStates(cid int) ([]models.Dropdown, 
 	}
 
 	return states, nil
+}
+
+func (m *ContractModel) CurrentRequetExists(cid int) (bool, error) {
+	result, err := m.DB.Query(`
+		SELECT R.id
+		FROM request R
+		WHERE R.contract_state_id = (
+			SELECT C.contract_state_id
+			FROM contract C
+			WHERE C.id = ?
+		)
+	`, cid)
+	if err != nil {
+		return false, err
+	}
+
+	count := 0
+	for result.Next() {
+		count++
+	}
+
+	if count == 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (m *ContractModel) Request(rparams, oparams []string, form url.Values) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	tcsid, err := msql.Insert(msql.FormTable{
+		TableName: "contract_state",
+		RCols:     rparams,
+		OCols:     oparams,
+		Form:      form,
+		Tx:        tx,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	var cs models.ID
+	err = tx.QueryRow(`
+		SELECT C.contract_state_id 
+		FROM contract C 
+		WHERE C.id = ?`, form.Get("contract_id")).Scan(&cs.ID)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	rid, err := msql.Insert(msql.Table{
+		TableName: "request",
+		Columns:   []string{"contract_state_id", "to_contract_state_id", "user_id", "datetime", "remarks"},
+		Vals:      []string{strconv.FormatInt(int64(cs.ID), 10), strconv.FormatInt(tcsid, 10), form.Get("user_id"), time.Now().Format("2006-01-02 15:04:05"), form.Get("remarks")},
+		Tx:        tx,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return rid, nil
 }
