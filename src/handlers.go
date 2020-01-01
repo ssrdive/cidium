@@ -49,7 +49,7 @@ func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	claims["username"] = u.Username
 	claims["name"] = u.Name
-	claims["exp"] = time.Now().Add(time.Minute * 30).Unix()
+	claims["exp"] = time.Now().Add(time.Minute * 180).Unix()
 
 	ts, err := token.SignedString(app.secret)
 	if err != nil {
@@ -263,4 +263,72 @@ func (app *application) contractDocumentDownload(w http.ResponseWriter, r *http.
 	reader := bytes.NewReader(buff)
 
 	http.ServeContent(w, r, source, time.Now(), reader)
+}
+
+func (app *application) contractDetails(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cid, err := strconv.Atoi(vars["cid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	cds, err := app.contract.ContractDetail(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(cds)
+}
+
+func (app *application) contractRequestability(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cid, err := strconv.Atoi(vars["cid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	wds, err := app.contract.WorkDocuments(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	wqs, err := app.contract.WorkQuestions(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	requestable := true
+	for _, d := range wds {
+		if d.Compulsory == 1 && !d.Source.Valid {
+			requestable = false
+		}
+	}
+
+	for _, q := range wqs {
+		if q.Compulsory == 1 && !q.Answer.Valid {
+			requestable = false
+		}
+	}
+
+	var ts []models.Dropdown
+	if requestable {
+		ts, err = app.contract.ContractTransionableStates(cid)
+		if err != nil {
+			app.serverError(w, err)
+		}
+	}
+
+	cr := models.ContractRequestable{
+		Requestable: requestable,
+		States:      ts,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(cr)
 }

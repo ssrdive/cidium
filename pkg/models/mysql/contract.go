@@ -68,12 +68,12 @@ func (m *ContractModel) Insert(rparams, oparams []string, form url.Values) (int6
 
 func (m *ContractModel) WorkDocuments(cid int) ([]models.WorkDocument, error) {
 	results, err := m.DB.Query(`
-		SELECT C.contract_state_id, D.id as document_id, D.name as document_name, CSD.source , CSD.s3bucket, CSD.s3region
+		SELECT C.contract_state_id, D.id as document_id, D.name as document_name, CSD.source , CSD.s3bucket, CSD.s3region, SD.compulsory
 		FROM contract C 
 		LEFT JOIN contract_state CS ON C.contract_state_id = CS.id 
 		LEFT JOIN state_document SD ON CS.state_id = CS.state_id = SD.state_id 
 		LEFT JOIN document D ON SD.document_id = D.id 
-		LEFT JOIN contract_state_document CSD ON D.id = CSD.document_id 
+		LEFT JOIN contract_state_document CSD ON D.id = CSD.document_id AND CSD.contract_state_id = C.contract_state_id
 		WHERE C.id = ?`, cid)
 	if err != nil {
 		return nil, err
@@ -82,7 +82,7 @@ func (m *ContractModel) WorkDocuments(cid int) ([]models.WorkDocument, error) {
 	var workDocuments []models.WorkDocument
 	for results.Next() {
 		var wd models.WorkDocument
-		err = results.Scan(&wd.ContractStateID, &wd.DocumentID, &wd.DocumentName, &wd.Source, &wd.S3Bucket, &wd.S3Region)
+		err = results.Scan(&wd.ContractStateID, &wd.DocumentID, &wd.DocumentName, &wd.Source, &wd.S3Bucket, &wd.S3Region, &wd.Compulsory)
 		if err != nil {
 			return nil, err
 		}
@@ -94,12 +94,12 @@ func (m *ContractModel) WorkDocuments(cid int) ([]models.WorkDocument, error) {
 
 func (m *ContractModel) WorkQuestions(cid int) ([]models.WorkQuestion, error) {
 	results, err := m.DB.Query(`
-		SELECT C.contract_state_id, Q.id as question_id, Q.name as question, CSQA.answer 
+		SELECT C.contract_state_id, Q.id as question_id, Q.name as question, CSQA.answer, SD.compulsory
 		FROM contract C 
 		LEFT JOIN contract_state CS ON C.contract_state_id = CS.id 
 		LEFT JOIN state_question SD ON CS.state_id = CS.state_id = SD.state_id 
 		LEFT JOIN question Q ON SD.question_id = Q.id
-		LEFT JOIN contract_state_question_answer CSQA ON Q.id = CSQA.question_id
+		LEFT JOIN contract_state_question_answer CSQA ON Q.id = CSQA.question_id AND CSQA.contract_state_id = C.contract_state_id
 		WHERE C.id = ?`, cid)
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func (m *ContractModel) WorkQuestions(cid int) ([]models.WorkQuestion, error) {
 	var workQuestions []models.WorkQuestion
 	for results.Next() {
 		var wq models.WorkQuestion
-		err = results.Scan(&wq.ContractStateID, &wq.QuestionID, &wq.Question, &wq.Answer)
+		err = results.Scan(&wq.ContractStateID, &wq.QuestionID, &wq.Question, &wq.Answer, &wq.Compulsory)
 		if err != nil {
 			return nil, err
 		}
@@ -170,4 +170,49 @@ func (m *ContractModel) StateDocument(rparams, oparams []string, form url.Values
 	}
 
 	return cid, nil
+}
+
+func (m *ContractModel) ContractDetail(cid int) (models.ContractDetail, error) {
+	var detail models.ContractDetail
+	err := m.DB.QueryRow(`
+		SELECT C.id, S.name AS contract_state, CB.name as contract_batch, M.name AS model_name, C.chassis_number, C.customer_nic, C.customer_name, C.customer_address, C.customer_contact, C.liaison_name, C.liaison_contact, C.price, C.downpayment
+		FROM contract C 
+		LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
+		LEFT JOIN state S ON S.id = CS.state_id
+		LEFT JOIN model M ON M.id = C.model_id
+		LEFT JOIN contract_batch CB ON CB.id = C.contract_batch_id
+		WHERE C.id = ?`, cid).Scan(&detail.ID, &detail.ContractState, &detail.ContractBatch, &detail.ModelName, &detail.ChassisNumber, &detail.CustomerNic, &detail.CustomerName, &detail.CustomerAddress, &detail.CustomerContact, &detail.LiaisonName, &detail.LiaisonContact, &detail.Price, &detail.Downpayment)
+	if err != nil {
+		return models.ContractDetail{}, err
+	}
+
+	return detail, nil
+}
+
+func (m *ContractModel) ContractTransionableStates(cid int) ([]models.Dropdown, error) {
+	results, err := m.DB.Query(`
+		SELECT TS.transitionable_state_id AS id, S.name AS name
+		FROM transitionable_states TS
+		LEFT JOIN state S ON S.id = TS.transitionable_state_id
+		WHERE TS.state_id = (
+			SELECT CS.state_id
+			FROM contract C
+			LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
+			WHERE C.id = ?
+		)`, cid)
+	if err != nil {
+		return nil, err
+	}
+
+	var states []models.Dropdown
+	for results.Next() {
+		var s models.Dropdown
+		err = results.Scan(&s.ID, &s.Name)
+		if err != nil {
+			return nil, err
+		}
+		states = append(states, s)
+	}
+
+	return states, nil
 }

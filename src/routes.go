@@ -22,6 +22,8 @@ func (app *application) routes() http.Handler {
 	r.Handle("/contract/answer", app.validateToken(http.HandlerFunc(app.contractAnswer))).Methods("POST")
 	r.Handle("/contract/document", app.validateToken(http.HandlerFunc(app.contractDocument))).Methods("POST")
 	r.Handle("/contract/document/download", app.validateToken(http.HandlerFunc(app.contractDocumentDownload))).Methods("GET")
+	r.Handle("/contract/details/{cid}", app.validateToken(http.HandlerFunc(app.contractDetails))).Methods("GET")
+	r.Handle("/contract/requestability/{cid}", app.validateToken(http.HandlerFunc(app.contractRequestability))).Methods("GET")
 
 	fileServer := http.FileServer(http.Dir("./ui/static/"))
 	r.Handle("/static/", http.StripPrefix("/static", fileServer))
