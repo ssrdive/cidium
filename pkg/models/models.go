@@ -72,11 +72,36 @@ type ContractDetail struct {
 }
 
 type ContractRequestable struct {
-	Requestable           bool       `json:"transitionalble"`
-	NonRequestableMessage string     `json:"non_requestable_message"`
-	States                []Dropdown `json:"states"`
+	Requestable           bool              `json:"transitionalble"`
+	NonRequestableMessage string            `json:"non_requestable_message"`
+	States                []Dropdown        `json:"states"`
+	RejectedRequests      []RejectedRequest `json:"rejected_requests"`
 }
 
 type ID struct {
 	ID int `json:"id"`
+}
+
+type Request struct {
+	RequestID       int            `json:"request_id"`
+	ContractID      int            `json:"contract_id"`
+	Remarks         sql.NullString `json:"remarks"`
+	CustomerName    string         `json:"customer_name"`
+	ContractState   string         `json:"contract_state"`
+	ToContractState string         `json:"to_contract_state"`
+	RequestedBy     string         `json:"requested_by"`
+	RequestedOn     time.Time      `json:"requested_on"`
+}
+
+type RequestRaw struct {
+	ID                int
+	ContractStateID   int
+	ToContractStateID int
+	ContractID        int
+}
+
+type RejectedRequest struct {
+	ID   int            `json:"id"`
+	User string         `json:"user"`
+	Note sql.NullString `json:"note"`
 }

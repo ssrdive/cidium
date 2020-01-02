@@ -291,6 +291,25 @@ func (app *application) contractRequestability(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Check if a request current exists for the contract current state
+	requestExists, err := app.contract.CurrentRequetExists(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	if requestExists {
+		cr := models.ContractRequestable{
+			Requestable:           false,
+			NonRequestableMessage: " A request is currently pending for this contract",
+			States:                nil,
+			RejectedRequests:      nil,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cr)
+		return
+	}
+
 	wds, err := app.contract.WorkDocuments(cid)
 	if err != nil {
 		app.serverError(w, err)
@@ -321,39 +340,30 @@ func (app *application) contractRequestability(w http.ResponseWriter, r *http.Re
 			Requestable:           requestable,
 			NonRequestableMessage: "Required answers and/or documents are not complete",
 			States:                nil,
+			RejectedRequests:      nil,
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(cr)
 		return
 	}
 
-	requestExists, err := app.contract.CurrentRequetExists(cid)
+	ts, err := app.contract.ContractTransionableStates(cid)
 	if err != nil {
 		app.serverError(w, err)
 		return
 	}
 
-	if requestExists {
-		cr := models.ContractRequestable{
-			Requestable:           false,
-			NonRequestableMessage: " A request is currently pending for this contract",
-			States:                nil,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(cr)
-		return
-	}
-
-	var ts []models.Dropdown
-	ts, err = app.contract.ContractTransionableStates(cid)
+	rr, err := app.contract.RejectedRequests(cid)
 	if err != nil {
 		app.serverError(w, err)
+		return
 	}
 
 	cr := models.ContractRequestable{
 		Requestable:           requestable,
 		NonRequestableMessage: "",
 		States:                ts,
+		RejectedRequests:      rr,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -367,7 +377,7 @@ func (app *application) contractRequest(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	requiredParams := []string{"contract_id", "state_id", "user_id", "remarks"}
+	requiredParams := []string{"contract_id", "state_id", "user_id"}
 	for _, param := range requiredParams {
 		if v := r.PostForm.Get(param); v == "" {
 			fmt.Println(param)
@@ -383,4 +393,57 @@ func (app *application) contractRequest(w http.ResponseWriter, r *http.Request) 
 	}
 
 	fmt.Fprintf(w, "%v", rid)
+}
+
+func (app *application) contractRequests(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	uid := vars["uid"]
+	user, err := strconv.Atoi(uid)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	rs, err := app.contract.Requests(user)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(rs)
+}
+
+func (app *application) contractRequestAction(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"request", "user"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	user, err := strconv.Atoi(r.PostForm.Get("user"))
+	request, err := strconv.Atoi(r.PostForm.Get("request"))
+	action := r.PostForm.Get("action")
+	note := r.PostForm.Get("note")
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	c, err := app.contract.RequestAction(user, request, action, note)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", c)
 }
