@@ -77,13 +77,12 @@ func (m *ContractModel) Insert(rparams, oparams []string, form url.Values) (int6
 
 func (m *ContractModel) WorkDocuments(cid int) ([]models.WorkDocument, error) {
 	results, err := m.DB.Query(`
-		SELECT C.contract_state_id, D.id as document_id, D.name as document_name, CSD.source , CSD.s3bucket, CSD.s3region, SD.compulsory
-		FROM contract C 
-		LEFT JOIN contract_state CS ON C.contract_state_id = CS.id 
-		LEFT JOIN state_document SD ON CS.state_id = SD.state_id
-		LEFT JOIN document D ON SD.document_id = D.id 
-		LEFT JOIN contract_state_document CSD ON D.id = CSD.document_id AND CSD.contract_state_id = C.contract_state_id
-		WHERE C.id = ? AND SD.state_id = CS.state_id`, cid)
+		SELECT C.contract_state_id, D.id as document_id, D.name as document_name, CSD.id, CSD.source , CSD.s3bucket, CSD.s3region, SD.compulsory 
+		FROM state_document SD LEFT JOIN document D ON D.id = SD.document_id 
+		LEFT JOIN contract_state CS ON CS.state_id = SD.state_id 
+		LEFT JOIN contract_state_document CSD ON CSD.contract_state_id = CS.id AND CSD.document_id = SD.document_id AND CSD.deleted = 0 
+		LEFT JOIN contract C ON C.contract_state_id = CS.id 
+		WHERE C.id = ?`, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +90,7 @@ func (m *ContractModel) WorkDocuments(cid int) ([]models.WorkDocument, error) {
 	var workDocuments []models.WorkDocument
 	for results.Next() {
 		var wd models.WorkDocument
-		err = results.Scan(&wd.ContractStateID, &wd.DocumentID, &wd.DocumentName, &wd.Source, &wd.S3Bucket, &wd.S3Region, &wd.Compulsory)
+		err = results.Scan(&wd.ContractStateID, &wd.DocumentID, &wd.DocumentName, &wd.ID, &wd.Source, &wd.S3Bucket, &wd.S3Region, &wd.Compulsory)
 		if err != nil {
 			return nil, err
 		}
@@ -103,13 +102,12 @@ func (m *ContractModel) WorkDocuments(cid int) ([]models.WorkDocument, error) {
 
 func (m *ContractModel) WorkQuestions(cid int) ([]models.WorkQuestion, error) {
 	results, err := m.DB.Query(`
-		SELECT C.contract_state_id, Q.id as question_id, Q.name as question, CSQA.answer, SD.compulsory
-		FROM contract C 
-		LEFT JOIN contract_state CS ON C.contract_state_id = CS.id 
-		LEFT JOIN state_question SD ON CS.state_id = SD.state_id
-		LEFT JOIN question Q ON SD.question_id = Q.id
-		LEFT JOIN contract_state_question_answer CSQA ON Q.id = CSQA.question_id AND CSQA.contract_state_id = C.contract_state_id
-		WHERE C.id = ? AND SD.state_id = CS.state_id`, cid)
+		SELECT C.contract_state_id, Q.id as question_id, Q.name as question, CSQA.id, CSQA.answer, SQ.compulsory
+		FROM state_question SQ LEFT JOIN question Q ON Q.id = SQ.question_id 
+		LEFT JOIN contract_state CS ON CS.state_id = SQ.state_id 
+		LEFT JOIN contract_state_question_answer CSQA ON CSQA.contract_state_id = CS.id AND CSQA.question_id = SQ.question_id AND CSQA.deleted = 0 
+		LEFT JOIN contract C ON C.contract_state_id = CS.id 
+		WHERE C.id = ?`, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +115,7 @@ func (m *ContractModel) WorkQuestions(cid int) ([]models.WorkQuestion, error) {
 	var workQuestions []models.WorkQuestion
 	for results.Next() {
 		var wq models.WorkQuestion
-		err = results.Scan(&wq.ContractStateID, &wq.QuestionID, &wq.Question, &wq.Answer, &wq.Compulsory)
+		err = results.Scan(&wq.ContractStateID, &wq.QuestionID, &wq.Question, &wq.ID, &wq.Answer, &wq.Compulsory)
 		if err != nil {
 			return nil, err
 		}
@@ -418,4 +416,33 @@ func (m *ContractModel) RequestAction(user, request int, action, note string) (i
 	}
 
 	return c, nil
+}
+
+func (m *ContractModel) DeleteStateInfo(form url.Values) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	_, err = msql.Update(msql.UpdateTable{
+		Table: msql.Table{
+			TableName: form.Get("table"),
+			Columns:   []string{"deleted"},
+			Vals:      []string{"1"},
+			Tx:        tx,
+		},
+		WColumns: []string{"id"},
+		WVals:    []string{form.Get("id")},
+	})
+	if err != nil {
+		return 0, err
+	}
+	return 0, nil
 }
