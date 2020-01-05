@@ -163,7 +163,7 @@ func (app *application) contractAnswer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requiredParams := []string{"contract_state_id", "question_id", "answer"}
+	requiredParams := []string{"contract_state_id", "question_id", "user_id", "answer"}
 	for _, param := range requiredParams {
 		if v := r.PostForm.Get(param); v == "" {
 			fmt.Println(param)
@@ -172,7 +172,9 @@ func (app *application) contractAnswer(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	id, err := app.contract.StateAnswer(requiredParams, []string{}, r.PostForm)
+	t := time.Now()
+	r.PostForm.Set("created", t.Format("2006-01-02 15:04:05"))
+	id, err := app.contract.StateAnswer([]string{"contract_state_id", "question_id", "user_id", "created", "answer"}, []string{}, r.PostForm)
 	if err != nil {
 		app.serverError(w, err)
 		return
@@ -446,4 +448,28 @@ func (app *application) contractRequestAction(w http.ResponseWriter, r *http.Req
 	}
 
 	fmt.Fprintf(w, "%v", c)
+}
+
+func (app *application) deleteAnswer(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"id", "table"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	d, err := app.contract.DeleteStateInfo(r.PostForm)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	fmt.Fprintf(w, "%v", d)
 }

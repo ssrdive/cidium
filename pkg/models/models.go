@@ -38,6 +38,7 @@ type Dropdown struct {
 }
 
 type WorkDocument struct {
+	ID              sql.NullInt32  `json:"id"`
 	ContractStateID int            `json:"contract_state_id"`
 	DocumentID      int            `json:"document_id"`
 	DocumentName    string         `json:"document_name"`
@@ -48,6 +49,7 @@ type WorkDocument struct {
 }
 
 type WorkQuestion struct {
+	ID              sql.NullInt32  `json:"id"`
 	ContractStateID int            `json:"contract_state_id"`
 	QuestionID      int            `json:"question_id"`
 	Question        string         `json:"question"`
