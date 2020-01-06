@@ -423,7 +423,7 @@ func (app *application) contractRequestAction(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	requiredParams := []string{"request", "user"}
+	requiredParams := []string{"request", "user", "action"}
 	for _, param := range requiredParams {
 		if v := r.PostForm.Get(param); v == "" {
 			fmt.Println(param)
@@ -472,4 +472,27 @@ func (app *application) deleteAnswer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Fprintf(w, "%v", d)
+}
+
+func (app *application) contractCalculation(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	capital, err := strconv.ParseFloat(vars["capital"], 32)
+	rate, err := strconv.ParseFloat(vars["rate"], 32)
+	installments, err := strconv.Atoi(vars["installments"])
+	installmentInterval, err := strconv.Atoi(vars["installmentInterval"])
+	initiationDate := vars["initiationDate"]
+	method := vars["method"]
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	schedule, err := models.Create(capital, rate, installments, installmentInterval, initiationDate, method)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(schedule)
 }
