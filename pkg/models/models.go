@@ -107,3 +107,28 @@ type RejectedRequest struct {
 	User string         `json:"user"`
 	Note sql.NullString `json:"note"`
 }
+
+type ContractPayable struct {
+	InstallmentID   int
+	ContractID      int
+	CapitalPayable  float64
+	InterestPayable float64
+	DefaultInterest float64
+}
+
+type ContractDefaultInterestChangeHistory struct {
+	ContractInstallmentID int
+	ContractReceiptID     int64
+	DefaultInterest       float64
+}
+
+type ContractDefaultInterestUpdate struct {
+	ContractInstallmentID int
+	DefaultInterest       float64
+}
+
+type ContractPayment struct {
+	ContractInstallmentID int
+	ContractReceiptID     int64
+	Amount                float64
+}
