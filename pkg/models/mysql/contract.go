@@ -352,6 +352,94 @@ func (m *ContractModel) Requests(user int) ([]models.Request, error) {
 	return requests, nil
 }
 
+func (m *ContractModel) RequestName(request int) (string, error) {
+	var r models.Dropdown
+	err := m.DB.QueryRow(`
+		SELECT R.id, S.name
+		FROM request R
+		LEFT JOIN contract_state CS ON CS.id = R.to_contract_state_id
+		LEFT JOIN state S ON S.id = CS.state_id
+		WHERE R.id = ?`, request).Scan(&r.ID, &r.Name)
+	if err != nil {
+		return "", nil
+	}
+	return r.Name, nil
+}
+
+func (m *ContractModel) InitiateContract(request int) error {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	results, err := tx.Query(`
+		SELECT Q.name as id, CSQA.answer FROM contract_state_question_answer CSQA LEFT JOIN contract_state CS ON CS.id = CSQA.contract_state_id LEFT JOIN contract C ON C.id = CS.contract_id LEFT JOIN question Q ON Q.id = CSQA.question_id WHERE Q.name IN ('Capital', 'Interest Rate', 'Interest Method', 'Installments', 'Installment Interval') AND CSQA.deleted = 0 AND C.id = ( SELECT CS.contract_id FROM request R LEFT JOIN contract_state CS ON CS.id = R.to_contract_state_id WHERE R.id = ? )
+	`, request)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	var params []models.Dropdown
+	for results.Next() {
+		var p models.Dropdown
+		err = results.Scan(&p.ID, &p.Name)
+		if err != nil {
+			return err
+		}
+		params = append(params, p)
+	}
+
+	details := make(map[string]string)
+	for _, param := range params {
+		details[param.ID] = param.Name
+	}
+
+	capital, err := strconv.ParseFloat(details["Capital"], 32)
+	rate, err := strconv.ParseFloat(details["Interest Rate"], 32)
+	installments, err := strconv.Atoi(details["Installments"])
+	installmentInterval, err := strconv.Atoi(details["Installment Interval"])
+	method := details["Interest Method"]
+	if err != nil {
+		return err
+	}
+
+	schedule, err := models.Create(capital, rate, installments, installmentInterval, time.Now().Format("2006-01-02"), method)
+	if err != nil {
+		return err
+	}
+
+	var cid int
+	err = tx.QueryRow(`SELECT CS.contract_id AS id FROM request R LEFT JOIN contract_state CS ON CS.id = R.to_contract_state_id WHERE R.id = ?`, request).Scan(&cid)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for _, inst := range schedule {
+		_, err = msql.Insert(msql.Table{
+			TableName: "contract_installment",
+			Columns:   []string{"contract_id", "capital", "interest", "default_interest", "due_date"},
+			Vals:      []string{fmt.Sprintf("%d", cid), fmt.Sprintf("%f", inst.Capital), fmt.Sprintf("%f", inst.Interest), fmt.Sprintf("%f", inst.DefaultInterest), inst.DueDate},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return nil
+
+}
+
 func (m *ContractModel) RequestAction(user, request int, action, note string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {

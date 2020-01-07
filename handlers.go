@@ -441,6 +441,21 @@ func (app *application) contractRequestAction(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	if action == "1" {
+		name, err := app.contract.RequestName(request)
+		if err != nil {
+			app.serverError(w, err)
+			return
+		}
+		if name == "Contract Initiated" {
+			err := app.contract.InitiateContract(request)
+			if err != nil {
+				app.serverError(w, err)
+				return
+			}
+		}
+	}
+
 	c, err := app.contract.RequestAction(user, request, action, note)
 	if err != nil {
 		app.serverError(w, err)
