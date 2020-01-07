@@ -423,11 +423,20 @@ func (m *ContractModel) InitiateContract(request int) error {
 		return err
 	}
 
+	var citid int
+	err = tx.QueryRow(`SELECT CIT.id
+		FROM contract_installment_type CIT
+		WHERE CIT.name = 'Installment'`).Scan(&citid)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	for _, inst := range schedule {
 		_, err = msql.Insert(msql.Table{
 			TableName: "contract_installment",
-			Columns:   []string{"contract_id", "capital", "interest", "default_interest", "due_date"},
-			Vals:      []string{fmt.Sprintf("%d", cid), fmt.Sprintf("%f", inst.Capital), fmt.Sprintf("%f", inst.Interest), fmt.Sprintf("%f", inst.DefaultInterest), inst.DueDate},
+			Columns:   []string{"contract_id", "contract_installment_type_id", "capital", "interest", "default_interest", "due_date"},
+			Vals:      []string{fmt.Sprintf("%d", cid), fmt.Sprintf("%d", citid), fmt.Sprintf("%f", inst.Capital), fmt.Sprintf("%f", inst.Interest), fmt.Sprintf("%f", inst.DefaultInterest), inst.DueDate},
 			Tx:        tx,
 		})
 		if err != nil {
@@ -533,4 +542,207 @@ func (m *ContractModel) DeleteStateInfo(form url.Values) (int64, error) {
 		return 0, err
 	}
 	return 0, nil
+}
+
+func (m *ContractModel) Receipt(cid int, amount float64, notes string) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	results, err := tx.Query(`
+	SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
+	FROM contract_installment CI
+	LEFT JOIN contract_interest_payment CIP ON CIP.contract_installment_id = CI.id
+	LEFT JOIN contract_capital_payment CCP ON CCP.contract_installment_id = CI.id
+	LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
+	WHERE CI.contract_id = ? AND CIT.di_chargable = 0
+	GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
+	ORDER BY CI.due_date ASC
+	`, cid)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	var debits []models.ContractPayable
+	for results.Next() {
+		var d models.ContractPayable
+		err = results.Scan(&d.InstallmentID, &d.ContractID, &d.CapitalPayable, &d.InterestPayable, &d.DefaultInterest)
+		if err != nil {
+			return 0, err
+		}
+		debits = append(debits, d)
+	}
+
+	var diUpdates []models.ContractDefaultInterestUpdate
+	var diLogs []models.ContractDefaultInterestChangeHistory
+	var intPayments []models.ContractPayment
+	var capPayments []models.ContractPayment
+
+	balance := amount
+
+	rid, err := msql.Insert(msql.Table{
+		TableName: "contract_receipt",
+		Columns:   []string{"contract_id", "datetime", "amount", "notes"},
+		Vals:      []string{fmt.Sprintf("%d", cid), time.Now().Format("2006-01-02 15:04:05"), fmt.Sprintf("%f", amount), notes},
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	if balance != 0 {
+		for _, p := range debits {
+			if p.CapitalPayable != 0 && balance != 0 {
+				if balance-p.CapitalPayable >= 0 {
+					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, p.CapitalPayable})
+					balance -= p.CapitalPayable
+				} else {
+					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, balance})
+					balance = 0
+				}
+			}
+		}
+	}
+
+	results, err = tx.Query(`
+	SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
+	FROM contract_installment CI
+	LEFT JOIN contract_interest_payment CIP ON CIP.contract_installment_id = CI.id
+	LEFT JOIN contract_capital_payment CCP ON CCP.contract_installment_id = CI.id
+	LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
+	WHERE CI.contract_id = ? AND CIT.di_chargable = 1
+	GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
+	ORDER BY CI.due_date ASC
+	`, cid)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	var payables []models.ContractPayable
+	for results.Next() {
+		var p models.ContractPayable
+		err = results.Scan(&p.InstallmentID, &p.ContractID, &p.CapitalPayable, &p.InterestPayable, &p.DefaultInterest)
+		if err != nil {
+			return 0, err
+		}
+		payables = append(payables, p)
+	}
+
+	if balance != 0 {
+		for _, p := range payables {
+			if p.DefaultInterest != 0 && balance != 0 {
+				if balance-p.DefaultInterest >= 0 {
+					diUpdates = append(diUpdates, models.ContractDefaultInterestUpdate{p.InstallmentID, float64(0)})
+					diLogs = append(diLogs, models.ContractDefaultInterestChangeHistory{p.InstallmentID, rid, p.DefaultInterest})
+					balance -= p.DefaultInterest
+				} else {
+					diUpdates = append(diUpdates, models.ContractDefaultInterestUpdate{p.InstallmentID, p.DefaultInterest - balance})
+					diLogs = append(diLogs, models.ContractDefaultInterestChangeHistory{p.InstallmentID, rid, p.DefaultInterest})
+					balance = 0
+				}
+			}
+		}
+	}
+
+	if balance != 0 {
+		for _, p := range payables {
+			if p.InterestPayable != 0 && balance != 0 {
+				if balance-p.InterestPayable >= 0 {
+					intPayments = append(intPayments, models.ContractPayment{p.InstallmentID, rid, p.InterestPayable})
+					balance -= p.InterestPayable
+				} else {
+					intPayments = append(intPayments, models.ContractPayment{p.InstallmentID, rid, balance})
+					balance = 0
+				}
+			}
+		}
+	}
+
+	if balance != 0 {
+		for _, p := range payables {
+			if p.CapitalPayable != 0 && balance != 0 {
+				if balance-p.CapitalPayable >= 0 {
+					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, p.CapitalPayable})
+					balance -= p.CapitalPayable
+				} else {
+					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, balance})
+					balance = 0
+				}
+			}
+		}
+	}
+
+	for _, diUpdate := range diUpdates {
+		_, err = msql.Update(msql.UpdateTable{
+			Table: msql.Table{TableName: "contract_installment",
+				Columns: []string{"default_interest"},
+				Vals:    []string{fmt.Sprintf("%f", diUpdate.DefaultInterest)},
+				Tx:      tx},
+			WColumns: []string{"id"},
+			WVals:    []string{fmt.Sprintf("%d", diUpdate.ContractInstallmentID)},
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
+
+	for _, diLog := range diLogs {
+		_, err := msql.Insert(msql.Table{
+			TableName: "contract_default_interest_change_history",
+			Columns:   []string{"contract_installment_id", "contract_receipt_id", "default_interest"},
+			Vals:      []string{fmt.Sprintf("%d", diLog.ContractInstallmentID), fmt.Sprintf("%d", diLog.ContractReceiptID), fmt.Sprintf("%f", diLog.DefaultInterest)},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
+
+	for _, intPayment := range intPayments {
+		_, err := msql.Insert(msql.Table{
+			TableName: "contract_interest_payment",
+			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
+			Vals:      []string{fmt.Sprintf("%d", intPayment.ContractInstallmentID), fmt.Sprintf("%d", intPayment.ContractReceiptID), fmt.Sprintf("%f", intPayment.Amount)},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
+
+	for _, intPayment := range capPayments {
+		_, err := msql.Insert(msql.Table{
+			TableName: "contract_capital_payment",
+			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
+			Vals:      []string{fmt.Sprintf("%d", intPayment.ContractInstallmentID), fmt.Sprintf("%d", intPayment.ContractReceiptID), fmt.Sprintf("%f", intPayment.Amount)},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
+
+	// fmt.Println(diUpdates)
+	// fmt.Println(diLogs)
+	// fmt.Println(intPayments)
+	// fmt.Println(capPayments)
+	// fmt.Println(balance)
+
+	// fmt.Println(payables)
+	return rid, nil
 }

@@ -511,3 +511,36 @@ func (app *application) contractCalculation(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(schedule)
 }
+
+func (app *application) contractReceipt(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"cid", "amount"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	cid, err := strconv.Atoi(r.PostForm.Get("cid"))
+	amount, err := strconv.ParseFloat(r.PostForm.Get("amount"), 32)
+	notes := r.PostForm.Get("notes")
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	rid, err := app.contract.Receipt(cid, amount, notes)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", rid)
+}
