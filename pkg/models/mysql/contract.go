@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"net/url"
@@ -559,14 +560,22 @@ func (m *ContractModel) Receipt(cid int, amount float64, notes string) (int64, e
 	}()
 
 	results, err := tx.Query(`
-	SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
-	FROM contract_installment CI
-	LEFT JOIN contract_interest_payment CIP ON CIP.contract_installment_id = CI.id
-	LEFT JOIN contract_capital_payment CCP ON CCP.contract_installment_id = CI.id
-	LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
-	WHERE CI.contract_id = ? AND CIT.di_chargable = 0
-	GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
-	ORDER BY CI.due_date ASC
+		SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
+		FROM contract_installment CI
+		LEFT JOIN (
+			SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+			FROM contract_interest_payment CIP
+			GROUP BY CIP.contract_installment_id
+		) CIP ON CIP.contract_installment_id = CI.id
+		LEFT JOIN (
+			SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+			FROM contract_capital_payment CCP
+			GROUP BY CCP.contract_installment_id
+		) CCP ON CCP.contract_installment_id = CI.id
+		LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
+		WHERE CI.contract_id = ? AND CIT.di_chargable = 0
+		GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
+		ORDER BY CI.due_date ASC
 	`, cid)
 	if err != nil {
 		tx.Rollback()
@@ -587,6 +596,7 @@ func (m *ContractModel) Receipt(cid int, amount float64, notes string) (int64, e
 
 	var diUpdates []models.ContractDefaultInterestUpdate
 	var diLogs []models.ContractDefaultInterestChangeHistory
+	var diPayments []models.ContractPayment
 	var intPayments []models.ContractPayment
 	var capPayments []models.ContractPayment
 
@@ -618,14 +628,22 @@ func (m *ContractModel) Receipt(cid int, amount float64, notes string) (int64, e
 	}
 
 	results, err = tx.Query(`
-	SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
-	FROM contract_installment CI
-	LEFT JOIN contract_interest_payment CIP ON CIP.contract_installment_id = CI.id
-	LEFT JOIN contract_capital_payment CCP ON CCP.contract_installment_id = CI.id
-	LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
-	WHERE CI.contract_id = ? AND CIT.di_chargable = 1 AND CI.due_date < NOW()
-	GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
-	ORDER BY CI.due_date ASC
+		SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
+		FROM contract_installment CI
+		LEFT JOIN (
+			SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+			FROM contract_interest_payment CIP
+			GROUP BY CIP.contract_installment_id
+		) CIP ON CIP.contract_installment_id = CI.id
+		LEFT JOIN (
+			SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+			FROM contract_capital_payment CCP
+			GROUP BY CCP.contract_installment_id
+		) CCP ON CCP.contract_installment_id = CI.id
+		LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
+		WHERE CI.contract_id = ? AND CIT.di_chargable = 1 AND CI.due_date < NOW()
+		GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
+		ORDER BY CI.due_date ASC
 	`, cid)
 	if err != nil {
 		tx.Rollback()
@@ -650,10 +668,12 @@ func (m *ContractModel) Receipt(cid int, amount float64, notes string) (int64, e
 				if balance-p.DefaultInterest >= 0 {
 					diUpdates = append(diUpdates, models.ContractDefaultInterestUpdate{p.InstallmentID, float64(0)})
 					diLogs = append(diLogs, models.ContractDefaultInterestChangeHistory{p.InstallmentID, rid, p.DefaultInterest})
+					diPayments = append(diPayments, models.ContractPayment{p.InstallmentID, rid, p.DefaultInterest})
 					balance = math.Round((balance-p.DefaultInterest)*100) / 100
 				} else {
 					diUpdates = append(diUpdates, models.ContractDefaultInterestUpdate{p.InstallmentID, math.Round((p.DefaultInterest-balance)*100) / 100})
 					diLogs = append(diLogs, models.ContractDefaultInterestChangeHistory{p.InstallmentID, rid, p.DefaultInterest})
+					diPayments = append(diPayments, models.ContractPayment{p.InstallmentID, rid, balance})
 					balance = 0
 				}
 			}
@@ -692,8 +712,16 @@ func (m *ContractModel) Receipt(cid int, amount float64, notes string) (int64, e
 		results, err = tx.Query(`
 		SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
 		FROM contract_installment CI
-		LEFT JOIN contract_interest_payment CIP ON CIP.contract_installment_id = CI.id
-		LEFT JOIN contract_capital_payment CCP ON CCP.contract_installment_id = CI.id
+		LEFT JOIN (
+			SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+			FROM contract_interest_payment CIP
+			GROUP BY CIP.contract_installment_id
+		) CIP ON CIP.contract_installment_id = CI.id
+		LEFT JOIN (
+			SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+			FROM contract_capital_payment CCP
+			GROUP BY CCP.contract_installment_id
+		) CCP ON CCP.contract_installment_id = CI.id
 		LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
 		WHERE CI.contract_id = ? AND CIT.di_chargable = 1 AND CI.due_date > NOW()
 		GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
@@ -736,6 +764,11 @@ func (m *ContractModel) Receipt(cid int, amount float64, notes string) (int64, e
 		}
 	}
 
+	if balance != 0 {
+		tx.Rollback()
+		return 0, errors.New("Error: Payment exceeds payables")
+	}
+
 	for _, diUpdate := range diUpdates {
 		_, err = msql.Update(msql.UpdateTable{
 			Table: msql.Table{TableName: "contract_installment",
@@ -764,6 +797,19 @@ func (m *ContractModel) Receipt(cid int, amount float64, notes string) (int64, e
 		}
 	}
 
+	for _, intPayment := range diPayments {
+		_, err := msql.Insert(msql.Table{
+			TableName: "contract_default_interest_payment",
+			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
+			Vals:      []string{fmt.Sprintf("%d", intPayment.ContractInstallmentID), fmt.Sprintf("%d", intPayment.ContractReceiptID), fmt.Sprintf("%f", intPayment.Amount)},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
+
 	for _, intPayment := range intPayments {
 		_, err := msql.Insert(msql.Table{
 			TableName: "contract_interest_payment",
@@ -777,11 +823,11 @@ func (m *ContractModel) Receipt(cid int, amount float64, notes string) (int64, e
 		}
 	}
 
-	for _, intPayment := range capPayments {
+	for _, capPayment := range capPayments {
 		_, err := msql.Insert(msql.Table{
 			TableName: "contract_capital_payment",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-			Vals:      []string{fmt.Sprintf("%d", capPayments.ContractInstallmentID), fmt.Sprintf("%d", capPayments.ContractReceiptID), fmt.Sprintf("%f", capPayments.Amount)},
+			Vals:      []string{fmt.Sprintf("%d", capPayment.ContractInstallmentID), fmt.Sprintf("%d", capPayment.ContractReceiptID), fmt.Sprintf("%f", capPayment.Amount)},
 			Tx:        tx,
 		})
 		if err != nil {
@@ -790,14 +836,5 @@ func (m *ContractModel) Receipt(cid int, amount float64, notes string) (int64, e
 		}
 	}
 
-	fmt.Println()
-	fmt.Println()
-	fmt.Println(diUpdates)
-	fmt.Println(diLogs)
-	fmt.Println(intPayments)
-	fmt.Println(capPayments)
-	fmt.Println(balance)
-
-	// fmt.Println(payables)
 	return rid, nil
 }
