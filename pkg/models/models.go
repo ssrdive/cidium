@@ -146,3 +146,29 @@ type SearchResult struct {
 	AmountPending   float64 `json:"amount_pending"`
 	TotalPayable    float64 `json:"total_payable"`
 }
+
+type ActiveInstallment struct {
+	ID              int       `json:"id"`
+	Installment     float64   `json:"installment"`
+	InstallmentPaid float64   `json:"installment_paid"`
+	DueDate         time.Time `json:"due_date"`
+	DueIn           int       `json:"due_in"`
+}
+
+type Question struct {
+	Question string `json:"question"`
+	Answer   string `json:"answer"`
+}
+
+type Document struct {
+	Document string `json:"document"`
+	S3Region string `json:"s3region"`
+	S3Bucket string `json:"s3bucket"`
+	Source   string `json:"source"`
+}
+
+type History struct {
+	FromState      sql.NullString `json:"from_state"`
+	ToState        string         `json:"to_state"`
+	TransitionDate time.Time      `json:"transition_date"`
+}
