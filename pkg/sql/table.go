@@ -10,7 +10,7 @@ import (
 type Table struct {
 	TableName string
 	Columns   []string
-	Vals      []string
+	Vals      []interface{}
 	Tx        *sql.Tx
 }
 
@@ -29,7 +29,7 @@ func (t Table) Values() []interface{} {
 	cols := t.Cols()
 	values := make([]interface{}, len(cols))
 	for i := range cols {
-		values[i] = NewNullString(t.Vals[i])
+		values[i] = NewNullString(fmt.Sprintf("%v", t.Vals[i]))
 	}
 	return values
 }

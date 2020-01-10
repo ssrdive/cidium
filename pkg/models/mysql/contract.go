@@ -11,6 +11,7 @@ import (
 
 	"github.com/ssrdive/cidium/pkg/models"
 	msql "github.com/ssrdive/cidium/pkg/sql"
+	"github.com/ssrdive/cidium/pkg/sql/queries"
 )
 
 // ContractModel struct holds database instance
@@ -46,7 +47,7 @@ func (m *ContractModel) Insert(rparams, oparams []string, form url.Values) (int6
 	sid, err := msql.Insert(msql.Table{
 		TableName: "contract_state",
 		Columns:   []string{"contract_id", "state_id"},
-		Vals:      []string{strconv.FormatInt(cid, 10), strconv.FormatInt(int64(1), 10)},
+		Vals:      []interface{}{cid, 1},
 		Tx:        tx,
 	})
 	if err != nil {
@@ -56,7 +57,7 @@ func (m *ContractModel) Insert(rparams, oparams []string, form url.Values) (int6
 	_, err = msql.Insert(msql.Table{
 		TableName: "contract_state_transition",
 		Columns:   []string{"to_contract_state_id", "transition_date"},
-		Vals:      []string{strconv.FormatInt(sid, 10), time.Now().Format("2006-01-02 15:04:05")},
+		Vals:      []interface{}{sid, time.Now().Format("2006-01-02 15:04:05")},
 		Tx:        tx,
 	})
 
@@ -64,7 +65,7 @@ func (m *ContractModel) Insert(rparams, oparams []string, form url.Values) (int6
 		Table: msql.Table{
 			TableName: "contract",
 			Columns:   []string{"contract_state_id"},
-			Vals:      []string{strconv.FormatInt(sid, 10)},
+			Vals:      []interface{}{sid},
 			Tx:        tx,
 		},
 		WColumns: []string{"id"},
@@ -78,13 +79,7 @@ func (m *ContractModel) Insert(rparams, oparams []string, form url.Values) (int6
 }
 
 func (m *ContractModel) WorkDocuments(cid int) ([]models.WorkDocument, error) {
-	results, err := m.DB.Query(`
-		SELECT C.contract_state_id, D.id as document_id, D.name as document_name, CSD.id, CSD.source , CSD.s3bucket, CSD.s3region, SD.compulsory 
-		FROM state_document SD LEFT JOIN document D ON D.id = SD.document_id 
-		LEFT JOIN contract_state CS ON CS.state_id = SD.state_id 
-		LEFT JOIN contract_state_document CSD ON CSD.contract_state_id = CS.id AND CSD.document_id = SD.document_id AND CSD.deleted = 0 
-		LEFT JOIN contract C ON C.contract_state_id = CS.id 
-		WHERE C.id = ?`, cid)
+	results, err := m.DB.Query(queries.WORK_DOCUMENTS, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -103,13 +98,7 @@ func (m *ContractModel) WorkDocuments(cid int) ([]models.WorkDocument, error) {
 }
 
 func (m *ContractModel) WorkQuestions(cid int) ([]models.WorkQuestion, error) {
-	results, err := m.DB.Query(`
-		SELECT C.contract_state_id, Q.id as question_id, Q.name as question, CSQA.id, CSQA.answer, SQ.compulsory
-		FROM state_question SQ LEFT JOIN question Q ON Q.id = SQ.question_id 
-		LEFT JOIN contract_state CS ON CS.state_id = SQ.state_id 
-		LEFT JOIN contract_state_question_answer CSQA ON CSQA.contract_state_id = CS.id AND CSQA.question_id = SQ.question_id AND CSQA.deleted = 0 
-		LEFT JOIN contract C ON C.contract_state_id = CS.id 
-		WHERE C.id = ?`, cid)
+	results, err := m.DB.Query(queries.WORK_QUESTIONS, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -128,12 +117,7 @@ func (m *ContractModel) WorkQuestions(cid int) ([]models.WorkQuestion, error) {
 }
 
 func (m *ContractModel) Questions(cid int) ([]models.Question, error) {
-	results, err := m.DB.Query(`
-		SELECT Q.name as question, CSQA.answer
-		FROM contract_state_question_answer CSQA
-		LEFT JOIN contract_state CS ON CS.id = CSQA.contract_state_id
-		LEFT JOIN question Q ON Q.id = CSQA.question_id
-		WHERE CS.contract_id = ? AND deleted = 0`, cid)
+	results, err := m.DB.Query(queries.QUESTIONS, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -152,12 +136,7 @@ func (m *ContractModel) Questions(cid int) ([]models.Question, error) {
 }
 
 func (m *ContractModel) Documents(cid int) ([]models.Document, error) {
-	results, err := m.DB.Query(`
-		SELECT D.name as document, CSD.s3region, CSD.s3bucket, CSD.source
-		FROM contract_state_document CSD
-		LEFT JOIN contract_state CS ON CS.id = CSD.contract_state_id
-		LEFT JOIN document D ON D.id = CSD.document_id
-		WHERE CS.contract_id = ? AND deleted = 0`, cid)
+	results, err := m.DB.Query(queries.DOCUMENTS, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -176,14 +155,7 @@ func (m *ContractModel) Documents(cid int) ([]models.Document, error) {
 }
 
 func (m *ContractModel) History(cid int) ([]models.History, error) {
-	results, err := m.DB.Query(`
-		SELECT S.name as from_state, S2.name as to_state, CST.transition_date
-		FROM contract_state_transition CST 
-		LEFT JOIN contract_state CS ON CS.id = CST.from_contract_state_id
-		LEFT JOIN contract_state CS2 ON CS2.id = CST.to_contract_state_id
-		LEFT JOIN state S ON S.id = CS.state_id
-		LEFT JOIN state S2 ON S2.id = CS2.state_id
-		WHERE CS2.contract_id = ?`, cid)
+	results, err := m.DB.Query(queries.HISTORY, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -257,35 +229,7 @@ func (m *ContractModel) StateDocument(rparams, oparams []string, form url.Values
 
 func (m *ContractModel) ContractDetail(cid int) (models.ContractDetail, error) {
 	var detail models.ContractDetail
-	err := m.DB.QueryRow(`
-	SELECT C.id, S.name AS state, CB.name AS contract_batch, M.name AS model, C.chassis_number, C.customer_name, C.customer_nic, C.customer_address, C.customer_contact, C.liaison_name, C.liaison_contact, C.price, C.downpayment, U.name AS recovery_officer, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) AS amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable
-	FROM contract C
-	LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
-	LEFT JOIN state S ON S.id = CS.state_id
-	LEFT JOIN contract_batch CB ON CB.id = C.contract_batch_id
-	LEFT JOIN model M ON C.model_id = M.id
-	LEFT JOIN user U ON U.id = C.recovery_officer_id
-	LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment,SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, COALESCE(SUM(CDIP.amount), 0) AS defalut_interest_paid, CI.due_date
-	FROM contract_installment CI
-	LEFT JOIN (
-		SELECT CDIP.contract_installment_id, COALESCE(SUM(amount), 0) AS amount
-		FROM contract_default_interest_payment CDIP
-		GROUP BY CDIP.contract_installment_id
-	) CDIP ON CDIP.contract_installment_id = CI.id
-	LEFT JOIN (
-		SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) AS amount
-		FROM contract_interest_payment CIP
-		GROUP BY CIP.contract_installment_id
-	) CIP ON CIP.contract_installment_id = CI.id
-	LEFT JOIN (
-		SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) AS amount
-		FROM contract_capital_payment CCP
-		GROUP BY CCP.contract_installment_id
-	) CCP ON CCP.contract_installment_id = CI.id
-	GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
-	ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
-	WHERE C.id = ?
-	GROUP BY C.id`, cid).Scan(&detail.ID, &detail.ContractState, &detail.ContractBatch, &detail.ModelName, &detail.ChassisNumber, &detail.CustomerName, &detail.CustomerNic, &detail.CustomerAddress, &detail.CustomerContact, &detail.LiaisonName, &detail.LiaisonContact, &detail.Price, &detail.Downpayment, &detail.RecoveryOfficer, &detail.AmountPending, &detail.TotalPayable)
+	err := m.DB.QueryRow(queries.CONTRACT_DETAILS, cid).Scan(&detail.ID, &detail.ContractState, &detail.ContractBatch, &detail.ModelName, &detail.ChassisNumber, &detail.CustomerName, &detail.CustomerNic, &detail.CustomerAddress, &detail.CustomerContact, &detail.LiaisonName, &detail.LiaisonContact, &detail.Price, &detail.Downpayment, &detail.RecoveryOfficer, &detail.AmountPending, &detail.TotalPayable)
 	if err != nil {
 		return models.ContractDetail{}, err
 	}
@@ -294,26 +238,7 @@ func (m *ContractModel) ContractDetail(cid int) (models.ContractDetail, error) {
 }
 
 func (m *ContractModel) ContractInstallments(cid int) ([]models.ActiveInstallment, error) {
-	results, err := m.DB.Query(`
-	SELECT CI.id, CI.capital+CI.interest+CI.default_interest AS installment,SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, CI.due_date, DATEDIFF(CI.due_date, NOW()) AS due_in
-	FROM contract_installment CI
-	LEFT JOIN (
-		SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) AS amount
-		FROM contract_interest_payment CIP
-		LEFT JOIN contract_installment CI ON CI.id = CIP.contract_installment_id
-		WHERE CI.contract_id = ?
-		GROUP BY CIP.contract_installment_id
-	) CIP ON CIP.contract_installment_id = CI.id
-	LEFT JOIN (
-		SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) AS amount
-		FROM contract_capital_payment CCP
-		LEFT JOIN contract_installment CI ON CI.id = CCP.contract_installment_id
-		WHERE CI.contract_id = ?
-		GROUP BY CCP.contract_installment_id
-	) CCP ON CCP.contract_installment_id = CI.id
-	WHERE CI.contract_id = ?
-	GROUP BY CI.id
-	ORDER BY due_date ASC`, cid, cid, cid)
+	results, err := m.DB.Query(queries.CONTRACT_INSTALLMENTS, cid, cid, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -331,16 +256,7 @@ func (m *ContractModel) ContractInstallments(cid int) ([]models.ActiveInstallmen
 }
 
 func (m *ContractModel) ContractTransionableStates(cid int) ([]models.Dropdown, error) {
-	results, err := m.DB.Query(`
-		SELECT TS.transitionable_state_id AS id, S.name AS name
-		FROM transitionable_states TS
-		LEFT JOIN state S ON S.id = TS.transitionable_state_id
-		WHERE TS.state_id = (
-			SELECT CS.state_id
-			FROM contract C
-			LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
-			WHERE C.id = ?
-		)`, cid)
+	results, err := m.DB.Query(queries.TRANSITIONABLE_STATES, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -359,16 +275,7 @@ func (m *ContractModel) ContractTransionableStates(cid int) ([]models.Dropdown, 
 }
 
 func (m *ContractModel) RejectedRequests(cid int) ([]models.RejectedRequest, error) {
-	results, err := m.DB.Query(`
-	SELECT R.id, U.name as user, R.note
-		FROM request R
-        LEFT JOIN user U ON U.id = R.user_id
-		WHERE R.contract_state_id = (
-			SELECT C.contract_state_id
-			FROM contract C
-			WHERE C.id = ?
-		) AND R.approved = 0
-	`, cid)
+	results, err := m.DB.Query(queries.REJECTED_REQUESTS, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -387,15 +294,7 @@ func (m *ContractModel) RejectedRequests(cid int) ([]models.RejectedRequest, err
 }
 
 func (m *ContractModel) CurrentRequetExists(cid int) (bool, error) {
-	result, err := m.DB.Query(`
-		SELECT R.id
-		FROM request R
-		WHERE R.contract_state_id = (
-			SELECT C.contract_state_id
-			FROM contract C
-			WHERE C.id = ?
-		) AND R.approved IS NULL
-	`, cid)
+	result, err := m.DB.Query(queries.CURRENT_REQUEST_EXISTS, cid)
 	if err != nil {
 		return false, err
 	}
@@ -448,7 +347,7 @@ func (m *ContractModel) Request(rparams, oparams []string, form url.Values) (int
 	rid, err := msql.Insert(msql.Table{
 		TableName: "request",
 		Columns:   []string{"contract_state_id", "to_contract_state_id", "user_id", "datetime", "remarks"},
-		Vals:      []string{strconv.FormatInt(int64(cs.ID), 10), strconv.FormatInt(tcsid, 10), form.Get("user_id"), time.Now().Format("2006-01-02 15:04:05"), form.Get("remarks")},
+		Vals:      []interface{}{cs.ID, tcsid, form.Get("user_id"), time.Now().Format("2006-01-02 15:04:05"), form.Get("remarks")},
 		Tx:        tx,
 	})
 	if err != nil {
@@ -459,16 +358,7 @@ func (m *ContractModel) Request(rparams, oparams []string, form url.Values) (int
 }
 
 func (m *ContractModel) Requests(user int) ([]models.Request, error) {
-	results, err := m.DB.Query(`
-		SELECT R.id AS request_id, C.id as contract_id, R.remarks, C.customer_name, S.name AS contract_state, S1.name AS to_contract_state, U.name AS requested_by, R.datetime AS requested_on
-		FROM request R
-		LEFT JOIN contract_state CS ON CS.id = R.contract_state_id
-		LEFT JOIN contract_state CS1 ON CS1.id = R.to_contract_state_id
-		LEFT JOIN state S ON S.id = CS.state_id
-		LEFT JOIN state S1 ON S1.id = CS1.state_id
-		LEFT JOIN user U ON U.id = R.user_id
-		LEFT JOIN contract C ON CS.contract_id = C.id
-		WHERE R.approved IS NULL`)
+	results, err := m.DB.Query(queries.REQUESTS)
 	if err != nil {
 		return nil, err
 	}
@@ -488,12 +378,7 @@ func (m *ContractModel) Requests(user int) ([]models.Request, error) {
 
 func (m *ContractModel) RequestName(request int) (string, error) {
 	var r models.Dropdown
-	err := m.DB.QueryRow(`
-		SELECT R.id, S.name
-		FROM request R
-		LEFT JOIN contract_state CS ON CS.id = R.to_contract_state_id
-		LEFT JOIN state S ON S.id = CS.state_id
-		WHERE R.id = ?`, request).Scan(&r.ID, &r.Name)
+	err := m.DB.QueryRow(queries.REQUEST_NAME, request).Scan(&r.ID, &r.Name)
 	if err != nil {
 		return "", nil
 	}
@@ -513,9 +398,7 @@ func (m *ContractModel) InitiateContract(request int) error {
 		_ = tx.Commit()
 	}()
 
-	results, err := tx.Query(`
-		SELECT Q.name as id, CSQA.answer FROM contract_state_question_answer CSQA LEFT JOIN contract_state CS ON CS.id = CSQA.contract_state_id LEFT JOIN contract C ON C.id = CS.contract_id LEFT JOIN question Q ON Q.id = CSQA.question_id WHERE Q.name IN ('Capital', 'Interest Rate', 'Interest Method', 'Installments', 'Installment Interval') AND CSQA.deleted = 0 AND C.id = ( SELECT CS.contract_id FROM request R LEFT JOIN contract_state CS ON CS.id = R.to_contract_state_id WHERE R.id = ? )
-	`, request)
+	results, err := tx.Query(queries.PARAMS_FOR_CONTRACT_INITIATION, request)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -551,16 +434,14 @@ func (m *ContractModel) InitiateContract(request int) error {
 	}
 
 	var cid int
-	err = tx.QueryRow(`SELECT CS.contract_id AS id FROM request R LEFT JOIN contract_state CS ON CS.id = R.to_contract_state_id WHERE R.id = ?`, request).Scan(&cid)
+	err = tx.QueryRow(queries.CONTRACT_ID_FROM_REUQEST, request).Scan(&cid)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
 	var citid int
-	err = tx.QueryRow(`SELECT CIT.id
-		FROM contract_installment_type CIT
-		WHERE CIT.name = 'Installment'`).Scan(&citid)
+	err = tx.QueryRow(queries.INSTALLMENT_INSTALLMENT_TYPE_ID).Scan(&citid)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -570,7 +451,7 @@ func (m *ContractModel) InitiateContract(request int) error {
 		_, err = msql.Insert(msql.Table{
 			TableName: "contract_installment",
 			Columns:   []string{"contract_id", "contract_installment_type_id", "capital", "interest", "default_interest", "due_date"},
-			Vals:      []string{fmt.Sprintf("%d", cid), fmt.Sprintf("%d", citid), fmt.Sprintf("%f", inst.Capital), fmt.Sprintf("%f", inst.Interest), fmt.Sprintf("%f", inst.DefaultInterest), inst.DueDate},
+			Vals:      []interface{}{cid, citid, inst.Capital, inst.Interest, inst.DefaultInterest, inst.DueDate},
 			Tx:        tx,
 		})
 		if err != nil {
@@ -601,7 +482,7 @@ func (m *ContractModel) RequestAction(user, request int, action, note string) (i
 	_, err = msql.Update(msql.UpdateTable{
 		Table: msql.Table{TableName: "request",
 			Columns: []string{"approved", "approved_by", "approved_on", "note"},
-			Vals:    []string{action, strconv.FormatInt(int64(user), 10), t, note},
+			Vals:    []interface{}{action, user, t, note},
 			Tx:      tx},
 		WColumns: []string{"id"},
 		WVals:    []string{strconv.FormatInt(int64(request), 10)},
@@ -615,11 +496,7 @@ func (m *ContractModel) RequestAction(user, request int, action, note string) (i
 	}
 
 	var r models.RequestRaw
-	err = tx.QueryRow(`
-		SELECT R.id, R.contract_state_id, R.to_contract_state_id, CS.contract_id
-		FROM request R 
-		LEFT JOIN contract_state CS ON CS.id = R.contract_state_id
-		WHERE R.id = ?`, request).Scan(&r.ID, &r.ContractStateID, &r.ToContractStateID, &r.ContractID)
+	err = tx.QueryRow(queries.REQUEST_RAW, request).Scan(&r.ID, &r.ContractStateID, &r.ToContractStateID, &r.ContractID)
 	if err != nil {
 		return 0, err
 	}
@@ -627,7 +504,7 @@ func (m *ContractModel) RequestAction(user, request int, action, note string) (i
 	_, err = msql.Insert(msql.Table{
 		TableName: "contract_state_transition",
 		Columns:   []string{"from_contract_state_id", "to_contract_state_id", "request_id", "transition_date"},
-		Vals:      []string{strconv.FormatInt(int64(r.ContractStateID), 10), strconv.FormatInt(int64(r.ToContractStateID), 10), strconv.FormatInt(int64(request), 10), t},
+		Vals:      []interface{}{r.ContractStateID, r.ToContractStateID, request, t},
 		Tx:        tx,
 	})
 	if err != nil {
@@ -637,7 +514,7 @@ func (m *ContractModel) RequestAction(user, request int, action, note string) (i
 	c, err := msql.Update(msql.UpdateTable{
 		Table: msql.Table{TableName: "contract",
 			Columns: []string{"contract_state_id"},
-			Vals:    []string{strconv.FormatInt(int64(r.ToContractStateID), 10)},
+			Vals:    []interface{}{r.ToContractStateID},
 			Tx:      tx},
 		WColumns: []string{"id"},
 		WVals:    []string{strconv.FormatInt(int64(r.ContractID), 10)},
@@ -666,7 +543,7 @@ func (m *ContractModel) DeleteStateInfo(form url.Values) (int64, error) {
 		Table: msql.Table{
 			TableName: form.Get("table"),
 			Columns:   []string{"deleted"},
-			Vals:      []string{"1"},
+			Vals:      []interface{}{1},
 			Tx:        tx,
 		},
 		WColumns: []string{"id"},
@@ -691,24 +568,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) 
 		_ = tx.Commit()
 	}()
 
-	results, err := tx.Query(`
-		SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
-		FROM contract_installment CI
-		LEFT JOIN (
-			SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
-			FROM contract_interest_payment CIP
-			GROUP BY CIP.contract_installment_id
-		) CIP ON CIP.contract_installment_id = CI.id
-		LEFT JOIN (
-			SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
-			FROM contract_capital_payment CCP
-			GROUP BY CCP.contract_installment_id
-		) CCP ON CCP.contract_installment_id = CI.id
-		LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
-		WHERE CI.contract_id = ? AND CIT.di_chargable = 0
-		GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
-		ORDER BY CI.due_date ASC
-	`, cid)
+	results, err := tx.Query(queries.DEBITS, cid)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
@@ -737,7 +597,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) 
 	rid, err := msql.Insert(msql.Table{
 		TableName: "contract_receipt",
 		Columns:   []string{"user_id", "contract_id", "datetime", "amount", "notes"},
-		Vals:      []string{fmt.Sprintf("%d", user_id), fmt.Sprintf("%d", cid), time.Now().Format("2006-01-02 15:04:05"), fmt.Sprintf("%f", amount), notes},
+		Vals:      []interface{}{user_id, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes},
 		Tx:        tx,
 	})
 	if err != nil {
@@ -759,24 +619,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) 
 		}
 	}
 
-	results, err = tx.Query(`
-		SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
-		FROM contract_installment CI
-		LEFT JOIN (
-			SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
-			FROM contract_interest_payment CIP
-			GROUP BY CIP.contract_installment_id
-		) CIP ON CIP.contract_installment_id = CI.id
-		LEFT JOIN (
-			SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
-			FROM contract_capital_payment CCP
-			GROUP BY CCP.contract_installment_id
-		) CCP ON CCP.contract_installment_id = CI.id
-		LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
-		WHERE CI.contract_id = ? AND CIT.di_chargable = 1 AND CI.due_date < NOW()
-		GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
-		ORDER BY CI.due_date ASC
-	`, cid)
+	results, err = tx.Query(queries.OVERDUE_INSTALLMENTS, cid)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
@@ -841,24 +684,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) 
 	}
 
 	if balance != 0 {
-		results, err = tx.Query(`
-		SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
-		FROM contract_installment CI
-		LEFT JOIN (
-			SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
-			FROM contract_interest_payment CIP
-			GROUP BY CIP.contract_installment_id
-		) CIP ON CIP.contract_installment_id = CI.id
-		LEFT JOIN (
-			SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
-			FROM contract_capital_payment CCP
-			GROUP BY CCP.contract_installment_id
-		) CCP ON CCP.contract_installment_id = CI.id
-		LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
-		WHERE CI.contract_id = ? AND CIT.di_chargable = 1 AND CI.due_date > NOW()
-		GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
-		ORDER BY CI.due_date ASC
-		`, cid)
+		results, err = tx.Query(queries.UPCOMING_INSTALLMENTS, cid)
 		if err != nil {
 			tx.Rollback()
 			return 0, err
@@ -905,7 +731,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) 
 		_, err = msql.Update(msql.UpdateTable{
 			Table: msql.Table{TableName: "contract_installment",
 				Columns: []string{"default_interest"},
-				Vals:    []string{fmt.Sprintf("%f", diUpdate.DefaultInterest)},
+				Vals:    []interface{}{diUpdate.DefaultInterest},
 				Tx:      tx},
 			WColumns: []string{"id"},
 			WVals:    []string{fmt.Sprintf("%d", diUpdate.ContractInstallmentID)},
@@ -920,7 +746,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) 
 		_, err := msql.Insert(msql.Table{
 			TableName: "contract_default_interest_change_history",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "default_interest"},
-			Vals:      []string{fmt.Sprintf("%d", diLog.ContractInstallmentID), fmt.Sprintf("%d", diLog.ContractReceiptID), fmt.Sprintf("%f", diLog.DefaultInterest)},
+			Vals:      []interface{}{diLog.ContractInstallmentID, diLog.ContractReceiptID, diLog.DefaultInterest},
 			Tx:        tx,
 		})
 		if err != nil {
@@ -933,7 +759,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) 
 		_, err := msql.Insert(msql.Table{
 			TableName: "contract_default_interest_payment",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-			Vals:      []string{fmt.Sprintf("%d", intPayment.ContractInstallmentID), fmt.Sprintf("%d", intPayment.ContractReceiptID), fmt.Sprintf("%f", intPayment.Amount)},
+			Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
 			Tx:        tx,
 		})
 		if err != nil {
@@ -946,7 +772,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) 
 		_, err := msql.Insert(msql.Table{
 			TableName: "contract_interest_payment",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-			Vals:      []string{fmt.Sprintf("%d", intPayment.ContractInstallmentID), fmt.Sprintf("%d", intPayment.ContractReceiptID), fmt.Sprintf("%f", intPayment.Amount)},
+			Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
 			Tx:        tx,
 		})
 		if err != nil {
@@ -959,7 +785,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) 
 		_, err := msql.Insert(msql.Table{
 			TableName: "contract_capital_payment",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-			Vals:      []string{fmt.Sprintf("%d", capPayment.ContractInstallmentID), fmt.Sprintf("%d", capPayment.ContractReceiptID), fmt.Sprintf("%f", capPayment.Amount)},
+			Vals:      []interface{}{capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
 			Tx:        tx,
 		})
 		if err != nil {
@@ -985,35 +811,7 @@ func (m *ContractModel) Search(search, state, officer, batch string) ([]models.S
 	o := msql.NewNullString(officer)
 	b := msql.NewNullString(batch)
 
-	results, err := m.DB.Query(`
-	SELECT C.id, U.name as recovery_officer, S.name as state, M.name as model, C.chassis_number, C.customer_name, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable
-	FROM contract C
-	LEFT JOIN user U ON U.id = C.recovery_officer_id
-	LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
-	LEFT JOIN state S ON S.id = CS.state_id
-	LEFT JOIN model M ON C.model_id = M.id
-	LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment,SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, COALESCE(SUM(CDIP.amount), 0) as defalut_interest_paid, CI.due_date
-	FROM contract_installment CI
-	LEFT JOIN (
-		SELECT CDIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
-		FROM contract_default_interest_payment CDIP
-		GROUP BY CDIP.contract_installment_id
-	) CDIP ON CDIP.contract_installment_id = CI.id
-	LEFT JOIN (
-		SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
-		FROM contract_interest_payment CIP
-		GROUP BY CIP.contract_installment_id
-	) CIP ON CIP.contract_installment_id = CI.id
-	LEFT JOIN (
-		SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
-		FROM contract_capital_payment CCP
-		GROUP BY CCP.contract_installment_id
-	) CCP ON CCP.contract_installment_id = CI.id
-	GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
-	ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
-	WHERE (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?)
-	GROUP BY C.id
-	`, k, k, s, s, o, o, b, b)
+	results, err := m.DB.Query(queries.SEARCH, k, k, s, s, o, o, b, b)
 	if err != nil {
 		return nil, err
 	}
