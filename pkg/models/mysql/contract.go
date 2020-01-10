@@ -184,13 +184,41 @@ func (m *ContractModel) StateDocument(rparams, oparams []string, form url.Values
 func (m *ContractModel) ContractDetail(cid int) (models.ContractDetail, error) {
 	var detail models.ContractDetail
 	err := m.DB.QueryRow(`
-		SELECT C.id, S.name AS contract_state, CB.name as contract_batch, M.name AS model_name, C.chassis_number, C.customer_nic, C.customer_name, C.customer_address, C.customer_contact, C.liaison_name, C.liaison_contact, C.price, C.downpayment
-		FROM contract C 
+		SELECT C.id, S.name AS state, CB.name AS contract_batch, M.name AS model, C.chassis_number, C.customer_name, C.customer_nic, C.customer_address, C.customer_contact, C.liaison_name, C.liaison_contact, C.price, C.downpayment, U.name AS recovery_officer, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) AS amount_pending, SUM(CI.installment-CI.installment_paid) AS total_payable
+		FROM contract C
 		LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
 		LEFT JOIN state S ON S.id = CS.state_id
-		LEFT JOIN model M ON M.id = C.model_id
 		LEFT JOIN contract_batch CB ON CB.id = C.contract_batch_id
-		WHERE C.id = ?`, cid).Scan(&detail.ID, &detail.ContractState, &detail.ContractBatch, &detail.ModelName, &detail.ChassisNumber, &detail.CustomerNic, &detail.CustomerName, &detail.CustomerAddress, &detail.CustomerContact, &detail.LiaisonName, &detail.LiaisonContact, &detail.Price, &detail.Downpayment)
+		LEFT JOIN model M ON C.model_id = M.id
+		LEFT JOIN user U ON U.id = C.recovery_officer_id
+		LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment,SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, COALESCE(SUM(CDIP.amount), 0) AS defalut_interest_paid, CI.due_date
+		FROM contract_installment CI
+		LEFT JOIN (
+			SELECT CDIP.contract_installment_id, COALESCE(SUM(amount), 0) AS amount
+			FROM contract_default_interest_payment CDIP
+			LEFT JOIN contract_installment CI ON CI.id = CDIP.contract_installment_id
+			WHERE CI.contract_id = ?
+			GROUP BY CDIP.contract_installment_id
+		) CDIP ON CDIP.contract_installment_id = CI.id
+		LEFT JOIN (
+			SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) AS amount
+			FROM contract_interest_payment CIP
+			LEFT JOIN contract_installment CI ON CI.id = CIP.contract_installment_id
+			WHERE CI.contract_id = ?
+			GROUP BY CIP.contract_installment_id
+		) CIP ON CIP.contract_installment_id = CI.id
+		LEFT JOIN (
+			SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) AS amount
+			FROM contract_capital_payment CCP
+			LEFT JOIN contract_installment CI ON CI.id = CCP.contract_installment_id
+			WHERE CI.contract_id = ?
+			GROUP BY CCP.contract_installment_id
+		) CCP ON CCP.contract_installment_id = CI.id
+		WHERE CI.contract_id = ?
+		GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
+		ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
+		WHERE CI.contract_id = ?
+		GROUP BY C.id`, cid, cid, cid, cid, cid).Scan(&detail.ID, &detail.ContractState, &detail.ContractBatch, &detail.ModelName, &detail.ChassisNumber, &detail.CustomerName, &detail.CustomerNic, &detail.CustomerAddress, &detail.CustomerContact, &detail.LiaisonName, &detail.LiaisonContact, &detail.Price, &detail.Downpayment, &detail.RecoveryOfficer, &detail.AmountPending, &detail.TotalPayable)
 	if err != nil {
 		return models.ContractDetail{}, err
 	}
@@ -452,6 +480,7 @@ func (m *ContractModel) InitiateContract(request int) error {
 }
 
 func (m *ContractModel) RequestAction(user, request int, action, note string) (int64, error) {
+	fmt.Println(msql.NewNullString(action))
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -477,7 +506,6 @@ func (m *ContractModel) RequestAction(user, request int, action, note string) (i
 		return 0, err
 	}
 
-	fmt.Println(action == "0")
 	if action == "0" {
 		return 1, nil
 	}
@@ -546,7 +574,7 @@ func (m *ContractModel) DeleteStateInfo(form url.Values) (int64, error) {
 	return 0, nil
 }
 
-func (m *ContractModel) Receipt(cid int, amount float64, notes string) (int64, error) {
+func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -604,8 +632,8 @@ func (m *ContractModel) Receipt(cid int, amount float64, notes string) (int64, e
 
 	rid, err := msql.Insert(msql.Table{
 		TableName: "contract_receipt",
-		Columns:   []string{"contract_id", "datetime", "amount", "notes"},
-		Vals:      []string{fmt.Sprintf("%d", cid), time.Now().Format("2006-01-02 15:04:05"), fmt.Sprintf("%f", amount), notes},
+		Columns:   []string{"user_id", "contract_id", "datetime", "amount", "notes"},
+		Vals:      []string{fmt.Sprintf("%d", user_id), fmt.Sprintf("%d", cid), time.Now().Format("2006-01-02 15:04:05"), fmt.Sprintf("%f", amount), notes},
 		Tx:        tx,
 	})
 	if err != nil {
@@ -837,4 +865,64 @@ func (m *ContractModel) Receipt(cid int, amount float64, notes string) (int64, e
 	}
 
 	return rid, nil
+}
+
+func (m *ContractModel) Search(search, state, officer, batch string) ([]models.SearchResult, error) {
+	var k sql.NullString
+	if search == "" {
+		k = sql.NullString{}
+	} else {
+		k = sql.NullString{
+			Valid:  true,
+			String: "%" + search + "%",
+		}
+	}
+	s := msql.NewNullString(state)
+	o := msql.NewNullString(officer)
+	b := msql.NewNullString(batch)
+
+	results, err := m.DB.Query(`
+	SELECT C.id, U.name as recovery_officer, S.name as state, M.name as model, C.chassis_number, C.customer_name, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable
+	FROM contract C
+	LEFT JOIN user U ON U.id = C.recovery_officer_id
+	LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
+	LEFT JOIN state S ON S.id = CS.state_id
+	LEFT JOIN model M ON C.model_id = M.id
+	LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment,SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, COALESCE(SUM(CDIP.amount), 0) as defalut_interest_paid, CI.due_date
+	FROM contract_installment CI
+	LEFT JOIN (
+		SELECT CDIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+		FROM contract_default_interest_payment CDIP
+		GROUP BY CDIP.contract_installment_id
+	) CDIP ON CDIP.contract_installment_id = CI.id
+	LEFT JOIN (
+		SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+		FROM contract_interest_payment CIP
+		GROUP BY CIP.contract_installment_id
+	) CIP ON CIP.contract_installment_id = CI.id
+	LEFT JOIN (
+		SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+		FROM contract_capital_payment CCP
+		GROUP BY CCP.contract_installment_id
+	) CCP ON CCP.contract_installment_id = CI.id
+	GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
+	ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
+	WHERE (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?)
+	GROUP BY C.id
+	`, k, k, s, s, o, o, b, b)
+	if err != nil {
+		return nil, err
+	}
+
+	var res []models.SearchResult
+	for results.Next() {
+		var r models.SearchResult
+		err = results.Scan(&r.ID, &r.RecoveryOfficer, &r.State, &r.Model, &r.ChassisNumber, &r.CustomerName, &r.AmountPending, &r.TotalPayable)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, r)
+	}
+
+	return res, nil
 }

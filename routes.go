@@ -14,7 +14,7 @@ func (app *application) routes() http.Handler {
 	r := mux.NewRouter()
 	r.Handle("/", app.validateToken(http.HandlerFunc(app.home))).Methods("GET")
 	r.HandleFunc("/dropdown/{name}", http.HandlerFunc(app.dropdownHandler)).Methods("GET")
-	r.Handle("/contract/search/{search}/{stateid}/{rofficer}/{batchid}", app.validateToken(http.HandlerFunc(app.searchContract))).Methods("GET")
+	r.Handle("/contract/search", app.validateToken(http.HandlerFunc(app.searchContract))).Methods("GET")
 	r.HandleFunc("/authenticate", http.HandlerFunc(app.authenticate)).Methods("POST")
 	r.HandleFunc("/contract/new", http.HandlerFunc(app.newContract)).Methods("POST")
 	r.Handle("/contract/work/documents/{cid}", app.validateToken(http.HandlerFunc(app.workDocuments))).Methods("GET")
