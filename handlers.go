@@ -94,7 +94,7 @@ func (app *application) newContract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requiredParams := []string{"user_id", "contract_type_id", "institute_dealer_id", "contract_batch_id", "model_id", "chassis_number", "customer_nic", "customer_name", "customer_address", "customer_contact", "price"}
+	requiredParams := []string{"user_id", "recovery_officer_id", "contract_type_id", "institute_dealer_id", "contract_batch_id", "model_id", "chassis_number", "customer_nic", "customer_name", "customer_address", "customer_contact", "price"}
 	optionalParams := []string{"institute_id", "liaison_name", "liaison_contact", "liaison_comment", "downpayment"}
 
 	for _, param := range requiredParams {
@@ -115,9 +115,19 @@ func (app *application) newContract(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) searchContract(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	fmt.Println(vars)
-	w.Write([]byte("search results"))
+	search := r.URL.Query().Get("search")
+	state := r.URL.Query().Get("state")
+	officer := r.URL.Query().Get("officer")
+	batch := r.URL.Query().Get("batch")
+
+	results, err := app.contract.Search(search, state, officer, batch)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
 }
 
 func (app *application) workDocuments(w http.ResponseWriter, r *http.Request) {
@@ -519,7 +529,7 @@ func (app *application) contractReceipt(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	requiredParams := []string{"cid", "amount"}
+	requiredParams := []string{"user_id", "cid", "amount"}
 	for _, param := range requiredParams {
 		if v := r.PostForm.Get(param); v == "" {
 			fmt.Println(param)
@@ -528,6 +538,7 @@ func (app *application) contractReceipt(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	user_id, err := strconv.Atoi(r.PostForm.Get("user_id"))
 	cid, err := strconv.Atoi(r.PostForm.Get("cid"))
 	amount, err := strconv.ParseFloat(r.PostForm.Get("amount"), 32)
 	notes := r.PostForm.Get("notes")
@@ -536,7 +547,7 @@ func (app *application) contractReceipt(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	rid, err := app.contract.Receipt(cid, amount, notes)
+	rid, err := app.contract.Receipt(user_id, cid, amount, notes)
 	if err != nil {
 		app.serverError(w, err)
 		return

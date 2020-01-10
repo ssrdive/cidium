@@ -63,14 +63,17 @@ type ContractDetail struct {
 	ContractBatch   string         `json:"contract_batch"`
 	ModelName       string         `json:"model_name"`
 	ChassisNumber   string         `json:"chassis_number"`
-	CustomerNic     string         `json:"customer_nic"`
 	CustomerName    string         `json:"customer_name"`
+	CustomerNic     string         `json:"customer_nic"`
 	CustomerAddress string         `json:"customer_address"`
 	CustomerContact int            `json:"customer_contact"`
 	LiaisonName     sql.NullString `json:"liaison_name"`
 	LiaisonContact  sql.NullInt32  `json:"liaison_contact"`
 	Price           int            `json:"price"`
 	Downpayment     sql.NullInt32  `json:"downpayment"`
+	RecoveryOfficer string         `json:"recovery_officer"`
+	AmountPending   float64        `json:"amount_pending"`
+	TotalPayable    float64        `json:"total_payable"`
 }
 
 type ContractRequestable struct {
@@ -131,4 +134,15 @@ type ContractPayment struct {
 	ContractInstallmentID int
 	ContractReceiptID     int64
 	Amount                float64
+}
+
+type SearchResult struct {
+	ID              int     `json:"id"`
+	RecoveryOfficer string  `json:"recovery_officer"`
+	State           string  `json:"state"`
+	Model           string  `json:"model"`
+	ChassisNumber   string  `json:"chassis_number"`
+	CustomerName    string  `json:"customer_name"`
+	AmountPending   float64 `json:"amount_pending"`
+	TotalPayable    float64 `json:"total_payable"`
 }
