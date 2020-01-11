@@ -20,7 +20,7 @@ type ContractModel struct {
 }
 
 // Insert creates a new contract
-func (m *ContractModel) Insert(rparams, oparams []string, form url.Values) (int64, error) {
+func (m *ContractModel) Insert(initialState string, rparams, oparams []string, form url.Values) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -44,10 +44,17 @@ func (m *ContractModel) Insert(rparams, oparams []string, form url.Values) (int6
 		return 0, err
 	}
 
+	var isid int
+	err = tx.QueryRow(queries.STATE_ID_FROM_STATE, initialState).Scan(&isid)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
 	sid, err := msql.Insert(msql.Table{
 		TableName: "contract_state",
 		Columns:   []string{"contract_id", "state_id"},
-		Vals:      []interface{}{cid, 1},
+		Vals:      []interface{}{cid, isid},
 		Tx:        tx,
 	})
 	if err != nil {
@@ -76,6 +83,57 @@ func (m *ContractModel) Insert(rparams, oparams []string, form url.Values) (int6
 	}
 
 	return cid, nil
+}
+
+func (m *ContractModel) Legacy(cid int, form url.Values) error {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	capital, err := strconv.ParseFloat(form.Get("capital"), 32)
+	rate, err := strconv.ParseFloat(form.Get("rate"), 32)
+	installments, err := strconv.Atoi(form.Get("installments"))
+	installmentInterval, err := strconv.Atoi(form.Get("installment_interval"))
+	method := form.Get("method")
+	initiationDate := form.Get("initiation_date")
+	if err != nil {
+		return err
+	}
+
+	schedule, err := models.Create(capital, rate, installments, installmentInterval, initiationDate, method)
+	if err != nil {
+		return err
+	}
+
+	var citid int
+	err = tx.QueryRow(queries.INSTALLMENT_INSTALLMENT_TYPE_ID).Scan(&citid)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for _, inst := range schedule {
+		_, err = msql.Insert(msql.Table{
+			TableName: "contract_installment",
+			Columns:   []string{"contract_id", "contract_installment_type_id", "capital", "interest", "default_interest", "due_date"},
+			Vals:      []interface{}{cid, citid, inst.Capital, inst.Interest, inst.DefaultInterest, inst.DueDate},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (m *ContractModel) WorkDocuments(cid int) ([]models.WorkDocument, error) {

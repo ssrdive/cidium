@@ -1,5 +1,8 @@
 package queries
 
+const STATE_ID_FROM_STATE = `
+	SELECT S.id FROM state S WHERE S.name = ?`
+
 const WORK_DOCUMENTS = `
 	SELECT C.contract_state_id, D.id as document_id, D.name as document_name, CSD.id, CSD.source , CSD.s3bucket, CSD.s3region, SD.compulsory 
 	FROM state_document SD LEFT JOIN document D ON D.id = SD.document_id 
