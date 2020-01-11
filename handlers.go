@@ -105,10 +105,44 @@ func (app *application) newContract(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	id, err := app.contract.Insert(requiredParams, optionalParams, r.PostForm)
+	id, err := app.contract.Insert("Start", requiredParams, optionalParams, r.PostForm)
 	if err != nil {
 		app.serverError(w, err)
 		return
+	}
+
+	fmt.Fprintf(w, "%d", id)
+}
+
+func (app *application) newLegacyContract(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredContractParams := []string{"user_id", "recovery_officer_id", "contract_type_id", "institute_dealer_id", "contract_batch_id", "model_id", "chassis_number", "customer_nic", "customer_name", "customer_address", "customer_contact", "price"}
+	requiredLoanParams := []string{"capital", "rate", "installments", "installment_interval", "method", "initiation_date"}
+	requiredParams := append(requiredContractParams, requiredLoanParams...)
+	optionalParams := []string{"institute_id", "liaison_name", "liaison_contact", "liaison_comment", "downpayment"}
+
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	id, err := app.contract.Insert("Active", requiredContractParams, optionalParams, r.PostForm)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	err = app.contract.Legacy(int(id), r.PostForm)
+	if err != nil {
+		app.serverError(w, err)
 	}
 
 	fmt.Fprintf(w, "%d", id)
