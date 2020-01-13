@@ -661,3 +661,37 @@ func (app *application) contractReceipt(w http.ResponseWriter, r *http.Request) 
 
 	fmt.Fprintf(w, "%v", rid)
 }
+
+func (app *application) contractReceiptLegacy(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"user_id", "cid", "amount"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	user_id, err := strconv.Atoi(r.PostForm.Get("user_id"))
+	cid, err := strconv.Atoi(r.PostForm.Get("cid"))
+	amount, err := strconv.ParseFloat(r.PostForm.Get("amount"), 32)
+	notes := r.PostForm.Get("notes")
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	rid, err := app.contract.LegacyReceipt(user_id, cid, amount, notes)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", rid)
+}
