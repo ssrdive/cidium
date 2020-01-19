@@ -91,6 +91,16 @@ const REQUEST_RAW = `
 	LEFT JOIN contract_state CS ON CS.id = R.contract_state_id
 	WHERE R.id = ?`
 
+const EXPIRED_COMMITMENTS = `
+	SELECT CM.contract_id, DATEDIFF(CM.due_date, NOW()) AS due_in, CM.text
+	FROM contract_commitment CM
+	WHERE CM.fulfilled IS NULL AND CM.commitment = 1 AND DATEDIFF(CM.due_date, NOW()) <= 0`
+
+const UPCOMING_COMMITMENTS = `
+	SELECT CM.contract_id, DATEDIFF(CM.due_date, NOW()) AS due_in, CM.text
+	FROM contract_commitment CM
+	WHERE CM.fulfilled IS NULL AND CM.commitment = 1 AND DATEDIFF(CM.due_date, NOW()) > 0`
+
 const DEBITS = `
 	SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
 	FROM contract_installment CI
@@ -222,6 +232,21 @@ const CONTRACT_INSTALLMENTS = `
 	WHERE CI.contract_id = ?
 	GROUP BY CI.id
 	ORDER BY due_date ASC`
+
+const CONTRACT_RECEIPTS = `
+	SELECT CR.id, CR.datetime, CR.amount, CR.notes
+	FROM contract_receipt CR
+	WHERE CR.contract_id = ?
+`
+
+const CONTRACT_COMMITMENTS = `
+	SELECT CM.id, U.name AS created_by, CM.created, CM.commitment, CM.fulfilled, DATEDIFF(CM.due_date, NOW()) AS due_in, CM.text, U2.name AS fulfilled_by, CM.fulfilled_on
+	FROM contract_commitment CM
+	LEFT JOIN user U ON U.id = CM.user_id
+	LEFT JOIN user U2 ON U2.id = CM.fulfilled_by
+	WHERE CM.contract_id = ?
+	ORDER BY created DESC
+`
 
 const TRANSITIONABLE_STATES = `
 	SELECT TS.transitionable_state_id AS id, S.name AS name
