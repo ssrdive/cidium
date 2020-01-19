@@ -401,6 +401,24 @@ func (app *application) contractInstallments(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(installments)
 }
 
+func (app *application) contractReceipts(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cid, err := strconv.Atoi(vars["cid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	receipts, err := app.contract.ContractReceipts(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(receipts)
+}
+
 func (app *application) contractRequestability(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	cid, err := strconv.Atoi(vars["cid"])
@@ -581,6 +599,39 @@ func (app *application) contractRequestAction(w http.ResponseWriter, r *http.Req
 	fmt.Fprintf(w, "%v", c)
 }
 
+func (app *application) contractCommitmentAction(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"id", "fulfilled", "user"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	id, err := strconv.Atoi(r.PostForm.Get("id"))
+	fulfilled, err := strconv.Atoi(r.PostForm.Get("fulfilled"))
+	user, err := strconv.Atoi(r.PostForm.Get("user"))
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	ca, err := app.contract.CommitmentAction(id, fulfilled, user)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", ca)
+}
+
 func (app *application) deleteAnswer(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -660,6 +711,76 @@ func (app *application) contractReceipt(w http.ResponseWriter, r *http.Request) 
 	}
 
 	fmt.Fprintf(w, "%v", rid)
+}
+
+func (app *application) contractCommitment(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"user_id", "contract_id", "text"}
+	optionalParams := []string{"due_date", "created", "commitment"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	t := time.Now()
+	r.PostForm.Set("created", t.Format("2006-01-02 15:04:05"))
+	if r.PostForm.Get("due_date") == "" {
+		r.PostForm.Set("commitment", "0")
+	} else {
+		r.PostForm.Set("commitment", "1")
+	}
+
+	comid, err := app.contract.Commitment(requiredParams, optionalParams, r.PostForm)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", comid)
+}
+
+func (app *application) contractCommitments(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cid, err := strconv.Atoi(vars["cid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	commitments, err := app.contract.Commitments(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(commitments)
+}
+
+func (app *application) dashboardCommitments(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	ctype := vars["type"]
+	if ctype == "" {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	commitments, err := app.contract.DashboardCommitments(ctype)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(commitments)
 }
 
 func (app *application) contractReceiptLegacy(w http.ResponseWriter, r *http.Request) {

@@ -155,6 +155,31 @@ type ActiveInstallment struct {
 	DueIn           int       `json:"due_in"`
 }
 
+type Receipt struct {
+	ID     int       `json:"id"`
+	Date   time.Time `json:"date"`
+	Amount float64   `json:"amount"`
+	Notes  string    `json:"notes"`
+}
+
+type Commitment struct {
+	ID          int            `json:"id"`
+	CreatedBy   string         `json:"created_by"`
+	Created     time.Time      `json:"created"`
+	Commitment  int            `json:"commitment"`
+	Fulfilled   sql.NullInt32  `json:"fulfilled"`
+	DueIn       sql.NullInt32  `json:"due_in"`
+	Text        string         `json:"text"`
+	FulfilledBy sql.NullString `json:"fulfilled_by"`
+	FulfilledOn sql.NullTime   `json:"fulfilled_on"`
+}
+
+type DashboardCommitment struct {
+	ContractID int    `json:"contract_id"`
+	DueIn      int    `json:"due_in"`
+	Text       string `json:"text"`
+}
+
 type Question struct {
 	Question string `json:"question"`
 	Answer   string `json:"answer"`

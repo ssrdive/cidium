@@ -313,6 +313,69 @@ func (m *ContractModel) ContractInstallments(cid int) ([]models.ActiveInstallmen
 	return installments, nil
 }
 
+func (m *ContractModel) ContractReceipts(cid int) ([]models.Receipt, error) {
+	results, err := m.DB.Query(queries.CONTRACT_RECEIPTS, cid)
+	if err != nil {
+		return nil, err
+	}
+	var receipts []models.Receipt
+	for results.Next() {
+		var receipt models.Receipt
+		err = results.Scan(&receipt.ID, &receipt.Date, &receipt.Amount, &receipt.Notes)
+		if err != nil {
+			return nil, err
+		}
+		receipts = append(receipts, receipt)
+	}
+
+	return receipts, nil
+}
+
+func (m *ContractModel) Commitments(cid int) ([]models.Commitment, error) {
+	results, err := m.DB.Query(queries.CONTRACT_COMMITMENTS, cid)
+	if err != nil {
+		return nil, err
+	}
+	var commitments []models.Commitment
+	for results.Next() {
+		var commitment models.Commitment
+		err = results.Scan(&commitment.ID, &commitment.CreatedBy, &commitment.Created, &commitment.Commitment, &commitment.Fulfilled, &commitment.DueIn, &commitment.Text, &commitment.FulfilledBy, &commitment.FulfilledOn)
+		if err != nil {
+			return nil, err
+		}
+		commitments = append(commitments, commitment)
+	}
+
+	return commitments, nil
+}
+
+func (m *ContractModel) DashboardCommitments(ctype string) ([]models.DashboardCommitment, error) {
+	var results *sql.Rows
+	var err error
+	if ctype == "expired" {
+		results, err = m.DB.Query(queries.EXPIRED_COMMITMENTS)
+	} else if ctype == "upcoming" {
+		results, err = m.DB.Query(queries.UPCOMING_COMMITMENTS)
+	} else {
+		return nil, errors.New("Invalid commitment type")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var commitments []models.DashboardCommitment
+	for results.Next() {
+		var commitment models.DashboardCommitment
+		err = results.Scan(&commitment.ContractID, &commitment.DueIn, &commitment.Text)
+		if err != nil {
+			return nil, err
+		}
+		commitments = append(commitments, commitment)
+	}
+
+	return commitments, nil
+}
+
 func (m *ContractModel) ContractTransionableStates(cid int) ([]models.Dropdown, error) {
 	results, err := m.DB.Query(queries.TRANSITIONABLE_STATES, cid)
 	if err != nil {
@@ -522,6 +585,34 @@ func (m *ContractModel) InitiateContract(request int) error {
 
 }
 
+func (m *ContractModel) CommitmentAction(comid, fulfilled, user int) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	c, err := msql.Update(msql.UpdateTable{
+		Table: msql.Table{TableName: "contract_commitment",
+			Columns: []string{"fulfilled", "fulfilled_by", "fulfilled_on"},
+			Vals:    []interface{}{fulfilled, user, time.Now().Format("2006-01-02 15:04:05")},
+			Tx:      tx},
+		WColumns: []string{"id"},
+		WVals:    []string{strconv.FormatInt(int64(comid), 10)},
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return c, nil
+}
+
 func (m *ContractModel) RequestAction(user, request int, action, note string) (int64, error) {
 	fmt.Println(msql.NewNullString(action))
 	tx, err := m.DB.Begin()
@@ -611,6 +702,34 @@ func (m *ContractModel) DeleteStateInfo(form url.Values) (int64, error) {
 		return 0, err
 	}
 	return 0, nil
+}
+
+func (m *ContractModel) Commitment(rparams, oparams []string, form url.Values) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	comid, err := msql.Insert(msql.FormTable{
+		TableName: "contract_commitment",
+		RCols:     rparams,
+		OCols:     oparams,
+		Form:      form,
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	return comid, nil
 }
 
 func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) (int64, error) {
