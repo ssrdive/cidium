@@ -260,13 +260,13 @@ const TRANSITIONABLE_STATES = `
 	)`
 
 const SEARCH = `
-	SELECT C.id, U.name as recovery_officer, S.name as state, M.name as model, C.chassis_number, C.customer_name, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable
+	SELECT C.id, U.name as recovery_officer, S.name as state, M.name as model, C.chassis_number, C.customer_name, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable,  COALESCE(SUM(CI.agreed_installment), 0) AS total_agreement, COALESCE(SUM(CI.installment_paid), 0) AS total_paid, COALESCE(SUM(CI.defalut_interest_paid), 0) AS total_di_paid
 	FROM contract C
 	LEFT JOIN user U ON U.id = C.recovery_officer_id
 	LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
 	LEFT JOIN state S ON S.id = CS.state_id
 	LEFT JOIN model M ON C.model_id = M.id
-	LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment,SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, COALESCE(SUM(CDIP.amount), 0) as defalut_interest_paid, CI.due_date
+	LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment, CI.capital+CI.interest AS agreed_installment, SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, COALESCE(SUM(CDIP.amount), 0) as defalut_interest_paid, CI.due_date
 	FROM contract_installment CI
 	LEFT JOIN (
 		SELECT CDIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount

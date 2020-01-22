@@ -145,6 +145,9 @@ type SearchResult struct {
 	CustomerName    string  `json:"customer_name"`
 	AmountPending   float64 `json:"amount_pending"`
 	TotalPayable    float64 `json:"total_payable"`
+	TotalAgreement  float64 `json:"total_agreement"`
+	TotalPaid       float64 `json:"total_paid"`
+	TotalDIPaid     float64 `json:"total_di_paid"`
 }
 
 type ActiveInstallment struct {
