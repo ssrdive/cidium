@@ -713,6 +713,32 @@ func (app *application) contractReceipt(w http.ResponseWriter, r *http.Request) 
 	fmt.Fprintf(w, "%v", rid)
 }
 
+func (app *application) contractDebitNote(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"contract_id", "contract_installment_type_id", "capital"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	r.PostForm.Set("due_date", time.Now().Format("2006-01-02 15:04:05"))
+	dnid, err := app.contract.DebitNote(requiredParams, []string{"due_date"}, r.PostForm)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", dnid)
+}
+
 func (app *application) contractCommitment(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {

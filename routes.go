@@ -36,6 +36,7 @@ func (app *application) routes() http.Handler {
 	r.Handle("/contract/request/action", app.validateToken(http.HandlerFunc(app.contractRequestAction))).Methods("POST")
 	r.Handle("/contract/calculation/{capital}/{rate}/{installments}/{installmentInterval}/{initiationDate}/{method}", app.validateToken(http.HandlerFunc(app.contractCalculation))).Methods("GET")
 	r.Handle("/contract/receipt", app.validateToken(http.HandlerFunc(app.contractReceipt))).Methods("POST")
+	r.Handle("/contract/debitnote", app.validateToken(http.HandlerFunc(app.contractDebitNote))).Methods("POST")
 	r.Handle("/contract/commitment", app.validateToken(http.HandlerFunc(app.contractCommitment))).Methods("POST")
 	r.Handle("/contract/commitments/{cid}", app.validateToken(http.HandlerFunc(app.contractCommitments))).Methods("GET")
 	r.Handle("/dashboard/commitments/{type}", app.validateToken(http.HandlerFunc(app.dashboardCommitments))).Methods("GET")
