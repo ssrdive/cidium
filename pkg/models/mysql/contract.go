@@ -732,6 +732,45 @@ func (m *ContractModel) Commitment(rparams, oparams []string, form url.Values) (
 	return comid, nil
 }
 
+func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	dnid, err := msql.Insert(msql.FormTable{
+		TableName: "contract_installment",
+		RCols:     rparams,
+		OCols:     oparams,
+		Form:      form,
+		Tx:        tx,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	form.Set("contract_installment_id", fmt.Sprintf("%d", dnid))
+	_, err = msql.Insert(msql.FormTable{
+		TableName: "contract_installment_details",
+		RCols:     []string{"contract_installment_id", "user_id", "notes"},
+		OCols:     []string{},
+		Form:      form,
+		Tx:        tx,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return dnid, nil
+}
+
 func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
@@ -1174,7 +1213,7 @@ func (m *ContractModel) Search(search, state, officer, batch string) ([]models.S
 	var res []models.SearchResult
 	for results.Next() {
 		var r models.SearchResult
-		err = results.Scan(&r.ID, &r.RecoveryOfficer, &r.State, &r.Model, &r.ChassisNumber, &r.CustomerName, &r.AmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid)
+		err = results.Scan(&r.ID, &r.RecoveryOfficer, &r.State, &r.Model, &r.ChassisNumber, &r.CustomerName, &r.CustomerContact, &r.AmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid)
 		if err != nil {
 			return nil, err
 		}

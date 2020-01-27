@@ -143,6 +143,7 @@ type SearchResult struct {
 	Model           string  `json:"model"`
 	ChassisNumber   string  `json:"chassis_number"`
 	CustomerName    string  `json:"customer_name"`
+	CustomerContact string  `json:"customer_contact"`
 	AmountPending   float64 `json:"amount_pending"`
 	TotalPayable    float64 `json:"total_payable"`
 	TotalAgreement  float64 `json:"total_agreement"`
@@ -159,10 +160,10 @@ type ActiveInstallment struct {
 }
 
 type Receipt struct {
-	ID     int       `json:"id"`
-	Date   time.Time `json:"date"`
-	Amount float64   `json:"amount"`
-	Notes  string    `json:"notes"`
+	ID     int            `json:"id"`
+	Date   time.Time      `json:"date"`
+	Amount float64        `json:"amount"`
+	Notes  sql.NullString `json:"notes"`
 }
 
 type Commitment struct {
