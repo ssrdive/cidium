@@ -419,6 +419,25 @@ func (app *application) contractReceipts(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(receipts)
 }
 
+func (app *application) contractOfficerReceipts(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	oid, err := strconv.Atoi(vars["officer"])
+	date := vars["date"]
+	if err != nil || date == "" {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	receipts, err := app.contract.ContractOfficerReceipts(oid, date)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(receipts)
+}
+
 func (app *application) contractRequestability(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	cid, err := strconv.Atoi(vars["cid"])

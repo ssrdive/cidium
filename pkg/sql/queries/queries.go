@@ -239,6 +239,12 @@ const CONTRACT_RECEIPTS = `
 	WHERE CR.contract_id = ?
 `
 
+const CONTRACT_OFFICER_RECEIPTS = `
+	SELECT CR.id, CR.datetime, CR.amount, CR.notes
+	FROM contract_receipt CR
+	WHERE CR.user_id = ? AND DATE(CR.datetime) = ?;
+`
+
 const CONTRACT_COMMITMENTS = `
 	SELECT CM.id, U.name AS created_by, CM.created, CM.commitment, CM.fulfilled, DATEDIFF(CM.due_date, NOW()) AS due_in, CM.text, U2.name AS fulfilled_by, CM.fulfilled_on
 	FROM contract_commitment CM
