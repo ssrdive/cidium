@@ -331,6 +331,24 @@ func (m *ContractModel) ContractReceipts(cid int) ([]models.Receipt, error) {
 	return receipts, nil
 }
 
+func (m *ContractModel) ContractOfficerReceipts(oid int, date string) ([]models.Receipt, error) {
+	results, err := m.DB.Query(queries.CONTRACT_OFFICER_RECEIPTS, oid, date)
+	if err != nil {
+		return nil, err
+	}
+	var receipts []models.Receipt
+	for results.Next() {
+		var receipt models.Receipt
+		err = results.Scan(&receipt.ID, &receipt.Date, &receipt.Amount, &receipt.Notes)
+		if err != nil {
+			return nil, err
+		}
+		receipts = append(receipts, receipt)
+	}
+
+	return receipts, nil
+}
+
 func (m *ContractModel) Commitments(cid int) ([]models.Commitment, error) {
 	results, err := m.DB.Query(queries.CONTRACT_COMMITMENTS, cid)
 	if err != nil {
