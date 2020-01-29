@@ -138,6 +138,7 @@ type ContractPayment struct {
 
 type SearchResult struct {
 	ID              int     `json:"id"`
+	Agrivest        int     `json:"agrivest"`
 	RecoveryOfficer string  `json:"recovery_officer"`
 	State           string  `json:"state"`
 	Model           string  `json:"model"`
