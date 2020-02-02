@@ -293,3 +293,11 @@ const SEARCH = `
 	ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
 	WHERE (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?)
 	GROUP BY C.id`
+
+const CHART_OF_ACCOUNTS = `
+	SELECT MA.account_id AS main_account_id, MA.name AS main_account, SA.account_id AS sub_account_id, SA.name AS sub_account, AC.account_id AS account_category_id, AC.name AS account_category, A.account_id, A.name AS account_name
+	FROM account A
+	RIGHT JOIN account_category AC ON AC.id = A.account_category_id
+	RIGHT JOIN sub_account SA ON SA.id = AC.sub_account_id
+	RIGHT JOIN main_account MA ON MA.id = SA.main_account_id
+`
