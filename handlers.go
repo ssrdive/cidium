@@ -87,6 +87,79 @@ func (app *application) dropdownHandler(w http.ResponseWriter, r *http.Request) 
 
 }
 
+func (app *application) dropdownConditionAccountsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+	where := vars["where"]
+	value := vars["value"]
+	if name == "" || where == "" || value == "" {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	items, err := app.dropdown.ConditionAccountsGet(name, where, value)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items)
+
+}
+
+func (app *application) newAccountCategory(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"sub_account_id", "user_id", "account_id", "name"}
+	optionalParams := []string{"datetime"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	id, err := app.account.CreateCategory(requiredParams, optionalParams, r.PostForm)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%d", id)
+}
+
+func (app *application) newAccount(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"account_category_id", "user_id", "account_id", "name"}
+	optionalParams := []string{"datetime"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	id, err := app.account.CreateAccount(requiredParams, optionalParams, r.PostForm)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%d", id)
+}
+
 func (app *application) newContract(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -808,6 +881,17 @@ func (app *application) contractCommitments(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(commitments)
+}
+
+func (app *application) accountChart(w http.ResponseWriter, r *http.Request) {
+	accounts, err := app.account.ChartOfAccounts()
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(accounts)
 }
 
 func (app *application) dashboardCommitments(w http.ResponseWriter, r *http.Request) {

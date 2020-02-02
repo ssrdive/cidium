@@ -37,6 +37,12 @@ type Dropdown struct {
 	Name string `json:"name"`
 }
 
+type DropdownAccount struct {
+	ID        string `json:"id"`
+	AccountID int    `json:"account_id"`
+	Name      string `json:"name"`
+}
+
 type WorkDocument struct {
 	ID              sql.NullInt32  `json:"id"`
 	ContractStateID int            `json:"contract_state_id"`
@@ -201,4 +207,15 @@ type History struct {
 	FromState      sql.NullString `json:"from_state"`
 	ToState        string         `json:"to_state"`
 	TransitionDate time.Time      `json:"transition_date"`
+}
+
+type ChartOfAccount struct {
+	MainAccountID     int            `json:"main_account_id"`
+	MainAccount       string         `json:"main_account"`
+	SubAccountID      int            `json:"sub_account_id"`
+	SubAccount        string         `json:"sub_account"`
+	AccountCategoryID sql.NullInt32  `json:"account_category_id"`
+	AccountCategory   sql.NullString `json:"account_category"`
+	AccountID         sql.NullInt32  `json:"account_id"`
+	AccountName       sql.NullString `json:"account_name"`
 }

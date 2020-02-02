@@ -23,6 +23,7 @@ type application struct {
 	user       *mysql.UserModel
 	dropdown   *mysql.DropdownModel
 	contract   *mysql.ContractModel
+	account    *mysql.AccountModel
 }
 
 func main() {
@@ -58,6 +59,7 @@ func main() {
 		user:       &mysql.UserModel{DB: db},
 		dropdown:   &mysql.DropdownModel{DB: db},
 		contract:   &mysql.ContractModel{DB: db},
+		account:    &mysql.AccountModel{DB: db},
 	}
 
 	srv := &http.Server{
