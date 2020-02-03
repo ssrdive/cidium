@@ -796,7 +796,7 @@ func (app *application) contractReceipt(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	rid, err := app.contract.Receipt(user_id, cid, amount, notes)
+	rid, err := app.contract.Receipt(user_id, cid, amount, notes, app.rAPIKey, app.aAPIKey)
 	if err != nil {
 		app.serverError(w, err)
 		return

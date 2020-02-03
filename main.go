@@ -20,6 +20,8 @@ type application struct {
 	s3endpoint string
 	s3region   string
 	s3bucket   string
+	rAPIKey    string
+	aAPIKey    string
 	user       *mysql.UserModel
 	dropdown   *mysql.DropdownModel
 	contract   *mysql.ContractModel
@@ -35,6 +37,8 @@ func main() {
 	s3endpoint := flag.String("endpoint", "sgp1.digitaloceanspaces.com", "AWS S3 endpoint")
 	s3region := flag.String("region", "sgp1", "AWS S3 region")
 	s3bucket := flag.String("bucket", "agrivest", "AWS S3 bucket")
+	rAPIKey := flag.String("rAPIKey", "", "Randeepa Text Message API Key")
+	aAPIKey := flag.String("aAPIKey", "", "Randeepa Text Message API Key")
 	flag.Parse()
 
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
@@ -56,6 +60,8 @@ func main() {
 		s3endpoint: *s3endpoint,
 		s3region:   *s3region,
 		s3bucket:   *s3bucket,
+		rAPIKey:    *rAPIKey,
+		aAPIKey:    *aAPIKey,
 		user:       &mysql.UserModel{DB: db},
 		dropdown:   &mysql.DropdownModel{DB: db},
 		contract:   &mysql.ContractModel{DB: db},

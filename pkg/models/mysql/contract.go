@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/ssrdive/cidium/pkg/models"
 	msql "github.com/ssrdive/cidium/pkg/sql"
 	"github.com/ssrdive/cidium/pkg/sql/queries"
@@ -789,7 +791,7 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 	return dnid, nil
 }
 
-func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) (int64, error) {
+func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, rAPIKey, aAPIKey string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -1027,6 +1029,30 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes string) 
 			return 0, err
 		}
 	}
+
+	var managedByAgrivest int
+	var telephone string
+	err = tx.QueryRow(queries.MANAGED_BY_AGRIVEST, cid).Scan(&managedByAgrivest, &telephone)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	apiKey := ""
+	if managedByAgrivest == 0 {
+		apiKey = rAPIKey
+	} else {
+		apiKey = aAPIKey
+	}
+	message := fmt.Sprintf("Hithawath paribhogikaya, obage giwisum anka %d wetha gewu mudala Rs. %s. Niyamitha dinayata pera wadi mudalak gewa polee wasi laba ganna. Sthuthiyi.", cid, humanize.Comma(int64(amount)))
+	telephone = fmt.Sprintf("%s,%s,%s,%s,%s", telephone, "768237192", "703524330", "703524420", "775607777")
+	requestURL := fmt.Sprintf("https://cpsolutions.dialog.lk/index.php/cbs/sms/send?destination=%s&q=%s&message=%s", telephone, apiKey, url.QueryEscape(message))
+	resp, err := http.Get(requestURL)
+	if err != nil {
+		return rid, nil
+	}
+
+	defer resp.Body.Close()
 
 	return rid, nil
 }
