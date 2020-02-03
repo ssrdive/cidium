@@ -301,3 +301,6 @@ const CHART_OF_ACCOUNTS = `
 	RIGHT JOIN sub_account SA ON SA.id = AC.sub_account_id
 	RIGHT JOIN main_account MA ON MA.id = SA.main_account_id
 `
+const MANAGED_BY_AGRIVEST = `
+	SELECT C.agrivest, C.customer_contact FROM contract C WHERE C.id = ?
+`
