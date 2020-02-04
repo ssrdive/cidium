@@ -304,3 +304,10 @@ const CHART_OF_ACCOUNTS = `
 const MANAGED_BY_AGRIVEST = `
 	SELECT C.agrivest, C.customer_contact FROM contract C WHERE C.id = ?
 `
+const ACCOUNT_LEDGER = `
+	SELECT A.name, AT.transaction_id, AT.amount, AT.type, T.remark
+	FROM account_transaction AT
+	LEFT JOIN account A ON A.id = AT.account_id
+	LEFT JOIN transaction T ON T.id = AT.transaction_id
+	WHERE AT.account_id = ?
+`
