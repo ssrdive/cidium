@@ -13,7 +13,7 @@ type DropdownModel struct {
 }
 
 func (m *DropdownModel) Get(name string) ([]*models.Dropdown, error) {
-	stmt := fmt.Sprintf(`SELECT id, name FROM %s`, name)
+	stmt := fmt.Sprintf(`SELECT id, name FROM %s ORDER BY name ASC`, name)
 
 	rows, err := m.DB.Query(stmt)
 	if err != nil {
@@ -40,7 +40,7 @@ func (m *DropdownModel) Get(name string) ([]*models.Dropdown, error) {
 }
 
 func (m *DropdownModel) ConditionAccountsGet(name, where, value string) ([]*models.DropdownAccount, error) {
-	stmt := fmt.Sprintf(`SELECT id, account_id, name FROM %s WHERE %s = %s`, name, where, value)
+	stmt := fmt.Sprintf(`SELECT id, account_id, name FROM %s WHERE %s = %s ORDER BY name ASC`, name, where, value)
 
 	rows, err := m.DB.Query(stmt)
 	if err != nil {

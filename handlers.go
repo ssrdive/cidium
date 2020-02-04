@@ -237,6 +237,24 @@ func (app *application) searchContract(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(results)
 }
 
+func (app *application) accountLedger(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	aid, err := strconv.Atoi(vars["aid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	ledger, err := app.account.Ledger(aid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(ledger)
+}
+
 func (app *application) workDocuments(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	cid, err := strconv.Atoi(vars["cid"])
@@ -892,6 +910,32 @@ func (app *application) accountChart(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(accounts)
+}
+
+func (app *application) accountJournalEntry(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	fmt.Println(r.PostForm.Get("entries"))
+	requiredParams := []string{"user_id", "posting_date", "remark", "entries"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	tid, err := app.account.JournalEntry(r.PostForm.Get("user_id"), r.PostForm.Get("posting_date"), r.PostForm.Get("remark"), r.PostForm.Get("entries"))
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", tid)
 }
 
 func (app *application) dashboardCommitments(w http.ResponseWriter, r *http.Request) {

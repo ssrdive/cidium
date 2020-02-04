@@ -219,3 +219,17 @@ type ChartOfAccount struct {
 	AccountID         sql.NullInt32  `json:"account_id"`
 	AccountName       sql.NullString `json:"account_name"`
 }
+
+type JournalEntry struct {
+	Account string
+	Debit   string
+	Credit  string
+}
+
+type LedgerEntry struct {
+	Name          string  `json:"account_name"`
+	TransactionID int     `json:"transaction_id"`
+	Amount        float64 `json:"amount"`
+	Type          string  `json:"type"`
+	Remark        string  `json:"remark"`
+}

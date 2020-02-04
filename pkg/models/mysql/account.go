@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/url"
 	"time"
 
@@ -87,4 +88,79 @@ func (m *AccountModel) ChartOfAccounts() ([]models.ChartOfAccount, error) {
 	}
 
 	return requests, nil
+}
+
+func (m *AccountModel) JournalEntry(user_id, posting_date, remark, entries string) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	var journalEntries []models.JournalEntry
+	json.Unmarshal([]byte(entries), &journalEntries)
+
+	tid, err := msql.Insert(msql.Table{
+		TableName: "transaction",
+		Columns:   []string{"user_id", "datetime", "posting_date", "remark"},
+		Vals:      []interface{}{user_id, time.Now().Format("2006-01-02 15:04:05"), posting_date, remark},
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	for _, entry := range journalEntries {
+		if len(entry.Debit) != 0 {
+			_, err := msql.Insert(msql.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+		}
+		if len(entry.Credit) != 0 {
+			_, err := msql.Insert(msql.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+		}
+	}
+	return tid, nil
+}
+
+func (m *AccountModel) Ledger(aid int) ([]models.LedgerEntry, error) {
+	results, err := m.DB.Query(queries.ACCOUNT_LEDGER, aid)
+	if err != nil {
+		return nil, err
+	}
+
+	var ledger []models.LedgerEntry
+	for results.Next() {
+		var l models.LedgerEntry
+		err = results.Scan(&l.Name, &l.TransactionID, &l.Amount, &l.Type, &l.Remark)
+		if err != nil {
+			return nil, err
+		}
+		ledger = append(ledger, l)
+	}
+
+	return ledger, nil
 }
