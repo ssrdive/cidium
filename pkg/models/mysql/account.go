@@ -71,6 +71,25 @@ func (m *AccountModel) CreateCategory(rparams, oparams []string, form url.Values
 	return cid, nil
 }
 
+func (m *AccountModel) TrialBalance() ([]models.TrialEntry, error) {
+	results, err := m.DB.Query(queries.TRIAL_BALANCE)
+	if err != nil {
+		return nil, err
+	}
+
+	var requests []models.TrialEntry
+	for results.Next() {
+		var r models.TrialEntry
+		err = results.Scan(&r.ID, &r.AccountID, &r.AccountName, &r.Debit, &r.Credit, &r.Balance)
+		if err != nil {
+			return nil, err
+		}
+		requests = append(requests, r)
+	}
+
+	return requests, nil
+}
+
 func (m *AccountModel) ChartOfAccounts() ([]models.ChartOfAccount, error) {
 	results, err := m.DB.Query(queries.CHART_OF_ACCOUNTS)
 	if err != nil {
@@ -155,7 +174,7 @@ func (m *AccountModel) Ledger(aid int) ([]models.LedgerEntry, error) {
 	var ledger []models.LedgerEntry
 	for results.Next() {
 		var l models.LedgerEntry
-		err = results.Scan(&l.Name, &l.TransactionID, &l.Amount, &l.Type, &l.Remark)
+		err = results.Scan(&l.Name, &l.TransactionID, &l.PostingDate, &l.Amount, &l.Type, &l.Remark)
 		if err != nil {
 			return nil, err
 		}
