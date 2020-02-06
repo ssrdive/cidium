@@ -923,6 +923,31 @@ func (app *application) accountChart(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(accounts)
 }
 
+func (app *application) accountPaymentVoucher(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"user_id", "posting_date", "from_account_id", "amount", "entries", "remark"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	tid, err := app.account.PaymentVoucher(r.PostForm.Get("user_id"), r.PostForm.Get("posting_date"), r.PostForm.Get("from_account_id"), r.PostForm.Get("amount"), r.PostForm.Get("entries"), r.PostForm.Get("remark"))
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", tid)
+}
+
 func (app *application) accountJournalEntry(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -930,7 +955,6 @@ func (app *application) accountJournalEntry(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	fmt.Println(r.PostForm.Get("entries"))
 	requiredParams := []string{"user_id", "posting_date", "remark", "entries"}
 	for _, param := range requiredParams {
 		if v := r.PostForm.Get(param); v == "" {
