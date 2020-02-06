@@ -235,6 +235,11 @@ type JournalEntry struct {
 	Credit  string
 }
 
+type PaymentVoucherEntry struct {
+	Account string
+	Amount  string
+}
+
 type LedgerEntry struct {
 	Name          string  `json:"account_name"`
 	TransactionID int     `json:"transaction_id"`

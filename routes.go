@@ -20,6 +20,7 @@ func (app *application) routes() http.Handler {
 	r.HandleFunc("/account/new", http.HandlerFunc(app.newAccount)).Methods("POST")
 	r.Handle("/account/chart", app.validateToken(http.HandlerFunc(app.accountChart))).Methods("GET")
 	r.Handle("/account/journalentry", app.validateToken(http.HandlerFunc(app.accountJournalEntry))).Methods("POST")
+	r.Handle("/account/paymentvoucher", app.validateToken(http.HandlerFunc(app.accountPaymentVoucher))).Methods("POST")
 	r.Handle("/account/trialbalance", app.validateToken(http.HandlerFunc(app.accountTrialBalance))).Methods("GET")
 	r.Handle("/account/ledger/{aid}", app.validateToken(http.HandlerFunc(app.accountLedger))).Methods("GET")
 	r.Handle("/contract/search", app.validateToken(http.HandlerFunc(app.searchContract))).Methods("GET")
