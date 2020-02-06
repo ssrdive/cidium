@@ -305,9 +305,20 @@ const MANAGED_BY_AGRIVEST = `
 	SELECT C.agrivest, C.customer_contact FROM contract C WHERE C.id = ?
 `
 const ACCOUNT_LEDGER = `
-	SELECT A.name, AT.transaction_id, AT.amount, AT.type, T.remark
+	SELECT A.name, AT.transaction_id, DATE_FORMAT(T.posting_date, '%Y-%m-%d') as posting_date, AT.amount, AT.type, T.remark
 	FROM account_transaction AT
 	LEFT JOIN account A ON A.id = AT.account_id
 	LEFT JOIN transaction T ON T.id = AT.transaction_id
 	WHERE AT.account_id = ?
+`
+
+const TRIAL_BALANCE = `
+	SELECT A.id, A.account_id, A.name, COALESCE(AT.debit, 0) AS debit, COALESCE(AT.credit, 0) AS credit, COALESCE(AT.debit-AT.credit, 0) AS balance
+	FROM account A
+	LEFT JOIN (
+		SELECT AT.account_id, SUM(CASE WHEN AT.type = "DR" THEN AT.amount ELSE 0 END) AS debit, SUM(CASE WHEN AT.type = "CR" THEN AT.amount ELSE 0 END) AS credit 
+		FROM account_transaction AT
+		GROUP BY AT.account_id
+	) AT ON AT.account_id = A.id
+	ORDER BY A.name ASC
 `

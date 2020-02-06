@@ -901,6 +901,17 @@ func (app *application) contractCommitments(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(commitments)
 }
 
+func (app *application) accountTrialBalance(w http.ResponseWriter, r *http.Request) {
+	accounts, err := app.account.TrialBalance()
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(accounts)
+}
+
 func (app *application) accountChart(w http.ResponseWriter, r *http.Request) {
 	accounts, err := app.account.ChartOfAccounts()
 	if err != nil {
