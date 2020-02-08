@@ -791,7 +791,7 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 	return dnid, nil
 }
 
-func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, rAPIKey, aAPIKey string) (int64, error) {
+func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_date, rAPIKey, aAPIKey string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -832,8 +832,8 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, rAPIKey
 
 	rid, err := msql.Insert(msql.Table{
 		TableName: "contract_receipt",
-		Columns:   []string{"user_id", "contract_id", "datetime", "amount", "notes"},
-		Vals:      []interface{}{user_id, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes},
+		Columns:   []string{"user_id", "contract_id", "datetime", "amount", "notes", "due_date"},
+		Vals:      []interface{}{user_id, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes, due_date},
 		Tx:        tx,
 	})
 	if err != nil {

@@ -809,12 +809,13 @@ func (app *application) contractReceipt(w http.ResponseWriter, r *http.Request) 
 	cid, err := strconv.Atoi(r.PostForm.Get("cid"))
 	amount, err := strconv.ParseFloat(r.PostForm.Get("amount"), 32)
 	notes := r.PostForm.Get("notes")
+	due_date := r.PostForm.Get("due_date")
 	if err != nil {
 		app.clientError(w, http.StatusBadRequest)
 		return
 	}
 
-	rid, err := app.contract.Receipt(user_id, cid, amount, notes, app.rAPIKey, app.aAPIKey)
+	rid, err := app.contract.Receipt(user_id, cid, amount, notes, due_date, app.rAPIKey, app.aAPIKey)
 	if err != nil {
 		app.serverError(w, err)
 		return
