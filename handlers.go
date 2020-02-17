@@ -19,9 +19,9 @@ import (
 )
 
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
-	user := app.extractUser(r)
+	// user := app.extractUser(r)
 
-	fmt.Fprintf(w, "%v", user)
+	fmt.Fprintf(w, "It works!")
 }
 
 func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +57,7 @@ func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := models.UserResponse{u.ID, u.Username, u.Name, "Admin", ts}
+	user := models.UserResponse{u.ID, u.Username, u.Name, u.Type, ts}
 	js, err := json.Marshal(user)
 	if err != nil {
 		app.serverError(w, err)
@@ -692,7 +692,7 @@ func (app *application) contractRequestAction(w http.ResponseWriter, r *http.Req
 			return
 		}
 		if name == "Contract Initiated" {
-			err := app.contract.InitiateContract(request)
+			err := app.contract.InitiateContract(user, request)
 			if err != nil {
 				app.serverError(w, err)
 				return
@@ -941,6 +941,31 @@ func (app *application) accountPaymentVoucher(w http.ResponseWriter, r *http.Req
 	}
 
 	tid, err := app.account.PaymentVoucher(r.PostForm.Get("user_id"), r.PostForm.Get("posting_date"), r.PostForm.Get("from_account_id"), r.PostForm.Get("amount"), r.PostForm.Get("entries"), r.PostForm.Get("remark"), r.PostForm.Get("due_date"))
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", tid)
+}
+
+func (app *application) accountDeposit(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"user_id", "posting_date", "to_account_id", "amount", "entries", "remark"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	tid, err := app.account.Deposit(r.PostForm.Get("user_id"), r.PostForm.Get("posting_date"), r.PostForm.Get("to_account_id"), r.PostForm.Get("amount"), r.PostForm.Get("entries"), r.PostForm.Get("remark"))
 	if err != nil {
 		app.serverError(w, err)
 		return

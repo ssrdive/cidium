@@ -320,5 +320,8 @@ const TRIAL_BALANCE = `
 		FROM account_transaction AT
 		GROUP BY AT.account_id
 	) AT ON AT.account_id = A.id
-	ORDER BY A.name ASC
+	ORDER BY account_id ASC
+`
+const OFFICER_ACC_NO = `
+	SELECT account_id FROM user WHERE id = ?
 `

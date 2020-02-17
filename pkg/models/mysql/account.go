@@ -173,6 +173,70 @@ func (m *AccountModel) PaymentVoucher(user_id, posting_date, from_account_id, am
 	return tid, nil
 }
 
+func (m *AccountModel) Deposit(user_id, posting_date, to_account_id, amount, entries, remark string) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	var paymentVoucher []models.PaymentVoucherEntry
+	json.Unmarshal([]byte(entries), &paymentVoucher)
+
+	tid, err := msql.Insert(msql.Table{
+		TableName: "transaction",
+		Columns:   []string{"user_id", "datetime", "posting_date", "remark"},
+		Vals:      []interface{}{user_id, time.Now().Format("2006-01-02 15:04:05"), posting_date, remark},
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	_, err = msql.Insert(msql.Table{
+		TableName: "deposit",
+		Columns:   []string{"transaction_id"},
+		Vals:      []interface{}{tid},
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	_, err = msql.Insert(msql.Table{
+		TableName: "account_transaction",
+		Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+		Vals:      []interface{}{tid, to_account_id, "DR", amount},
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	for _, entry := range paymentVoucher {
+		_, err := msql.Insert(msql.Table{
+			TableName: "account_transaction",
+			Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+			Vals:      []interface{}{tid, entry.Account, "CR", entry.Amount},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
+	return tid, nil
+}
+
 func (m *AccountModel) JournalEntry(user_id, posting_date, remark, entries string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {

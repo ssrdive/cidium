@@ -526,7 +526,7 @@ func (m *ContractModel) RequestName(request int) (string, error) {
 	return r.Name, nil
 }
 
-func (m *ContractModel) InitiateContract(request int) error {
+func (m *ContractModel) InitiateContract(user, request int) error {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return err
@@ -588,7 +588,11 @@ func (m *ContractModel) InitiateContract(request int) error {
 		return err
 	}
 
+	capitalAmount := 0.0
+	interestAmount := 0.0
 	for _, inst := range schedule {
+		capitalAmount += inst.Capital
+		interestAmount += inst.Interest
 		_, err = msql.Insert(msql.Table{
 			TableName: "contract_installment",
 			Columns:   []string{"contract_id", "contract_installment_type_id", "capital", "interest", "default_interest", "due_date"},
@@ -598,6 +602,51 @@ func (m *ContractModel) InitiateContract(request int) error {
 		if err != nil {
 			tx.Rollback()
 			return err
+		}
+	}
+	fullRecievables := capitalAmount + interestAmount
+
+	tid, err := msql.Insert(msql.Table{
+		TableName: "transaction",
+		Columns:   []string{"user_id", "datetime", "posting_date", "remark"},
+		Vals:      []interface{}{user, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), fmt.Sprintf("CONTRACT INITIATION %d", cid)},
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	journalEntries := []models.JournalEntry{
+		models.JournalEntry{fmt.Sprintf("%d", 95), "", fmt.Sprintf("%f", capital)},
+		models.JournalEntry{fmt.Sprintf("%d", 78), "", fmt.Sprintf("%f", interestAmount)},
+		models.JournalEntry{fmt.Sprintf("%d", 25), fmt.Sprintf("%f", fullRecievables), ""},
+	}
+
+	for _, entry := range journalEntries {
+		if len(entry.Debit) != 0 {
+			_, err := msql.Insert(msql.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+		if len(entry.Credit) != 0 {
+			_, err := msql.Insert(msql.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
 		}
 	}
 
@@ -634,7 +683,6 @@ func (m *ContractModel) CommitmentAction(comid, fulfilled, user int) (int64, err
 }
 
 func (m *ContractModel) RequestAction(user, request int, action, note string) (int64, error) {
-	fmt.Println(msql.NewNullString(action))
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -820,8 +868,6 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 		debits = append(debits, d)
 	}
 
-	fmt.Println(debits)
-
 	var diUpdates []models.ContractDefaultInterestUpdate
 	var diLogs []models.ContractDefaultInterestChangeHistory
 	var diPayments []models.ContractPayment
@@ -871,17 +917,19 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 		payables = append(payables, p)
 	}
 
-	fmt.Println(payables)
+	diAmount := 0.0
 
 	if balance != 0 {
 		for _, p := range payables {
 			if p.DefaultInterest != 0 && balance != 0 {
 				if balance-p.DefaultInterest >= 0 {
+					diAmount += p.DefaultInterest
 					diUpdates = append(diUpdates, models.ContractDefaultInterestUpdate{p.InstallmentID, float64(0)})
 					diLogs = append(diLogs, models.ContractDefaultInterestChangeHistory{p.InstallmentID, rid, p.DefaultInterest})
 					diPayments = append(diPayments, models.ContractPayment{p.InstallmentID, rid, p.DefaultInterest})
 					balance = math.Round((balance-p.DefaultInterest)*100) / 100
 				} else {
+					diAmount += math.Round((p.DefaultInterest-balance)*100) / 100
 					diUpdates = append(diUpdates, models.ContractDefaultInterestUpdate{p.InstallmentID, math.Round((p.DefaultInterest-balance)*100) / 100})
 					diLogs = append(diLogs, models.ContractDefaultInterestChangeHistory{p.InstallmentID, rid, p.DefaultInterest})
 					diPayments = append(diPayments, models.ContractPayment{p.InstallmentID, rid, balance})
@@ -1004,7 +1052,10 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 		}
 	}
 
+	interestAmount := 0.0
+
 	for _, intPayment := range intPayments {
+		interestAmount += intPayment.Amount
 		_, err := msql.Insert(msql.Table{
 			TableName: "contract_interest_payment",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
@@ -1027,6 +1078,56 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 		if err != nil {
 			tx.Rollback()
 			return 0, err
+		}
+	}
+
+	var officerAccountID int
+	err = tx.QueryRow(queries.OFFICER_ACC_NO, user_id).Scan(&officerAccountID)
+
+	tid, err := msql.Insert(msql.Table{
+		TableName: "transaction",
+		Columns:   []string{"user_id", "datetime", "posting_date", "remark"},
+		Vals:      []interface{}{user_id, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), fmt.Sprintf("RECEIPT %d", rid)},
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	journalEntries := []models.JournalEntry{
+		models.JournalEntry{fmt.Sprintf("%d", officerAccountID), fmt.Sprintf("%f", amount), ""},
+		models.JournalEntry{fmt.Sprintf("%d", 25), "", fmt.Sprintf("%f", amount)},
+		models.JournalEntry{fmt.Sprintf("%d", 46), "", fmt.Sprintf("%f", interestAmount)},
+		models.JournalEntry{fmt.Sprintf("%d", 78), fmt.Sprintf("%f", interestAmount), ""},
+		models.JournalEntry{fmt.Sprintf("%d", 48), "", fmt.Sprintf("%f", diAmount)},
+		models.JournalEntry{fmt.Sprintf("%d", 79), fmt.Sprintf("%f", diAmount), ""},
+	}
+
+	for _, entry := range journalEntries {
+		if val, _ := strconv.ParseFloat(entry.Debit, 64); len(entry.Debit) != 0 && val != 0 {
+			_, err := msql.Insert(msql.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+		}
+		if val, _ := strconv.ParseFloat(entry.Credit, 64); len(entry.Credit) != 0 && val != 0 {
+			_, err := msql.Insert(msql.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
 		}
 	}
 
@@ -1085,8 +1186,6 @@ func (m *ContractModel) LegacyReceipt(user_id, cid int, amount float64, notes st
 		}
 		debits = append(debits, d)
 	}
-
-	fmt.Println(debits)
 
 	var diUpdates []models.ContractDefaultInterestUpdate
 	var diLogs []models.ContractDefaultInterestChangeHistory
