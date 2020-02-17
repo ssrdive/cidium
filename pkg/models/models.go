@@ -30,6 +30,7 @@ type JWTUser struct {
 	Username string
 	Password string
 	Name     string
+	Type     string
 }
 
 type Dropdown struct {
