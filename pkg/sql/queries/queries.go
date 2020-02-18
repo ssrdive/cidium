@@ -102,8 +102,9 @@ const UPCOMING_COMMITMENTS = `
 	WHERE CM.fulfilled IS NULL AND CM.commitment = 1 AND DATEDIFF(CM.due_date, NOW()) > 0`
 
 const DEBITS = `
-	SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
+	SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest, CIT2.unearned_account_id, CIT2.income_account_id
 	FROM contract_installment CI
+	LEFT JOIN contract_installment_type CIT2 ON CIT2.id = CI.contract_installment_type_id
 	LEFT JOIN (
 		SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
 		FROM contract_interest_payment CIP
@@ -213,8 +214,9 @@ const CONTRACT_DETAILS = `
 	GROUP BY C.id`
 
 const CONTRACT_INSTALLMENTS = `
-	SELECT CI.id, CI.capital+CI.interest+CI.default_interest AS installment,SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, CI.due_date, DATEDIFF(CI.due_date, NOW()) AS due_in
+	SELECT CI.id, CIT.name AS installment_type, CI.capital+CI.interest+CI.default_interest AS installment,SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, CI.due_date, DATEDIFF(CI.due_date, NOW()) AS due_in
 	FROM contract_installment CI
+	LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
 	LEFT JOIN (
 		SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) AS amount
 		FROM contract_interest_payment CIP
@@ -322,6 +324,11 @@ const TRIAL_BALANCE = `
 	) AT ON AT.account_id = A.id
 	ORDER BY account_id ASC
 `
+
 const OFFICER_ACC_NO = `
 	SELECT account_id FROM user WHERE id = ?
+`
+
+const DEBIT_NOTE_UNEARNED_ACC_NO = `
+	SELECT CIT.unearned_account_id FROM contract_installment_type CIT WHERE CIT.id = ?
 `

@@ -126,6 +126,16 @@ type ContractPayable struct {
 	DefaultInterest float64
 }
 
+type DebitsPayable struct {
+	InstallmentID     int
+	ContractID        int
+	CapitalPayable    float64
+	InterestPayable   float64
+	DefaultInterest   float64
+	UnearnedAccountID int
+	IncomeAccountID   int
+}
+
 type ContractDefaultInterestChangeHistory struct {
 	ContractInstallmentID int
 	ContractReceiptID     int64
@@ -141,6 +151,14 @@ type ContractPayment struct {
 	ContractInstallmentID int
 	ContractReceiptID     int64
 	Amount                float64
+}
+
+type DebitPayment struct {
+	ContractInstallmentID int
+	ContractReceiptID     int64
+	Amount                float64
+	UnearnedAccountID     int
+	IncomeAccountID       int
 }
 
 type SearchResult struct {
@@ -161,6 +179,7 @@ type SearchResult struct {
 
 type ActiveInstallment struct {
 	ID              int       `json:"id"`
+	InstallmentType string    `json:"installment_type"`
 	Installment     float64   `json:"installment"`
 	InstallmentPaid float64   `json:"installment_paid"`
 	DueDate         time.Time `json:"due_date"`

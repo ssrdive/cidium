@@ -305,7 +305,7 @@ func (m *ContractModel) ContractInstallments(cid int) ([]models.ActiveInstallmen
 	var installments []models.ActiveInstallment
 	for results.Next() {
 		var installment models.ActiveInstallment
-		err = results.Scan(&installment.ID, &installment.Installment, &installment.InstallmentPaid, &installment.DueDate, &installment.DueIn)
+		err = results.Scan(&installment.ID, &installment.InstallmentType, &installment.Installment, &installment.InstallmentPaid, &installment.DueDate, &installment.DueIn)
 		if err != nil {
 			return nil, err
 		}
@@ -608,8 +608,8 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 
 	tid, err := msql.Insert(msql.Table{
 		TableName: "transaction",
-		Columns:   []string{"user_id", "datetime", "posting_date", "remark"},
-		Vals:      []interface{}{user, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), fmt.Sprintf("CONTRACT INITIATION %d", cid)},
+		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
+		Vals:      []interface{}{user, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("CONTRACT INITIATION %d", cid)},
 		Tx:        tx,
 	})
 	if err != nil {
@@ -821,6 +821,7 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 		Tx:        tx,
 	})
 	if err != nil {
+		tx.Rollback()
 		return 0, err
 	}
 
@@ -833,7 +834,54 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 		Tx:        tx,
 	})
 	if err != nil {
+		tx.Rollback()
 		return 0, err
+	}
+
+	var unearnedAccountID int
+	err = tx.QueryRow(queries.DEBIT_NOTE_UNEARNED_ACC_NO, form.Get("contract_installment_type_id")).Scan(&unearnedAccountID)
+
+	tid, err := msql.Insert(msql.Table{
+		TableName: "transaction",
+		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
+		Vals:      []interface{}{form.Get("user_id"), time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), form.Get("contract_id"), fmt.Sprintf("DEBIT NOTE %d", dnid)},
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	journalEntries := []models.JournalEntry{
+		models.JournalEntry{fmt.Sprintf("%d", 25), form.Get("capital"), ""},
+		models.JournalEntry{fmt.Sprintf("%d", unearnedAccountID), "", form.Get("capital")},
+	}
+
+	for _, entry := range journalEntries {
+		if val, _ := strconv.ParseFloat(entry.Debit, 64); len(entry.Debit) != 0 && val != 0 {
+			_, err := msql.Insert(msql.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+		}
+		if val, _ := strconv.ParseFloat(entry.Credit, 64); len(entry.Credit) != 0 && val != 0 {
+			_, err := msql.Insert(msql.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+		}
 	}
 
 	return dnid, nil
@@ -858,10 +906,10 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 		return 0, err
 	}
 
-	var debits []models.ContractPayable
+	var debits []models.DebitsPayable
 	for results.Next() {
-		var d models.ContractPayable
-		err = results.Scan(&d.InstallmentID, &d.ContractID, &d.CapitalPayable, &d.InterestPayable, &d.DefaultInterest)
+		var d models.DebitsPayable
+		err = results.Scan(&d.InstallmentID, &d.ContractID, &d.CapitalPayable, &d.InterestPayable, &d.DefaultInterest, &d.UnearnedAccountID, &d.IncomeAccountID)
 		if err != nil {
 			return 0, err
 		}
@@ -873,6 +921,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 	var diPayments []models.ContractPayment
 	var intPayments []models.ContractPayment
 	var capPayments []models.ContractPayment
+	var debitPayments []models.DebitPayment
 
 	balance := amount
 
@@ -891,10 +940,10 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 		for _, p := range debits {
 			if p.CapitalPayable != 0 && balance != 0 {
 				if balance-p.CapitalPayable >= 0 {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, p.CapitalPayable})
+					debitPayments = append(debitPayments, models.DebitPayment{p.InstallmentID, rid, p.CapitalPayable, p.UnearnedAccountID, p.IncomeAccountID})
 					balance = math.Round((balance-p.CapitalPayable)*100) / 100
 				} else {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, balance})
+					debitPayments = append(debitPayments, models.DebitPayment{p.InstallmentID, rid, balance, p.UnearnedAccountID, p.IncomeAccountID})
 					balance = 0
 				}
 			}
@@ -1081,19 +1130,52 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 		}
 	}
 
-	var officerAccountID int
-	err = tx.QueryRow(queries.OFFICER_ACC_NO, user_id).Scan(&officerAccountID)
-
 	tid, err := msql.Insert(msql.Table{
 		TableName: "transaction",
-		Columns:   []string{"user_id", "datetime", "posting_date", "remark"},
-		Vals:      []interface{}{user_id, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), fmt.Sprintf("RECEIPT %d", rid)},
+		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
+		Vals:      []interface{}{user_id, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("RECEIPT %d", rid)},
 		Tx:        tx,
 	})
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
+
+	for _, capPayment := range debitPayments {
+		_, err := msql.Insert(msql.Table{
+			TableName: "account_transaction",
+			Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+			Vals:      []interface{}{tid, capPayment.UnearnedAccountID, "DR", capPayment.Amount},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+		_, err = msql.Insert(msql.Table{
+			TableName: "account_transaction",
+			Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+			Vals:      []interface{}{tid, capPayment.IncomeAccountID, "CR", capPayment.Amount},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+		_, err = msql.Insert(msql.Table{
+			TableName: "contract_capital_payment",
+			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
+			Vals:      []interface{}{capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
+
+	var officerAccountID int
+	err = tx.QueryRow(queries.OFFICER_ACC_NO, user_id).Scan(&officerAccountID)
 
 	journalEntries := []models.JournalEntry{
 		models.JournalEntry{fmt.Sprintf("%d", officerAccountID), fmt.Sprintf("%f", amount), ""},
