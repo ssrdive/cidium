@@ -87,6 +87,27 @@ func (app *application) dropdownHandler(w http.ResponseWriter, r *http.Request) 
 
 }
 
+func (app *application) dropdownConditionHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+	where := vars["where"]
+	value := vars["value"]
+	if name == "" || where == "" || value == "" {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	items, err := app.dropdown.ConditionGet(name, where, value)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items)
+
+}
+
 func (app *application) dropdownConditionAccountsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
