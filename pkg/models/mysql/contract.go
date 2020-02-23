@@ -122,7 +122,11 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 		return err
 	}
 
+	capitalAmount := 0.0
+	interestAmount := 0.0
 	for _, inst := range schedule {
+		capitalAmount += inst.Capital
+		interestAmount += inst.Interest
 		_, err = msql.Insert(msql.Table{
 			TableName: "contract_installment",
 			Columns:   []string{"contract_id", "contract_installment_type_id", "capital", "interest", "default_interest", "due_date"},
@@ -132,6 +136,51 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 		if err != nil {
 			tx.Rollback()
 			return err
+		}
+	}
+	fullRecievables := capitalAmount + interestAmount
+
+	tid, err := msql.Insert(msql.Table{
+		TableName: "transaction",
+		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
+		Vals:      []interface{}{form.Get("user_id"), time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("LEGACY CONTRACT CREATION %d", cid)},
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	journalEntries := []models.JournalEntry{
+		models.JournalEntry{fmt.Sprintf("%d", 95), "", fmt.Sprintf("%f", capital)},
+		models.JournalEntry{fmt.Sprintf("%d", 78), "", fmt.Sprintf("%f", interestAmount)},
+		models.JournalEntry{fmt.Sprintf("%d", 25), fmt.Sprintf("%f", fullRecievables), ""},
+	}
+
+	for _, entry := range journalEntries {
+		if len(entry.Debit) != 0 {
+			_, err := msql.Insert(msql.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+		if len(entry.Credit) != 0 {
+			_, err := msql.Insert(msql.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
 		}
 	}
 
