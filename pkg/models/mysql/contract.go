@@ -1447,3 +1447,39 @@ func (m *ContractModel) Search(search, state, officer, batch string) ([]models.S
 
 	return res, nil
 }
+
+func (m *ContractModel) PaymentVouchers() ([]models.PaymentVoucherList, error) {
+	results, err := m.DB.Query(queries.PAYMENT_VOUCHERS)
+	if err != nil {
+		return nil, err
+	}
+	var vouchers []models.PaymentVoucherList
+	for results.Next() {
+		var voucher models.PaymentVoucherList
+		err = results.Scan(&voucher.ID, &voucher.Datetime, &voucher.PostingDate, &voucher.FromAccount, &voucher.User)
+		if err != nil {
+			return nil, err
+		}
+		vouchers = append(vouchers, voucher)
+	}
+
+	return vouchers, nil
+}
+
+func (m *ContractModel) PaymentVoucherDetails(pid int) ([]models.PaymentVoucherDetails, error) {
+	results, err := m.DB.Query(queries.PAYMENT_VOUCHER_DETAILS, pid)
+	if err != nil {
+		return nil, err
+	}
+	var vouchers []models.PaymentVoucherDetails
+	for results.Next() {
+		var voucher models.PaymentVoucherDetails
+		err = results.Scan(&voucher.AccountID, &voucher.AccountName, &voucher.Amount)
+		if err != nil {
+			return nil, err
+		}
+		vouchers = append(vouchers, voucher)
+	}
+
+	return vouchers, nil
+}

@@ -87,6 +87,37 @@ func (app *application) dropdownHandler(w http.ResponseWriter, r *http.Request) 
 
 }
 
+func (app *application) paymentVouchers(w http.ResponseWriter, r *http.Request) {
+	items, err := app.contract.PaymentVouchers()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items)
+
+}
+
+func (app *application) paymentVoucherDetails(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	pid, err := strconv.Atoi(vars["pid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	items, err := app.contract.PaymentVoucherDetails(pid)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items)
+
+}
+
 func (app *application) dropdownConditionHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]

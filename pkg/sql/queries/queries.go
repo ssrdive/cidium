@@ -332,3 +332,22 @@ const OFFICER_ACC_NO = `
 const DEBIT_NOTE_UNEARNED_ACC_NO = `
 	SELECT CIT.unearned_account_id FROM contract_installment_type CIT WHERE CIT.id = ?
 `
+
+const PAYMENT_VOUCHERS = `
+	SELECT PV.id, T.datetime, T.posting_date, A.name AS from_account, U.name AS user
+	FROM payment_voucher PV
+	LEFT JOIN transaction T ON T.id = PV.transaction_id
+	LEFT JOIN account_transaction AT ON AT.transaction_id = T.id AND AT.type = 'CR'
+	LEFT JOIN account A ON A.id = AT.account_id
+	LEFT JOIN user U ON T.user_id = U.id
+	ORDER BY T.datetime DESC
+`
+
+const PAYMENT_VOUCHER_DETAILS = `
+	SELECT A.account_id, A.name AS account_name, AT.amount
+	FROM payment_voucher PV
+	LEFT JOIN transaction T ON T.id = PV.transaction_id
+	LEFT JOIN account_transaction AT ON AT.transaction_id = T.id AND AT.type = 'DR'
+	LEFT JOIN account A ON A.id = AT.account_id
+	WHERE PV.id = ?
+`

@@ -205,6 +205,20 @@ type Commitment struct {
 	FulfilledOn sql.NullTime   `json:"fulfilled_on"`
 }
 
+type PaymentVoucherList struct {
+	ID          int       `json:"id"`
+	Datetime    time.Time `json:"date_time"`
+	PostingDate string    `json:"posting_date"`
+	FromAccount string    `json:"from_account"`
+	User        string    `json:"user"`
+}
+
+type PaymentVoucherDetails struct {
+	AccountID   int     `json:"account_id"`
+	AccountName string  `json:"account_name"`
+	Amount      float64 `json:"amount"`
+}
+
 type DashboardCommitment struct {
 	ContractID int    `json:"contract_id"`
 	DueIn      int    `json:"due_in"`
