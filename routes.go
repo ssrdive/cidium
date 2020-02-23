@@ -53,6 +53,8 @@ func (app *application) routes() http.Handler {
 	r.Handle("/dashboard/commitments/{type}", app.validateToken(http.HandlerFunc(app.dashboardCommitments))).Methods("GET")
 	r.Handle("/contract/receipt/legacy", app.validateToken(http.HandlerFunc(app.contractReceiptLegacy))).Methods("POST")
 	r.Handle("/contract/commitment/action", app.validateToken(http.HandlerFunc(app.contractCommitmentAction))).Methods("POST")
+	r.Handle("/paymentvouchers", app.validateToken(http.HandlerFunc(app.paymentVouchers))).Methods("GET")
+	r.Handle("/paymentvoucher/{pid}", app.validateToken(http.HandlerFunc(app.paymentVoucherDetails))).Methods("GET")
 
 	fileServer := http.FileServer(http.Dir("./ui/static/"))
 	r.Handle("/static/", http.StripPrefix("/static", fileServer))
