@@ -169,6 +169,7 @@ type SearchResult struct {
 	Model           string  `json:"model"`
 	ChassisNumber   string  `json:"chassis_number"`
 	CustomerName    string  `json:"customer_name"`
+	CustomerAddress string  `json:"customer_address"`
 	CustomerContact string  `json:"customer_contact"`
 	AmountPending   float64 `json:"amount_pending"`
 	TotalPayable    float64 `json:"total_payable"`
