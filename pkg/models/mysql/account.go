@@ -109,7 +109,7 @@ func (m *AccountModel) ChartOfAccounts() ([]models.ChartOfAccount, error) {
 	return requests, nil
 }
 
-func (m *AccountModel) PaymentVoucher(user_id, posting_date, from_account_id, amount, entries, remark, due_date string) (int64, error) {
+func (m *AccountModel) PaymentVoucher(user_id, posting_date, from_account_id, amount, entries, remark, due_date, check_number string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -138,8 +138,8 @@ func (m *AccountModel) PaymentVoucher(user_id, posting_date, from_account_id, am
 
 	_, err = msql.Insert(msql.Table{
 		TableName: "payment_voucher",
-		Columns:   []string{"transaction_id", "due_date"},
-		Vals:      []interface{}{tid, due_date},
+		Columns:   []string{"transaction_id", "due_date", "check_number"},
+		Vals:      []interface{}{tid, due_date, check_number},
 		Tx:        tx,
 	})
 	if err != nil {
@@ -291,6 +291,25 @@ func (m *AccountModel) JournalEntry(user_id, posting_date, remark, entries strin
 		}
 	}
 	return tid, nil
+}
+
+func (m *AccountModel) Transaction(aid int) ([]models.Transaction, error) {
+	results, err := m.DB.Query(queries.TRANSACTION, aid)
+	if err != nil {
+		return nil, err
+	}
+
+	var transaction []models.Transaction
+	for results.Next() {
+		var t models.Transaction
+		err = results.Scan(&t.TransactionID, &t.AccountID, &t.AccountID2, &t.AccountName, &t.Type, &t.Amount)
+		if err != nil {
+			return nil, err
+		}
+		transaction = append(transaction, t)
+	}
+
+	return transaction, nil
 }
 
 func (m *AccountModel) Ledger(aid int) ([]models.LedgerEntry, error) {

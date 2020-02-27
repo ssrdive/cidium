@@ -575,6 +575,42 @@ func (m *ContractModel) RequestName(request int) (string, error) {
 	return r.Name, nil
 }
 
+func (m *ContractModel) CreditWorthinessApproved(user, request int, aAPIKey string) error {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	var cid int
+	var customerName string
+	var liaisonContact sql.NullInt32
+	err = tx.QueryRow(queries.PARAMS_FOR_CREDIT_WORTHINESS_APPROVAL, request).Scan(&cid, &customerName, &liaisonContact)
+	if err != nil {
+		return err
+	}
+
+	if !liaisonContact.Valid {
+		return errors.New("Liaison contact not provided")
+	}
+
+	message := fmt.Sprintf("Customer %s bearing contract number %d has obtained credit worthiness approval.", customerName, cid)
+	telephone := fmt.Sprintf("%s,%s,%s,%s,%s,%s", liaisonContact.Int32, "768237192", "703524330", "703524420", "775607777", "703524300")
+	requestURL := fmt.Sprintf("https://cpsolutions.dialog.lk/index.php/cbs/sms/send?destination=%s&q=%s&message=%s", telephone, aAPIKey, url.QueryEscape(message))
+	resp, err := http.Get(requestURL)
+	defer resp.Body.Close()
+	if err != nil {
+		return nil
+	}
+	return nil
+}
+
 func (m *ContractModel) InitiateContract(user, request int) error {
 	tx, err := m.DB.Begin()
 	if err != nil {
@@ -1277,7 +1313,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 		apiKey = aAPIKey
 	}
 	message := fmt.Sprintf("Hithawath paribhogikaya, obage giwisum anka %d wetha gewu mudala Rs. %s. Niyamitha dinayata pera wadi mudalak gewa polee wasi laba ganna. Sthuthiyi.", cid, humanize.Comma(int64(amount)))
-	telephone = fmt.Sprintf("%s,%s,%s,%s,%s", telephone, "768237192", "703524330", "703524420", "775607777")
+	telephone = fmt.Sprintf("%s,%s,%s,%s,%s,%s", telephone, "768237192", "703524330", "703524420", "775607777", "703524278")
 	requestURL := fmt.Sprintf("https://cpsolutions.dialog.lk/index.php/cbs/sms/send?destination=%s&q=%s&message=%s", telephone, apiKey, url.QueryEscape(message))
 	resp, err := http.Get(requestURL)
 	if err != nil {
@@ -1515,20 +1551,23 @@ func (m *ContractModel) PaymentVouchers() ([]models.PaymentVoucherList, error) {
 	return vouchers, nil
 }
 
-func (m *ContractModel) PaymentVoucherDetails(pid int) ([]models.PaymentVoucherDetails, error) {
+func (m *ContractModel) PaymentVoucherDetails(pid int) (models.PaymentVoucherSummary, error) {
+	var dueDate, checkNumber sql.NullString
+	err := m.DB.QueryRow(queries.PAYMENT_VOUCHER_CHECK_DETAILS, pid).Scan(&dueDate, &checkNumber)
+
 	results, err := m.DB.Query(queries.PAYMENT_VOUCHER_DETAILS, pid)
 	if err != nil {
-		return nil, err
+		return models.PaymentVoucherSummary{}, err
 	}
 	var vouchers []models.PaymentVoucherDetails
 	for results.Next() {
 		var voucher models.PaymentVoucherDetails
 		err = results.Scan(&voucher.AccountID, &voucher.AccountName, &voucher.Amount)
 		if err != nil {
-			return nil, err
+			return models.PaymentVoucherSummary{}, err
 		}
 		vouchers = append(vouchers, voucher)
 	}
 
-	return vouchers, nil
+	return models.PaymentVoucherSummary{dueDate, checkNumber, vouchers}, nil
 }
