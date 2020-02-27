@@ -289,6 +289,24 @@ func (app *application) searchContract(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(results)
 }
 
+func (app *application) accountTransaction(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	tid, err := strconv.Atoi(vars["tid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	ledger, err := app.account.Transaction(tid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(ledger)
+}
+
 func (app *application) accountLedger(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	aid, err := strconv.Atoi(vars["aid"])
@@ -750,6 +768,13 @@ func (app *application) contractRequestAction(w http.ResponseWriter, r *http.Req
 				return
 			}
 		}
+		if name == "Credit Worthiness Approved" {
+			err := app.contract.CreditWorthinessApproved(user, request, app.aAPIKey)
+			if err != nil {
+				app.serverError(w, err)
+				return
+			}
+		}
 	}
 
 	c, err := app.contract.RequestAction(user, request, action, note)
@@ -992,7 +1017,7 @@ func (app *application) accountPaymentVoucher(w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	tid, err := app.account.PaymentVoucher(r.PostForm.Get("user_id"), r.PostForm.Get("posting_date"), r.PostForm.Get("from_account_id"), r.PostForm.Get("amount"), r.PostForm.Get("entries"), r.PostForm.Get("remark"), r.PostForm.Get("due_date"))
+	tid, err := app.account.PaymentVoucher(r.PostForm.Get("user_id"), r.PostForm.Get("posting_date"), r.PostForm.Get("from_account_id"), r.PostForm.Get("amount"), r.PostForm.Get("entries"), r.PostForm.Get("remark"), r.PostForm.Get("due_date"), r.PostForm.Get("check_number"))
 	if err != nil {
 		app.serverError(w, err)
 		return

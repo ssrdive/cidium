@@ -24,6 +24,7 @@ func (app *application) routes() http.Handler {
 	r.Handle("/account/deposit", app.validateToken(http.HandlerFunc(app.accountDeposit))).Methods("POST")
 	r.Handle("/account/trialbalance", app.validateToken(http.HandlerFunc(app.accountTrialBalance))).Methods("GET")
 	r.Handle("/account/ledger/{aid}", app.validateToken(http.HandlerFunc(app.accountLedger))).Methods("GET")
+	r.Handle("/transaction/{tid}", app.validateToken(http.HandlerFunc(app.accountTransaction))).Methods("GET")
 	r.Handle("/contract/search", app.validateToken(http.HandlerFunc(app.searchContract))).Methods("GET")
 	r.HandleFunc("/authenticate", http.HandlerFunc(app.authenticate)).Methods("POST")
 	r.Handle("/contract/new", app.validateToken(http.HandlerFunc(app.newContract))).Methods("POST")

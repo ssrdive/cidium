@@ -220,6 +220,12 @@ type PaymentVoucherDetails struct {
 	Amount      float64 `json:"amount"`
 }
 
+type PaymentVoucherSummary struct {
+	DueDate               sql.NullString          `json:"due_date"`
+	CheckNumber           sql.NullString          `json:"check_number"`
+	PaymentVoucherDetails []PaymentVoucherDetails `json:"payment_voucher_details"`
+}
+
 type DashboardCommitment struct {
 	ContractID int    `json:"contract_id"`
 	DueIn      int    `json:"due_in"`
@@ -282,4 +288,13 @@ type LedgerEntry struct {
 	Amount        float64 `json:"amount"`
 	Type          string  `json:"type"`
 	Remark        string  `json:"remark"`
+}
+
+type Transaction struct {
+	TransactionID int     `json:"transaction_id"`
+	AccountID     int     `json:"account_id"`
+	AccountID2    int     `json:"account_id2"`
+	AccountName   string  `json:"account_name"`
+	Type          string  `json:"type"`
+	Amount        float64 `json:"amount"`
 }

@@ -82,6 +82,12 @@ const REQUEST_NAME = `
 const PARAMS_FOR_CONTRACT_INITIATION = `
 	SELECT Q.name as id, CSQA.answer FROM contract_state_question_answer CSQA LEFT JOIN contract_state CS ON CS.id = CSQA.contract_state_id LEFT JOIN contract C ON C.id = CS.contract_id LEFT JOIN question Q ON Q.id = CSQA.question_id WHERE Q.name IN ('Capital', 'Interest Rate', 'Interest Method', 'Installments', 'Installment Interval') AND CSQA.deleted = 0 AND C.id = ( SELECT CS.contract_id FROM request R LEFT JOIN contract_state CS ON CS.id = R.to_contract_state_id WHERE R.id = ? )`
 
+const PARAMS_FOR_CREDIT_WORTHINESS_APPROVAL = `
+	SELECT C.id, C.customer_name, C.liaison_contact
+	FROM contract C 
+	WHERE C.id = (SELECT CS.contract_id FROM request R LEFT JOIN contract_state CS ON CS.id = R.to_contract_state_id WHERE R.id = ?)
+`
+
 const CONTRACT_ID_FROM_REUQEST = `
 	SELECT CS.contract_id AS id FROM request R LEFT JOIN contract_state CS ON CS.id = R.to_contract_state_id WHERE R.id = ?`
 
@@ -314,6 +320,13 @@ const ACCOUNT_LEDGER = `
 	WHERE AT.account_id = ?
 `
 
+const TRANSACTION = `
+	SELECT AT.transaction_id, A.account_id, A.id AS account_id2, A.name AS account_name, AT.type, AT.amount
+	FROM account_transaction AT
+	LEFT JOIN account A ON A.id = AT.account_id
+	WHERE AT.transaction_id = ?
+`
+
 const TRIAL_BALANCE = `
 	SELECT A.id, A.account_id, A.name, COALESCE(AT.debit, 0) AS debit, COALESCE(AT.credit, 0) AS credit, COALESCE(AT.debit-AT.credit, 0) AS balance
 	FROM account A
@@ -349,5 +362,11 @@ const PAYMENT_VOUCHER_DETAILS = `
 	LEFT JOIN transaction T ON T.id = PV.transaction_id
 	LEFT JOIN account_transaction AT ON AT.transaction_id = T.id AND AT.type = 'DR'
 	LEFT JOIN account A ON A.id = AT.account_id
+	WHERE PV.id = ?
+`
+
+const PAYMENT_VOUCHER_CHECK_DETAILS = `
+	SELECT PV.due_date, PV.check_number
+	FROM payment_voucher PV
 	WHERE PV.id = ?
 `
