@@ -1552,8 +1552,8 @@ func (m *ContractModel) PaymentVouchers() ([]models.PaymentVoucherList, error) {
 }
 
 func (m *ContractModel) PaymentVoucherDetails(pid int) (models.PaymentVoucherSummary, error) {
-	var dueDate, checkNumber sql.NullString
-	err := m.DB.QueryRow(queries.PAYMENT_VOUCHER_CHECK_DETAILS, pid).Scan(&dueDate, &checkNumber)
+	var dueDate, checkNumber, payee, remark sql.NullString
+	err := m.DB.QueryRow(queries.PAYMENT_VOUCHER_CHECK_DETAILS, pid).Scan(&dueDate, &checkNumber, &payee, &remark)
 
 	results, err := m.DB.Query(queries.PAYMENT_VOUCHER_DETAILS, pid)
 	if err != nil {
@@ -1569,5 +1569,5 @@ func (m *ContractModel) PaymentVoucherDetails(pid int) (models.PaymentVoucherSum
 		vouchers = append(vouchers, voucher)
 	}
 
-	return models.PaymentVoucherSummary{dueDate, checkNumber, vouchers}, nil
+	return models.PaymentVoucherSummary{dueDate, checkNumber, payee, remark, vouchers}, nil
 }
