@@ -366,7 +366,8 @@ const PAYMENT_VOUCHER_DETAILS = `
 `
 
 const PAYMENT_VOUCHER_CHECK_DETAILS = `
-	SELECT PV.due_date, PV.check_number
+	SELECT PV.due_date, PV.check_number, PV.payee, T.remark
 	FROM payment_voucher PV
+	LEFT JOIN transaction T ON T.id = PV.transaction_id
 	WHERE PV.id = ?
 `

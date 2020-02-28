@@ -109,7 +109,7 @@ func (m *AccountModel) ChartOfAccounts() ([]models.ChartOfAccount, error) {
 	return requests, nil
 }
 
-func (m *AccountModel) PaymentVoucher(user_id, posting_date, from_account_id, amount, entries, remark, due_date, check_number string) (int64, error) {
+func (m *AccountModel) PaymentVoucher(user_id, posting_date, from_account_id, amount, entries, remark, due_date, check_number, payee string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -138,8 +138,8 @@ func (m *AccountModel) PaymentVoucher(user_id, posting_date, from_account_id, am
 
 	_, err = msql.Insert(msql.Table{
 		TableName: "payment_voucher",
-		Columns:   []string{"transaction_id", "due_date", "check_number"},
-		Vals:      []interface{}{tid, due_date, check_number},
+		Columns:   []string{"transaction_id", "due_date", "check_number", "payee"},
+		Vals:      []interface{}{tid, due_date, check_number, payee},
 		Tx:        tx,
 	})
 	if err != nil {

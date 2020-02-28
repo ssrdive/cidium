@@ -223,6 +223,8 @@ type PaymentVoucherDetails struct {
 type PaymentVoucherSummary struct {
 	DueDate               sql.NullString          `json:"due_date"`
 	CheckNumber           sql.NullString          `json:"check_number"`
+	Payee                 sql.NullString          `json:"payee"`
+	Remark                sql.NullString          `json:"remark"`
 	PaymentVoucherDetails []PaymentVoucherDetails `json:"payment_voucher_details"`
 }
 
