@@ -1312,7 +1312,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 	} else {
 		apiKey = aAPIKey
 	}
-	message := fmt.Sprintf("Hithawath paribhogikaya, obage giwisum anka %d wetha gewu mudala Rs. %s. Niyamitha dinayata pera wadi mudalak gewa polee wasi laba ganna. Sthuthiyi.", cid, humanize.Comma(int64(amount)))
+	message := fmt.Sprintf("Hithawath paribhogikaya, obage giwisum anka %d wetha gewu mudala Rs. %s. Sthuthiyi.", cid, humanize.Comma(int64(amount)))
 	telephone = fmt.Sprintf("%s,%s,%s,%s,%s,%s", telephone, "768237192", "703524330", "703524420", "775607777", "703524278")
 	requestURL := fmt.Sprintf("https://cpsolutions.dialog.lk/index.php/cbs/sms/send?destination=%s&q=%s&message=%s", telephone, apiKey, url.QueryEscape(message))
 	resp, err := http.Get(requestURL)
