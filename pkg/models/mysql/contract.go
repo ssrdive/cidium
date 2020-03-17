@@ -1523,7 +1523,7 @@ func (m *ContractModel) Search(search, state, officer, batch string) ([]models.S
 	var res []models.SearchResult
 	for results.Next() {
 		var r models.SearchResult
-		err = results.Scan(&r.ID, &r.Agrivest, &r.RecoveryOfficer, &r.State, &r.Model, &r.ChassisNumber, &r.CustomerName, &r.CustomerAddress, &r.CustomerContact, &r.AmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid)
+		err = results.Scan(&r.ID, &r.Agrivest, &r.RecoveryOfficer, &r.State, &r.Model, &r.Batch, &r.ChassisNumber, &r.CustomerName, &r.CustomerAddress, &r.CustomerContact, &r.AmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid, &r.LastPaymentDate)
 		if err != nil {
 			return nil, err
 		}
