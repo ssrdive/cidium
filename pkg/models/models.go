@@ -167,6 +167,7 @@ type SearchResult struct {
 	RecoveryOfficer string  `json:"recovery_officer"`
 	State           string  `json:"state"`
 	Model           string  `json:"model"`
+	Batch           string  `json:"batch"`
 	ChassisNumber   string  `json:"chassis_number"`
 	CustomerName    string  `json:"customer_name"`
 	CustomerAddress string  `json:"customer_address"`
@@ -176,6 +177,7 @@ type SearchResult struct {
 	TotalAgreement  float64 `json:"total_agreement"`
 	TotalPaid       float64 `json:"total_paid"`
 	TotalDIPaid     float64 `json:"total_di_paid"`
+	LastPaymentDate string  `json:"last_payment_date"`
 }
 
 type ActiveInstallment struct {
