@@ -21,7 +21,11 @@ import (
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	// user := app.extractUser(r)
 
-	fmt.Fprintf(w, "It works!")
+	if app.runtimeEnv == "dev" {
+		fmt.Fprintf(w, "It works! [dev]")
+	} else {
+		fmt.Fprintf(w, "It works!")
+	}
 }
 
 func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {
@@ -892,7 +896,7 @@ func (app *application) contractReceipt(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	rid, err := app.contract.Receipt(user_id, cid, amount, notes, due_date, app.rAPIKey, app.aAPIKey)
+	rid, err := app.contract.Receipt(user_id, cid, amount, notes, due_date, app.rAPIKey, app.aAPIKey, app.runtimeEnv)
 	if err != nil {
 		app.serverError(w, err)
 		return
