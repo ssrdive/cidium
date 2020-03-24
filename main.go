@@ -22,6 +22,7 @@ type application struct {
 	s3bucket   string
 	rAPIKey    string
 	aAPIKey    string
+	runtimeEnv string
 	user       *mysql.UserModel
 	dropdown   *mysql.DropdownModel
 	contract   *mysql.ContractModel
@@ -39,6 +40,7 @@ func main() {
 	s3bucket := flag.String("bucket", "agrivest", "AWS S3 bucket")
 	rAPIKey := flag.String("rAPIKey", "", "Randeepa Text Message API Key")
 	aAPIKey := flag.String("aAPIKey", "", "Randeepa Text Message API Key")
+	runtimeEnv := flag.String("renv", "prod", "Runtime environment mode")
 	flag.Parse()
 
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
@@ -62,6 +64,7 @@ func main() {
 		s3bucket:   *s3bucket,
 		rAPIKey:    *rAPIKey,
 		aAPIKey:    *aAPIKey,
+		runtimeEnv: *runtimeEnv,
 		user:       &mysql.UserModel{DB: db},
 		dropdown:   &mysql.DropdownModel{DB: db},
 		contract:   &mysql.ContractModel{DB: db},
