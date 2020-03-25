@@ -422,9 +422,9 @@ func (m *ContractModel) DashboardCommitmentsByOfficer(ctype, officer string) ([]
 	var results *sql.Rows
 	var err error
 	if ctype == "expired" {
-		results, err = m.DB.Query(queries.EXPIRED_COMMITMENTS)
+		results, err = m.DB.Query(queries.EXPIRED_COMMITMENTS_BY_OFFICER, officer)
 	} else if ctype == "upcoming" {
-		results, err = m.DB.Query(queries.UPCOMING_COMMITMENTS)
+		results, err = m.DB.Query(queries.UPCOMING_COMMITMENTS_BY_OFFICER, officer)
 	} else {
 		return nil, errors.New("Invalid commitment type")
 	}
