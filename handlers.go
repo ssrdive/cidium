@@ -1080,6 +1080,25 @@ func (app *application) accountJournalEntry(w http.ResponseWriter, r *http.Reque
 	fmt.Fprintf(w, "%v", tid)
 }
 
+func (app *application) dashboardCommitmentsByOfficer(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	ctype := vars["type"]
+	officer := vars["officer"]
+	if ctype == "" || officer == "" {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	commitments, err := app.contract.DashboardCommitmentsByOfficer(ctype, officer)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(commitments)
+}
+
 func (app *application) dashboardCommitments(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	ctype := vars["type"]

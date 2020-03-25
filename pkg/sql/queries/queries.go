@@ -107,6 +107,18 @@ const UPCOMING_COMMITMENTS = `
 	FROM contract_commitment CM
 	WHERE CM.fulfilled IS NULL AND CM.commitment = 1 AND DATEDIFF(CM.due_date, NOW()) > 0`
 
+const EXPIRED_COMMITMENTS_BY_OFFICER = `
+	SELECT CM.contract_id, DATEDIFF(CM.due_date, NOW()) AS due_in, CM.text
+	FROM contract_commitment CM
+	LEFT JOIN contract C ON C.id = CM.contract_id
+	WHERE CM.fulfilled IS NULL AND CM.commitment = 1 AND DATEDIFF(CM.due_date, NOW()) <= 0 AND C.recovery_officer_id = ?`
+
+const UPCOMING_COMMITMENTS_BY_OFFICER = `
+	SELECT CM.contract_id, DATEDIFF(CM.due_date, NOW()) AS due_in, CM.text
+	FROM contract_commitment CM
+	LEFT JOIN contract C ON C.id = CM.contract_id
+	WHERE CM.fulfilled IS NULL AND CM.commitment = 1 AND DATEDIFF(CM.due_date, NOW()) > 0 AND C.recovery_officer_id = ?`
+
 const DEBITS = `
 	SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest, CIT2.unearned_account_id, CIT2.income_account_id
 	FROM contract_installment CI
