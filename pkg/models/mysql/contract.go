@@ -418,6 +418,33 @@ func (m *ContractModel) Commitments(cid int) ([]models.Commitment, error) {
 	return commitments, nil
 }
 
+func (m *ContractModel) DashboardCommitmentsByOfficer(ctype, officer string) ([]models.DashboardCommitment, error) {
+	var results *sql.Rows
+	var err error
+	if ctype == "expired" {
+		results, err = m.DB.Query(queries.EXPIRED_COMMITMENTS)
+	} else if ctype == "upcoming" {
+		results, err = m.DB.Query(queries.UPCOMING_COMMITMENTS)
+	} else {
+		return nil, errors.New("Invalid commitment type")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var commitments []models.DashboardCommitment
+	for results.Next() {
+		var commitment models.DashboardCommitment
+		err = results.Scan(&commitment.ContractID, &commitment.DueIn, &commitment.Text)
+		if err != nil {
+			return nil, err
+		}
+		commitments = append(commitments, commitment)
+	}
+
+	return commitments, nil
+}
+
 func (m *ContractModel) DashboardCommitments(ctype string) ([]models.DashboardCommitment, error) {
 	var results *sql.Rows
 	var err error
