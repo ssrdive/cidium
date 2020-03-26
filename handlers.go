@@ -277,6 +277,22 @@ func (app *application) newLegacyContract(w http.ResponseWriter, r *http.Request
 	fmt.Fprintf(w, "%d", id)
 }
 
+func (app *application) searchContractOld(w http.ResponseWriter, r *http.Request) {
+	search := r.URL.Query().Get("search")
+	state := r.URL.Query().Get("state")
+	officer := r.URL.Query().Get("officer")
+	batch := r.URL.Query().Get("batch")
+
+	results, err := app.contract.SearchOld(search, state, officer, batch)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
 func (app *application) searchContract(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 	state := r.URL.Query().Get("state")

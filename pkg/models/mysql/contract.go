@@ -1532,6 +1532,38 @@ func (m *ContractModel) LegacyReceipt(user_id, cid int, amount float64, notes st
 	return rid, nil
 }
 
+func (m *ContractModel) SearchOld(search, state, officer, batch string) ([]models.SearchResultOld, error) {
+	var k sql.NullString
+	if search == "" {
+		k = sql.NullString{}
+	} else {
+		k = sql.NullString{
+			Valid:  true,
+			String: "%" + search + "%",
+		}
+	}
+	s := msql.NewNullString(state)
+	o := msql.NewNullString(officer)
+	b := msql.NewNullString(batch)
+
+	results, err := m.DB.Query(queries.SEARCH_OLD, k, k, s, s, o, o, b, b)
+	if err != nil {
+		return nil, err
+	}
+
+	var res []models.SearchResultOld
+	for results.Next() {
+		var r models.SearchResultOld
+		err = results.Scan(&r.ID, &r.Agrivest, &r.RecoveryOfficer, &r.Model, &r.Batch, &r.ChassisNumber, &r.CustomerName, &r.CustomerAddress, &r.CustomerContact, &r.AmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, r)
+	}
+
+	return res, nil
+}
+
 func (m *ContractModel) Search(search, state, officer, batch string) ([]models.SearchResult, error) {
 	var k sql.NullString
 	if search == "" {
