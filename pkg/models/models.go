@@ -165,8 +165,8 @@ type SearchResultOld struct {
 	ID              int     `json:"id"`
 	Agrivest        int     `json:"agrivest"`
 	RecoveryOfficer string  `json:"recovery_officer"`
+	State           string  `json:"state"`
 	Model           string  `json:"model"`
-	Batch           string  `json:"batch"`
 	ChassisNumber   string  `json:"chassis_number"`
 	CustomerName    string  `json:"customer_name"`
 	CustomerAddress string  `json:"customer_address"`

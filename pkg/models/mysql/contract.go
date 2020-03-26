@@ -1554,7 +1554,7 @@ func (m *ContractModel) SearchOld(search, state, officer, batch string) ([]model
 	var res []models.SearchResultOld
 	for results.Next() {
 		var r models.SearchResultOld
-		err = results.Scan(&r.ID, &r.Agrivest, &r.RecoveryOfficer, &r.Model, &r.Batch, &r.ChassisNumber, &r.CustomerName, &r.CustomerAddress, &r.CustomerContact, &r.AmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid)
+		err = results.Scan(&r.ID, &r.Agrivest, &r.RecoveryOfficer, &r.State, &r.Model, &r.ChassisNumber, &r.CustomerName, &r.CustomerAddress, &r.CustomerContact, &r.AmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid)
 		if err != nil {
 			return nil, err
 		}
