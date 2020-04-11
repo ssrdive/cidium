@@ -677,11 +677,12 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 	installments, err := strconv.Atoi(details["Installments"])
 	installmentInterval, err := strconv.Atoi(details["Installment Interval"])
 	method := details["Interest Method"]
+	initiationDate, err := time.Parse("2006-01-02", details["Initiation Date"])
 	if err != nil {
 		return err
 	}
 
-	schedule, err := models.Create(capital, rate, installments, installmentInterval, time.Now().Format("2006-01-02"), method)
+	schedule, err := models.Create(capital, rate, installments, installmentInterval, initiationDate.Format("2006-01-02"), method)
 	if err != nil {
 		return err
 	}
