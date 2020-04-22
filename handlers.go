@@ -309,6 +309,21 @@ func (app *application) searchContract(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(results)
 }
 
+func (app *application) csqaSearchContract(w http.ResponseWriter, r *http.Request) {
+	search := r.URL.Query().Get("search")
+	question := r.URL.Query().Get("question")
+	empty := r.URL.Query().Get("empty")
+
+	results, err := app.contract.CSQASearch(search, question, empty)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
 func (app *application) accountTransaction(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	tid, err := strconv.Atoi(vars["tid"])

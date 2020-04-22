@@ -1597,6 +1597,35 @@ func (m *ContractModel) Search(search, state, officer, batch string) ([]models.S
 	return res, nil
 }
 
+func (m *ContractModel) CSQASearch(search, question, empty string) ([]models.CSQASearchResult, error) {
+	var k sql.NullString
+	if search == "" {
+		k = sql.NullString{}
+	} else {
+		k = sql.NullString{
+			Valid:  true,
+			String: "%" + search + "%",
+		}
+	}
+
+	results, err := m.DB.Query(queries.CSQA_SEARCH, question, empty, k, k)
+	if err != nil {
+		return nil, err
+	}
+
+	var res []models.CSQASearchResult
+	for results.Next() {
+		var r models.CSQASearchResult
+		err = results.Scan(&r.ID, &r.RecoveryOfficer, &r.State, &r.Answer, &r.CreatedAgo, &r.StateAtAnswer)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, r)
+	}
+
+	return res, nil
+}
+
 func (m *ContractModel) PaymentVouchers() ([]models.PaymentVoucherList, error) {
 	results, err := m.DB.Query(queries.PAYMENT_VOUCHERS)
 	if err != nil {

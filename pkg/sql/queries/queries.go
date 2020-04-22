@@ -416,3 +416,13 @@ const PAYMENT_VOUCHER_CHECK_DETAILS = `
 	LEFT JOIN transaction T ON T.id = PV.transaction_id
 	WHERE PV.id = ?
 `
+
+const CSQA_SEARCH = `
+	SELECT C.id, U.name as recovery_officer, S.name as state, CSQA.answer as answer, DATEDIFF(NOW(), CSQA.created) as created_ago, CSQA.state_at_answer
+	FROM contract C 
+	LEFT JOIN (SELECT CS.contract_id, CSQA.question_id, CSQA.created, CSQA.answer, S.name as state_at_answer FROM contract_state_question_answer 	CSQA LEFT JOIN contract_state CS ON CS.id = CSQA.contract_state_id LEFT JOIN state S ON S.id = CS.state_id WHERE CSQA.deleted = 0 AND 			CSQA.question_id = ?) CSQA ON CSQA.contract_id = C.id 
+	LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
+	LEFT JOIN state S ON S.id = CS.state_id
+	LEFT JOIN user U ON U.id = C.recovery_officer_id
+	WHERE C.legacy = 0 AND S.name <> 'Deleted' AND (CASE WHEN ? = 0 THEN ? IS NULL OR CSQA.answer LIKE ? ELSE CSQA.answer IS NULL END)
+`

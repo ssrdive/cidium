@@ -319,3 +319,12 @@ type Transaction struct {
 	Type          string  `json:"type"`
 	Amount        float64 `json:"amount"`
 }
+
+type CSQASearchResult struct {
+	ID              int            `json:"id"`
+	RecoveryOfficer string         `json:"recovery_officer"`
+	State           string         `json:"state"`
+	Answer          sql.NullString `json:"answer"`
+	CreatedAgo      sql.NullInt32  `json:"created_ago"`
+	StateAtAnswer   sql.NullString `json:"state_at_answer"`
+}
