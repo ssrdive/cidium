@@ -244,6 +244,7 @@ type PaymentVoucherSummary struct {
 	CheckNumber           sql.NullString          `json:"check_number"`
 	Payee                 sql.NullString          `json:"payee"`
 	Remark                sql.NullString          `json:"remark"`
+	Account               sql.NullString          `json:"account"`
 	PaymentVoucherDetails []PaymentVoucherDetails `json:"payment_voucher_details"`
 }
 

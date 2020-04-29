@@ -411,9 +411,11 @@ const PAYMENT_VOUCHER_DETAILS = `
 `
 
 const PAYMENT_VOUCHER_CHECK_DETAILS = `
-	SELECT PV.due_date, PV.check_number, PV.payee, T.remark
+	SELECT PV.due_date, PV.check_number, PV.payee, T.remark, A.name AS account_name
 	FROM payment_voucher PV
 	LEFT JOIN transaction T ON T.id = PV.transaction_id
+	LEFT JOIN account_transaction AT ON AT.transaction_id = T.id AND AT.type = 'CR'
+	LEFT JOIN account A ON A.id = AT.account_id
 	WHERE PV.id = ?
 `
 
