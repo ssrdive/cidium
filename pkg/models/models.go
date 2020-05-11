@@ -197,6 +197,26 @@ type SearchResult struct {
 	LastPaymentDate string  `json:"last_payment_date"`
 }
 
+type SearchResultV2 struct {
+	ID              int     `json:"id"`
+	Agrivest        int     `json:"agrivest"`
+	RecoveryOfficer string  `json:"recovery_officer"`
+	State           string  `json:"state"`
+	Model           string  `json:"model"`
+	Batch           string  `json:"batch"`
+	ChassisNumber   string  `json:"chassis_number"`
+	CustomerName    string  `json:"customer_name"`
+	CustomerAddress string  `json:"customer_address"`
+	CustomerContact string  `json:"customer_contact"`
+	AmountPending   float64 `json:"amount_pending"`
+	TotalPayable    float64 `json:"total_payable"`
+	TotalAgreement  float64 `json:"total_agreement"`
+	TotalPaid       float64 `json:"total_paid"`
+	TotalDIPaid     float64 `json:"total_di_paid"`
+	LastPaymentDate string  `json:"last_payment_date"`
+	OverdueIndex    string  `json:"overdue_index"`
+}
+
 type ActiveInstallment struct {
 	ID              int       `json:"id"`
 	InstallmentType string    `json:"installment_type"`
