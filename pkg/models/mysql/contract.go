@@ -1533,6 +1533,38 @@ func (m *ContractModel) LegacyReceipt(user_id, cid int, amount float64, notes st
 	return rid, nil
 }
 
+func (m *ContractModel) SearchV2(search, state, officer, batch string) ([]models.SearchResultV2, error) {
+	var k sql.NullString
+	if search == "" {
+		k = sql.NullString{}
+	} else {
+		k = sql.NullString{
+			Valid:  true,
+			String: "%" + search + "%",
+		}
+	}
+	s := msql.NewNullString(state)
+	o := msql.NewNullString(officer)
+	b := msql.NewNullString(batch)
+
+	results, err := m.DB.Query(queries.SEARCH_V2, k, k, s, s, o, o, b, b)
+	if err != nil {
+		return nil, err
+	}
+
+	var res []models.SearchResultV2
+	for results.Next() {
+		var r models.SearchResultV2
+		err = results.Scan(&r.ID, &r.Agrivest, &r.RecoveryOfficer, &r.State, &r.Model, &r.Batch, &r.ChassisNumber, &r.CustomerName, &r.CustomerAddress, &r.CustomerContact, &r.AmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid, &r.LastPaymentDate, &r.OverdueIndex)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, r)
+	}
+
+	return res, nil
+}
+
 func (m *ContractModel) SearchOld(search, state, officer, batch string) ([]models.SearchResultOld, error) {
 	var k sql.NullString
 	if search == "" {
