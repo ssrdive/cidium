@@ -1533,6 +1533,29 @@ func (m *ContractModel) LegacyReceipt(user_id, cid int, amount float64, notes st
 	return rid, nil
 }
 
+func (m *ContractModel) PerformanceReview(startDate, endDate, state, officer, batch string) ([]models.PerformanceReview, error) {
+	s := msql.NewNullString(state)
+	o := msql.NewNullString(officer)
+	b := msql.NewNullString(batch)
+
+	results, err := m.DB.Query(queries.PERFORMANCE_REVIEW(startDate, endDate), s, s, o, o, b, b)
+	if err != nil {
+		return nil, err
+	}
+
+	var res []models.PerformanceReview
+	for results.Next() {
+		var r models.PerformanceReview
+		err = results.Scan(&r.ID, &r.Agrivest, &r.RecoveryOfficer, &r.State, &r.Model, &r.Batch, &r.ChassisNumber, &r.CustomerName, &r.CustomerAddress, &r.CustomerContact, &r.AmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid, &r.LastPaymentDate, &r.StartOverdueIndex, &r.EndOverdueIndex)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, r)
+	}
+
+	return res, nil
+}
+
 func (m *ContractModel) SearchV2(search, state, officer, batch string) ([]models.SearchResultV2, error) {
 	var k sql.NullString
 	if search == "" {

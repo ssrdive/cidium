@@ -1,5 +1,7 @@
 package queries
 
+import "fmt"
+
 const STATE_ID_FROM_STATE = `
 	SELECT S.id FROM state S WHERE S.name = ?`
 
@@ -380,6 +382,94 @@ const SEARCH_V2 = `
 	WHERE (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?)
 	GROUP BY C.id
 `
+
+func PERFORMANCE_REVIEW(startDate, endDate string) string {
+	return fmt.Sprintf(`
+	SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable,  COALESCE(SUM(CI.agreed_installment), 0) AS total_agreement, COALESCE(SUM(CI.installment_paid), 0) AS total_paid, COALESCE(SUM(CI.defalut_interest_paid), 0) AS total_di_paid, ( CASE WHEN (MAX(DATE(CR.datetime)) IS NULL AND MAX(DATE(CRL.legacy_payment_date)) IS NULL) THEN 'N/A' ELSE GREATEST(COALESCE(MAX(DATE(CR.datetime)), '1900-01-01'), COALESCE(MAX(DATE(CRL.legacy_payment_date)), '1900-01-01')) END ) as last_payment_date, 
+	COALESCE(ROUND((SUM(CASE WHEN (CI.due_date < DATE('%s') AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END))/(ROUND((COALESCE(SUM(CI.agreed_installment), 0))/(COUNT(CI.installment)), 2)), 2), 'N/A') AS start_overdue_index,
+	COALESCE(ROUND((SUM(CASE WHEN (CI.due_date < DATE('%s') AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END))/(ROUND((COALESCE(SUM(CI.agreed_installment), 0))/(COUNT(CI.installment)), 2)), 2), 'N/A') AS end_overdue_index
+		FROM contract C
+		LEFT JOIN user U ON U.id = C.recovery_officer_id
+		LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
+		LEFT JOIN contract_batch CB ON CB.id = C.contract_batch_id
+		LEFT JOIN state S ON S.id = CS.state_id
+		LEFT JOIN model M ON C.model_id = M.id
+		LEFT JOIN (SELECT CR.contract_id, MAX(CR.datetime) AS datetime FROM contract_receipt CR WHERE CR.legacy_payment_date IS NULL AND CR.is_customer_payment = 1 GROUP BY CR.contract_id) CR ON CR.contract_id = C.id
+		LEFT JOIN (SELECT CRL.contract_id, MAX(CRL.legacy_payment_date) as legacy_payment_date FROM contract_receipt CRL WHERE CRL.is_customer_payment = 1 GROUP BY CRL.contract_id) CRL ON CRL.contract_id = C.id
+		LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment, CI.capital+CI.interest AS agreed_installment, SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, SUM(COALESCE(CCP_SD.sd_amount, 0)+COALESCE(CIP_SD.sd_amount, 0)) AS sd_installment_paid, SUM(COALESCE(CCP_ED.ed_amount, 0)+COALESCE(CIP_ED.ed_amount, 0)) AS ed_installment_paid, COALESCE(SUM(CDIP.amount), 0) as defalut_interest_paid, CI.due_date
+		FROM contract_installment CI
+		
+		/* Default payments */
+		
+		LEFT JOIN (
+			SELECT CDIP.contract_installment_id, COALESCE(SUM(CDIP.amount), 0) as amount
+			FROM contract_default_interest_payment CDIP
+			GROUP BY CDIP.contract_installment_id
+		) CDIP ON CDIP.contract_installment_id = CI.id
+		LEFT JOIN (
+			SELECT CDIP.contract_installment_id, COALESCE(SUM(CDIP.amount), 0) as sd_amount
+			FROM contract_default_interest_payment CDIP
+			LEFT JOIN contract_receipt CR ON CR.id = CDIP.contract_receipt_id
+			WHERE DATE(CR.datetime) < '%s'
+			GROUP BY CDIP.contract_installment_id
+		) CDIP_SD ON CDIP_SD.contract_installment_id = CI.id
+		LEFT JOIN (
+			SELECT CDIP.contract_installment_id, COALESCE(SUM(CDIP.amount), 0) as ed_amount
+			FROM contract_default_interest_payment CDIP
+			LEFT JOIN contract_receipt CR ON CR.id = CDIP.contract_receipt_id
+			WHERE DATE(CR.datetime) < '%s'
+			GROUP BY CDIP.contract_installment_id
+		) CDIP_ED ON CDIP_ED.contract_installment_id = CI.id
+		
+		/* Interest payments */
+			
+		LEFT JOIN (
+			SELECT CIP.contract_installment_id, COALESCE(SUM(CIP.amount), 0) as amount
+			FROM contract_interest_payment CIP
+			GROUP BY CIP.contract_installment_id
+		) CIP ON CIP.contract_installment_id = CI.id
+		LEFT JOIN (
+			SELECT CIP.contract_installment_id, COALESCE(SUM(CIP.amount), 0) as sd_amount
+			FROM contract_interest_payment CIP
+			LEFT JOIN contract_receipt CR ON CR.id = CIP.contract_receipt_id
+			WHERE DATE(CR.datetime) < '%s'
+			GROUP BY CIP.contract_installment_id
+		) CIP_SD ON CIP_SD.contract_installment_id = CI.id
+		LEFT JOIN (
+			SELECT CIP.contract_installment_id, COALESCE(SUM(CIP.amount), 0) as ed_amount
+			FROM contract_interest_payment CIP
+			LEFT JOIN contract_receipt CR ON CR.id = CIP.contract_receipt_id
+			WHERE DATE(CR.datetime) < '%s'
+			GROUP BY CIP.contract_installment_id
+		) CIP_ED ON CIP_ED.contract_installment_id = CI.id
+		
+		/* Capital payments */
+		
+		LEFT JOIN (
+			SELECT CCP.contract_installment_id, COALESCE(SUM(CCP.amount), 0) as amount
+			FROM contract_capital_payment CCP
+			GROUP BY CCP.contract_installment_id
+		) CCP ON CCP.contract_installment_id = CI.id
+		LEFT JOIN (
+			SELECT CCP.contract_installment_id, COALESCE(SUM(CCP.amount), 0) as sd_amount
+			FROM contract_capital_payment CCP
+			LEFT JOIN contract_receipt CR ON CR.id = CCP.contract_receipt_id
+			WHERE DATE(CR.datetime) < '%s'
+			GROUP BY CCP.contract_installment_id
+		) CCP_SD ON CCP_SD.contract_installment_id = CI.id
+		LEFT JOIN (
+			SELECT CCP.contract_installment_id, COALESCE(SUM(CCP.amount), 0) as ed_amount
+			FROM contract_capital_payment CCP
+			LEFT JOIN contract_receipt CR ON CR.id = CCP.contract_receipt_id
+			WHERE DATE(CR.datetime) < '%s'
+			GROUP BY CCP.contract_installment_id
+		) CCP_ED ON CCP_ED.contract_installment_id = CI.id
+		GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
+		ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
+		WHERE (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?)
+		GROUP BY C.id
+	`, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate)
+}
 
 const CHART_OF_ACCOUNTS = `
 	SELECT MA.account_id AS main_account_id, MA.name AS main_account, SA.account_id AS sub_account_id, SA.name AS sub_account, AC.account_id AS account_category_id, AC.name AS account_category, A.account_id, A.name AS account_name
