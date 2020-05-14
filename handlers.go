@@ -309,6 +309,35 @@ func (app *application) searchContractV2(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(results)
 }
 
+func (app *application) performanceReview(w http.ResponseWriter, r *http.Request) {
+	startDate := r.URL.Query().Get("startdate")
+	_, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	endDate := r.URL.Query().Get("enddate")
+	_, err = time.Parse("2006-01-02", endDate)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	state := r.URL.Query().Get("state")
+	officer := r.URL.Query().Get("officer")
+	batch := r.URL.Query().Get("batch")
+
+	results, err := app.contract.PerformanceReview(startDate, endDate, state, officer, batch)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
 func (app *application) searchContract(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 	state := r.URL.Query().Get("state")
