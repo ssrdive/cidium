@@ -386,8 +386,8 @@ const SEARCH_V2 = `
 func PERFORMANCE_REVIEW(startDate, endDate string) string {
 	return fmt.Sprintf(`
 	SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable,  COALESCE(SUM(CI.agreed_installment), 0) AS total_agreement, COALESCE(SUM(CI.installment_paid), 0) AS total_paid, COALESCE(SUM(CI.defalut_interest_paid), 0) AS total_di_paid, ( CASE WHEN (MAX(DATE(CR.datetime)) IS NULL AND MAX(DATE(CRL.legacy_payment_date)) IS NULL) THEN 'N/A' ELSE GREATEST(COALESCE(MAX(DATE(CR.datetime)), '1900-01-01'), COALESCE(MAX(DATE(CRL.legacy_payment_date)), '1900-01-01')) END ) as last_payment_date, 
-	COALESCE(ROUND((SUM(CASE WHEN (CI.due_date < DATE('%s') AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END))/(ROUND((COALESCE(SUM(CI.agreed_installment), 0))/(TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MAX(CI.due_date))+TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MIN(CI2.due_date))), 2)), 2), 'N/A') AS start_overdue_index,
-	COALESCE(ROUND((SUM(CASE WHEN (CI.due_date < DATE('%s') AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END))/(ROUND((COALESCE(SUM(CI.agreed_installment), 0))/(TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MAX(CI.due_date))+TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MIN(CI2.due_date))), 2)), 2), 'N/A') AS end_overdue_index
+	COALESCE(ROUND((SUM(CASE WHEN (CI.due_date <= DATE('%s') AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END))/(ROUND((COALESCE(SUM(CI.agreed_installment), 0))/(TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MAX(CI.due_date))+TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MIN(CI2.due_date))), 2)), 2), 'N/A') AS start_overdue_index,
+	COALESCE(ROUND((SUM(CASE WHEN (CI.due_date <= DATE('%s') AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END))/(ROUND((COALESCE(SUM(CI.agreed_installment), 0))/(TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MAX(CI.due_date))+TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MIN(CI2.due_date))), 2)), 2), 'N/A') AS end_overdue_index
 		FROM contract C
 		LEFT JOIN user U ON U.id = C.recovery_officer_id
 		LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
@@ -410,14 +410,14 @@ func PERFORMANCE_REVIEW(startDate, endDate string) string {
 			SELECT CDIP.contract_installment_id, COALESCE(SUM(CDIP.amount), 0) as sd_amount
 			FROM contract_default_interest_payment CDIP
 			LEFT JOIN contract_receipt CR ON CR.id = CDIP.contract_receipt_id
-			WHERE DATE(CR.datetime) < '%s'
+			WHERE DATE(CR.datetime) <= '%s'
 			GROUP BY CDIP.contract_installment_id
 		) CDIP_SD ON CDIP_SD.contract_installment_id = CI.id
 		LEFT JOIN (
 			SELECT CDIP.contract_installment_id, COALESCE(SUM(CDIP.amount), 0) as ed_amount
 			FROM contract_default_interest_payment CDIP
 			LEFT JOIN contract_receipt CR ON CR.id = CDIP.contract_receipt_id
-			WHERE DATE(CR.datetime) < '%s'
+			WHERE DATE(CR.datetime) <= '%s'
 			GROUP BY CDIP.contract_installment_id
 		) CDIP_ED ON CDIP_ED.contract_installment_id = CI.id
 		
@@ -432,14 +432,14 @@ func PERFORMANCE_REVIEW(startDate, endDate string) string {
 			SELECT CIP.contract_installment_id, COALESCE(SUM(CIP.amount), 0) as sd_amount
 			FROM contract_interest_payment CIP
 			LEFT JOIN contract_receipt CR ON CR.id = CIP.contract_receipt_id
-			WHERE DATE(CR.datetime) < '%s'
+			WHERE DATE(CR.datetime) <= '%s'
 			GROUP BY CIP.contract_installment_id
 		) CIP_SD ON CIP_SD.contract_installment_id = CI.id
 		LEFT JOIN (
 			SELECT CIP.contract_installment_id, COALESCE(SUM(CIP.amount), 0) as ed_amount
 			FROM contract_interest_payment CIP
 			LEFT JOIN contract_receipt CR ON CR.id = CIP.contract_receipt_id
-			WHERE DATE(CR.datetime) < '%s'
+			WHERE DATE(CR.datetime) <= '%s'
 			GROUP BY CIP.contract_installment_id
 		) CIP_ED ON CIP_ED.contract_installment_id = CI.id
 		
@@ -454,14 +454,14 @@ func PERFORMANCE_REVIEW(startDate, endDate string) string {
 			SELECT CCP.contract_installment_id, COALESCE(SUM(CCP.amount), 0) as sd_amount
 			FROM contract_capital_payment CCP
 			LEFT JOIN contract_receipt CR ON CR.id = CCP.contract_receipt_id
-			WHERE DATE(CR.datetime) < '%s'
+			WHERE DATE(CR.datetime) <= '%s'
 			GROUP BY CCP.contract_installment_id
 		) CCP_SD ON CCP_SD.contract_installment_id = CI.id
 		LEFT JOIN (
 			SELECT CCP.contract_installment_id, COALESCE(SUM(CCP.amount), 0) as ed_amount
 			FROM contract_capital_payment CCP
 			LEFT JOIN contract_receipt CR ON CR.id = CCP.contract_receipt_id
-			WHERE DATE(CR.datetime) < '%s'
+			WHERE DATE(CR.datetime) <= '%s'
 			GROUP BY CCP.contract_installment_id
 		) CCP_ED ON CCP_ED.contract_installment_id = CI.id
 		GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
