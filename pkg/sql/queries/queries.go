@@ -488,6 +488,7 @@ const ACCOUNT_LEDGER = `
 	LEFT JOIN account A ON A.id = AT.account_id
 	LEFT JOIN transaction T ON T.id = AT.transaction_id
 	WHERE AT.account_id = ?
+	ORDER BY T.posting_date ASC
 `
 
 const TRANSACTION = `

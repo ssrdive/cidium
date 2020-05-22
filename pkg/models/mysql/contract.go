@@ -1000,6 +1000,128 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 	return dnid, nil
 }
 
+func (m *ContractModel) LegacyRebate(user_id, cid int, amount float64) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	balance := amount
+
+	var intPayments []models.ContractPayment
+
+	results, err := tx.Query(queries.LEGACY_PAYMENTS, cid)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	var payables []models.ContractPayable
+	for results.Next() {
+		var u models.ContractPayable
+		err = results.Scan(&u.InstallmentID, &u.ContractID, &u.CapitalPayable, &u.InterestPayable, &u.DefaultInterest)
+		if err != nil {
+			return 0, err
+		}
+		payables = append(payables, u)
+	}
+
+	rid, err := msql.Insert(msql.Table{
+		TableName: "contract_receipt",
+		Columns:   []string{"contract_receipt_type_id", "user_id", "contract_id", "datetime", "amount"},
+		Vals:      []interface{}{2, user_id, cid, time.Now().Format("2006-01-02 15:04:05"), amount},
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	for i := len(payables); i > 0; i-- {
+		fmt.Println(payables[i-1].InterestPayable)
+		if payables[i-1].InterestPayable != 0 && balance != 0 {
+			if balance-payables[i-1].InterestPayable >= 0 {
+				intPayments = append(intPayments, models.ContractPayment{payables[i-1].InstallmentID, rid, payables[i-1].InterestPayable})
+				balance = math.Round((balance-payables[i-1].InterestPayable)*100) / 100
+			} else {
+				intPayments = append(intPayments, models.ContractPayment{payables[i-1].InstallmentID, rid, balance})
+				balance = 0
+			}
+		}
+	}
+
+	if balance != 0 {
+		tx.Rollback()
+		return 0, errors.New("Rebate exceeds payable interest")
+	}
+
+	for _, intPayment := range intPayments {
+		_, err := msql.Insert(msql.Table{
+			TableName: "contract_interest_payment",
+			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
+			Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
+
+	tid, err := msql.Insert(msql.Table{
+		TableName: "transaction",
+		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
+		Vals:      []interface{}{user_id, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("INTEREST REBATE %d", rid)},
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	journalEntries := []models.JournalEntry{
+		{fmt.Sprintf("%d", 78), fmt.Sprintf("%f", amount), ""},
+		{fmt.Sprintf("%d", 25), "", fmt.Sprintf("%f", amount)},
+	}
+
+	for _, entry := range journalEntries {
+		if val, _ := strconv.ParseFloat(entry.Debit, 64); len(entry.Debit) != 0 && val != 0 {
+			_, err := msql.Insert(msql.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+		}
+		if val, _ := strconv.ParseFloat(entry.Credit, 64); len(entry.Credit) != 0 && val != 0 {
+			_, err := msql.Insert(msql.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+		}
+	}
+
+	return rid, nil
+
+}
+
 func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_date, rAPIKey, aAPIKey, runtimeEnv string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
