@@ -946,6 +946,39 @@ func (app *application) contractCalculation(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(schedule)
 }
 
+func (app *application) contractLegacyRebate(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"user_id", "cid", "amount"}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	user_id, err := strconv.Atoi(r.PostForm.Get("user_id"))
+	cid, err := strconv.Atoi(r.PostForm.Get("cid"))
+	amount, err := strconv.ParseFloat(r.PostForm.Get("amount"), 32)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	rid, err := app.contract.LegacyRebate(user_id, cid, amount)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", rid)
+}
+
 func (app *application) contractReceipt(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
