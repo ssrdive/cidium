@@ -254,6 +254,14 @@ type Receipt struct {
 	Notes  sql.NullString `json:"notes"`
 }
 
+type ReceiptV2 struct {
+	ID     int            `json:"id"`
+	Date   time.Time      `json:"date"`
+	Amount float64        `json:"amount"`
+	Notes  sql.NullString `json:"notes"`
+	Type   string         `json:"type"`
+}
+
 type Commitment struct {
 	ID          int            `json:"id"`
 	CreatedBy   string         `json:"created_by"`
