@@ -261,6 +261,13 @@ const CONTRACT_RECEIPTS = `
 	WHERE CR.contract_id = ?
 `
 
+const CONTRACT_RECEIPTS_V2 = `
+	SELECT CR.id, CR.datetime, CR.amount, CR.notes, CRT.name as type
+	FROM contract_receipt CR
+	LEFT JOIN contract_receipt_type CRT ON CRT.id = CR.contract_receipt_type_id
+	WHERE CR.contract_id = ?
+`
+
 const CONTRACT_OFFICER_RECEIPTS = `
 	SELECT CR.id, CR.datetime, CR.amount, CR.notes
 	FROM contract_receipt CR

@@ -364,6 +364,24 @@ func (m *ContractModel) ContractInstallments(cid int) ([]models.ActiveInstallmen
 	return installments, nil
 }
 
+func (m *ContractModel) ContractReceiptsV2(cid int) ([]models.ReceiptV2, error) {
+	results, err := m.DB.Query(queries.CONTRACT_RECEIPTS_V2, cid)
+	if err != nil {
+		return nil, err
+	}
+	var receipts []models.ReceiptV2
+	for results.Next() {
+		var receipt models.ReceiptV2
+		err = results.Scan(&receipt.ID, &receipt.Date, &receipt.Amount, &receipt.Notes, &receipt.Type)
+		if err != nil {
+			return nil, err
+		}
+		receipts = append(receipts, receipt)
+	}
+
+	return receipts, nil
+}
+
 func (m *ContractModel) ContractReceipts(cid int) ([]models.Receipt, error) {
 	results, err := m.DB.Query(queries.CONTRACT_RECEIPTS, cid)
 	if err != nil {
@@ -1036,7 +1054,7 @@ func (m *ContractModel) LegacyRebate(user_id, cid int, amount float64) (int64, e
 	rid, err := msql.Insert(msql.Table{
 		TableName: "contract_receipt",
 		Columns:   []string{"contract_receipt_type_id", "user_id", "contract_id", "datetime", "amount"},
-		Vals:      []interface{}{2, user_id, cid, time.Now().Format("2006-01-02 15:04:05"), amount},
+		Vals:      []interface{}{3, user_id, cid, time.Now().Format("2006-01-02 15:04:05"), amount},
 		Tx:        tx,
 	})
 	if err != nil {
