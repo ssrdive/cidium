@@ -218,24 +218,26 @@ type SearchResultV2 struct {
 }
 
 type PerformanceReview struct {
-	ID                int     `json:"id"`
-	Agrivest          int     `json:"agrivest"`
-	RecoveryOfficer   string  `json:"recovery_officer"`
-	State             string  `json:"state"`
-	Model             string  `json:"model"`
-	Batch             string  `json:"batch"`
-	ChassisNumber     string  `json:"chassis_number"`
-	CustomerName      string  `json:"customer_name"`
-	CustomerAddress   string  `json:"customer_address"`
-	CustomerContact   string  `json:"customer_contact"`
-	AmountPending     float64 `json:"amount_pending"`
-	TotalPayable      float64 `json:"total_payable"`
-	TotalAgreement    float64 `json:"total_agreement"`
-	TotalPaid         float64 `json:"total_paid"`
-	TotalDIPaid       float64 `json:"total_di_paid"`
-	LastPaymentDate   string  `json:"last_payment_date"`
-	StartOverdueIndex string  `json:"start_overdue_index"`
-	EndOverdueIndex   string  `json:"end_overdue_index"`
+	ID                 int     `json:"id"`
+	Agrivest           int     `json:"agrivest"`
+	RecoveryOfficer    string  `json:"recovery_officer"`
+	State              string  `json:"state"`
+	Model              string  `json:"model"`
+	Batch              string  `json:"batch"`
+	ChassisNumber      string  `json:"chassis_number"`
+	CustomerName       string  `json:"customer_name"`
+	CustomerAddress    string  `json:"customer_address"`
+	CustomerContact    string  `json:"customer_contact"`
+	AmountPending      float64 `json:"amount_pending"`
+	StartAmountPending float64 `json:"start_amount_pending"`
+	EndAmountPending   float64 `json:"end_amount_pending"`
+	TotalPayable       float64 `json:"total_payable"`
+	TotalAgreement     float64 `json:"total_agreement"`
+	TotalPaid          float64 `json:"total_paid"`
+	TotalDIPaid        float64 `json:"total_di_paid"`
+	LastPaymentDate    string  `json:"last_payment_date"`
+	StartOverdueIndex  string  `json:"start_overdue_index"`
+	EndOverdueIndex    string  `json:"end_overdue_index"`
 }
 
 type ActiveInstallment struct {
