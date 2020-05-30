@@ -338,7 +338,7 @@ func (m *ContractModel) StateDocument(rparams, oparams []string, form url.Values
 
 func (m *ContractModel) ContractDetail(cid int) (models.ContractDetail, error) {
 	var detail models.ContractDetail
-	err := m.DB.QueryRow(queries.CONTRACT_DETAILS, cid).Scan(&detail.ID, &detail.ContractState, &detail.ContractBatch, &detail.ModelName, &detail.ChassisNumber, &detail.CustomerName, &detail.CustomerNic, &detail.CustomerAddress, &detail.CustomerContact, &detail.LiaisonName, &detail.LiaisonContact, &detail.Price, &detail.Downpayment, &detail.RecoveryOfficer, &detail.AmountPending, &detail.TotalPayable)
+	err := m.DB.QueryRow(queries.CONTRACT_DETAILS, cid).Scan(&detail.ID, &detail.ContractState, &detail.ContractBatch, &detail.ModelName, &detail.ChassisNumber, &detail.CustomerName, &detail.CustomerNic, &detail.CustomerAddress, &detail.CustomerContact, &detail.LiaisonName, &detail.LiaisonContact, &detail.Price, &detail.Downpayment, &detail.RecoveryOfficer, &detail.AmountPending, &detail.TotalPayable, &detail.TotalPaid, &detail.LastPaymentDate, &detail.OverdueIndex)
 	if err != nil {
 		return models.ContractDetail{}, err
 	}

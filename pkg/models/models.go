@@ -81,6 +81,9 @@ type ContractDetail struct {
 	RecoveryOfficer string         `json:"recovery_officer"`
 	AmountPending   float64        `json:"amount_pending"`
 	TotalPayable    float64        `json:"total_payable"`
+	TotalPaid       float64        `json:"total_paid"`
+	LastPaymentDate string         `json:"last_payment_date"`
+	OverdueIndex    string         `json:"overdue_index"`
 }
 
 type ContractRequestable struct {
