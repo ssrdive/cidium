@@ -1686,7 +1686,7 @@ func (m *ContractModel) PerformanceReview(startDate, endDate, state, officer, ba
 	var res []models.PerformanceReview
 	for results.Next() {
 		var r models.PerformanceReview
-		err = results.Scan(&r.ID, &r.Agrivest, &r.RecoveryOfficer, &r.State, &r.Model, &r.Batch, &r.ChassisNumber, &r.CustomerName, &r.CustomerAddress, &r.CustomerContact, &r.AmountPending, &r.StartAmountPending, &r.EndAmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid, &r.LastPaymentDate, &r.StartOverdueIndex, &r.EndOverdueIndex)
+		err = results.Scan(&r.ID, &r.Agrivest, &r.RecoveryOfficer, &r.State, &r.Model, &r.Batch, &r.ChassisNumber, &r.CustomerName, &r.CustomerAddress, &r.CustomerContact, &r.AmountPending, &r.StartAmountPending, &r.EndAmountPending, &r.StartBetweenAmountPending, &r.EndBetweenAmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid, &r.LastPaymentDate, &r.StartOverdueIndex, &r.EndOverdueIndex)
 		if err != nil {
 			return nil, err
 		}
