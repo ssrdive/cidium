@@ -12,8 +12,8 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/ssrdive/cidium/pkg/models"
-	msql "github.com/ssrdive/cidium/pkg/sql"
 	"github.com/ssrdive/cidium/pkg/sql/queries"
+	"github.com/ssrdive/mysequel"
 )
 
 // ContractModel struct holds database instance
@@ -35,7 +35,7 @@ func (m *ContractModel) Insert(initialState string, rparams, oparams []string, f
 		_ = tx.Commit()
 	}()
 
-	cid, err := msql.Insert(msql.FormTable{
+	cid, err := mysequel.Insert(mysequel.FormTable{
 		TableName: "contract",
 		RCols:     rparams,
 		OCols:     oparams,
@@ -53,7 +53,7 @@ func (m *ContractModel) Insert(initialState string, rparams, oparams []string, f
 		return 0, err
 	}
 
-	sid, err := msql.Insert(msql.Table{
+	sid, err := mysequel.Insert(mysequel.Table{
 		TableName: "contract_state",
 		Columns:   []string{"contract_id", "state_id"},
 		Vals:      []interface{}{cid, isid},
@@ -63,15 +63,15 @@ func (m *ContractModel) Insert(initialState string, rparams, oparams []string, f
 		return 0, err
 	}
 
-	_, err = msql.Insert(msql.Table{
+	_, err = mysequel.Insert(mysequel.Table{
 		TableName: "contract_state_transition",
 		Columns:   []string{"to_contract_state_id", "transition_date"},
 		Vals:      []interface{}{sid, time.Now().Format("2006-01-02 15:04:05")},
 		Tx:        tx,
 	})
 
-	_, err = msql.Update(msql.UpdateTable{
-		Table: msql.Table{
+	_, err = mysequel.Update(mysequel.UpdateTable{
+		Table: mysequel.Table{
 			TableName: "contract",
 			Columns:   []string{"contract_state_id"},
 			Vals:      []interface{}{sid},
@@ -127,7 +127,7 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 	for _, inst := range schedule {
 		capitalAmount += inst.Capital
 		interestAmount += inst.Interest
-		_, err = msql.Insert(msql.Table{
+		_, err = mysequel.Insert(mysequel.Table{
 			TableName: "contract_installment",
 			Columns:   []string{"contract_id", "contract_installment_type_id", "capital", "interest", "default_interest", "due_date"},
 			Vals:      []interface{}{cid, citid, inst.Capital, inst.Interest, inst.DefaultInterest, inst.DueDate},
@@ -140,7 +140,7 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 	}
 	fullRecievables := capitalAmount + interestAmount
 
-	tid, err := msql.Insert(msql.Table{
+	tid, err := mysequel.Insert(mysequel.Table{
 		TableName: "transaction",
 		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
 		Vals:      []interface{}{form.Get("user_id"), time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("LEGACY CONTRACT CREATION %d", cid)},
@@ -159,7 +159,7 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 
 	for _, entry := range journalEntries {
 		if len(entry.Debit) != 0 {
-			_, err := msql.Insert(msql.Table{
+			_, err := mysequel.Insert(mysequel.Table{
 				TableName: "account_transaction",
 				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
@@ -171,7 +171,7 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 			}
 		}
 		if len(entry.Credit) != 0 {
-			_, err := msql.Insert(msql.Table{
+			_, err := mysequel.Insert(mysequel.Table{
 				TableName: "account_transaction",
 				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
@@ -295,7 +295,7 @@ func (m *ContractModel) StateAnswer(rparams, oparams []string, form url.Values) 
 		_ = tx.Commit()
 	}()
 
-	cid, err := msql.Insert(msql.FormTable{
+	cid, err := mysequel.Insert(mysequel.FormTable{
 		TableName: "contract_state_question_answer",
 		RCols:     rparams,
 		OCols:     oparams,
@@ -322,7 +322,7 @@ func (m *ContractModel) StateDocument(rparams, oparams []string, form url.Values
 		_ = tx.Commit()
 	}()
 
-	cid, err := msql.Insert(msql.FormTable{
+	cid, err := mysequel.Insert(mysequel.FormTable{
 		TableName: "contract_state_document",
 		RCols:     rparams,
 		OCols:     oparams,
@@ -558,7 +558,7 @@ func (m *ContractModel) Request(rparams, oparams []string, form url.Values) (int
 		_ = tx.Commit()
 	}()
 
-	tcsid, err := msql.Insert(msql.FormTable{
+	tcsid, err := mysequel.Insert(mysequel.FormTable{
 		TableName: "contract_state",
 		RCols:     rparams,
 		OCols:     oparams,
@@ -579,7 +579,7 @@ func (m *ContractModel) Request(rparams, oparams []string, form url.Values) (int
 		return 0, err
 	}
 
-	rid, err := msql.Insert(msql.Table{
+	rid, err := mysequel.Insert(mysequel.Table{
 		TableName: "request",
 		Columns:   []string{"contract_state_id", "to_contract_state_id", "user_id", "datetime", "remarks"},
 		Vals:      []interface{}{cs.ID, tcsid, form.Get("user_id"), time.Now().Format("2006-01-02 15:04:05"), form.Get("remarks")},
@@ -724,7 +724,7 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 	for _, inst := range schedule {
 		capitalAmount += inst.Capital
 		interestAmount += inst.Interest
-		_, err = msql.Insert(msql.Table{
+		_, err = mysequel.Insert(mysequel.Table{
 			TableName: "contract_installment",
 			Columns:   []string{"contract_id", "contract_installment_type_id", "capital", "interest", "default_interest", "due_date"},
 			Vals:      []interface{}{cid, citid, inst.Capital, inst.Interest, inst.DefaultInterest, inst.DueDate},
@@ -737,7 +737,7 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 	}
 	fullRecievables := capitalAmount + interestAmount
 
-	tid, err := msql.Insert(msql.Table{
+	tid, err := mysequel.Insert(mysequel.Table{
 		TableName: "transaction",
 		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
 		Vals:      []interface{}{user, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("CONTRACT INITIATION %d", cid)},
@@ -756,7 +756,7 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 
 	for _, entry := range journalEntries {
 		if len(entry.Debit) != 0 {
-			_, err := msql.Insert(msql.Table{
+			_, err := mysequel.Insert(mysequel.Table{
 				TableName: "account_transaction",
 				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
@@ -768,7 +768,7 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 			}
 		}
 		if len(entry.Credit) != 0 {
-			_, err := msql.Insert(msql.Table{
+			_, err := mysequel.Insert(mysequel.Table{
 				TableName: "account_transaction",
 				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
@@ -798,8 +798,8 @@ func (m *ContractModel) CommitmentAction(comid, fulfilled, user int) (int64, err
 		_ = tx.Commit()
 	}()
 
-	c, err := msql.Update(msql.UpdateTable{
-		Table: msql.Table{TableName: "contract_commitment",
+	c, err := mysequel.Update(mysequel.UpdateTable{
+		Table: mysequel.Table{TableName: "contract_commitment",
 			Columns: []string{"fulfilled", "fulfilled_by", "fulfilled_on"},
 			Vals:    []interface{}{fulfilled, user, time.Now().Format("2006-01-02 15:04:05")},
 			Tx:      tx},
@@ -827,8 +827,8 @@ func (m *ContractModel) RequestAction(user, request int, action, note string) (i
 	}()
 
 	t := time.Now().Format("2006-01-02 15:04:05")
-	_, err = msql.Update(msql.UpdateTable{
-		Table: msql.Table{TableName: "request",
+	_, err = mysequel.Update(mysequel.UpdateTable{
+		Table: mysequel.Table{TableName: "request",
 			Columns: []string{"approved", "approved_by", "approved_on", "note"},
 			Vals:    []interface{}{action, user, t, note},
 			Tx:      tx},
@@ -849,7 +849,7 @@ func (m *ContractModel) RequestAction(user, request int, action, note string) (i
 		return 0, err
 	}
 
-	_, err = msql.Insert(msql.Table{
+	_, err = mysequel.Insert(mysequel.Table{
 		TableName: "contract_state_transition",
 		Columns:   []string{"from_contract_state_id", "to_contract_state_id", "request_id", "transition_date"},
 		Vals:      []interface{}{r.ContractStateID, r.ToContractStateID, request, t},
@@ -859,8 +859,8 @@ func (m *ContractModel) RequestAction(user, request int, action, note string) (i
 		return 0, err
 	}
 
-	c, err := msql.Update(msql.UpdateTable{
-		Table: msql.Table{TableName: "contract",
+	c, err := mysequel.Update(mysequel.UpdateTable{
+		Table: mysequel.Table{TableName: "contract",
 			Columns: []string{"contract_state_id"},
 			Vals:    []interface{}{r.ToContractStateID},
 			Tx:      tx},
@@ -887,8 +887,8 @@ func (m *ContractModel) DeleteStateInfo(form url.Values) (int64, error) {
 		_ = tx.Commit()
 	}()
 
-	_, err = msql.Update(msql.UpdateTable{
-		Table: msql.Table{
+	_, err = mysequel.Update(mysequel.UpdateTable{
+		Table: mysequel.Table{
 			TableName: form.Get("table"),
 			Columns:   []string{"deleted"},
 			Vals:      []interface{}{1},
@@ -916,7 +916,7 @@ func (m *ContractModel) Commitment(rparams, oparams []string, form url.Values) (
 		_ = tx.Commit()
 	}()
 
-	comid, err := msql.Insert(msql.FormTable{
+	comid, err := mysequel.Insert(mysequel.FormTable{
 		TableName: "contract_commitment",
 		RCols:     rparams,
 		OCols:     oparams,
@@ -944,7 +944,7 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 		_ = tx.Commit()
 	}()
 
-	dnid, err := msql.Insert(msql.FormTable{
+	dnid, err := mysequel.Insert(mysequel.FormTable{
 		TableName: "contract_installment",
 		RCols:     rparams,
 		OCols:     oparams,
@@ -957,7 +957,7 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 	}
 
 	form.Set("contract_installment_id", fmt.Sprintf("%d", dnid))
-	_, err = msql.Insert(msql.FormTable{
+	_, err = mysequel.Insert(mysequel.FormTable{
 		TableName: "contract_installment_details",
 		RCols:     []string{"contract_installment_id", "user_id", "notes"},
 		OCols:     []string{},
@@ -972,7 +972,7 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 	var unearnedAccountID int
 	err = tx.QueryRow(queries.DEBIT_NOTE_UNEARNED_ACC_NO, form.Get("contract_installment_type_id")).Scan(&unearnedAccountID)
 
-	tid, err := msql.Insert(msql.Table{
+	tid, err := mysequel.Insert(mysequel.Table{
 		TableName: "transaction",
 		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
 		Vals:      []interface{}{form.Get("user_id"), time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), form.Get("contract_id"), fmt.Sprintf("DEBIT NOTE %d", dnid)},
@@ -990,7 +990,7 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 
 	for _, entry := range journalEntries {
 		if val, _ := strconv.ParseFloat(entry.Debit, 64); len(entry.Debit) != 0 && val != 0 {
-			_, err := msql.Insert(msql.Table{
+			_, err := mysequel.Insert(mysequel.Table{
 				TableName: "account_transaction",
 				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
@@ -1002,7 +1002,7 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 			}
 		}
 		if val, _ := strconv.ParseFloat(entry.Credit, 64); len(entry.Credit) != 0 && val != 0 {
-			_, err := msql.Insert(msql.Table{
+			_, err := mysequel.Insert(mysequel.Table{
 				TableName: "account_transaction",
 				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
@@ -1051,7 +1051,7 @@ func (m *ContractModel) LegacyRebate(user_id, cid int, amount float64) (int64, e
 		payables = append(payables, u)
 	}
 
-	rid, err := msql.Insert(msql.Table{
+	rid, err := mysequel.Insert(mysequel.Table{
 		TableName: "contract_receipt",
 		Columns:   []string{"contract_receipt_type_id", "user_id", "contract_id", "datetime", "amount"},
 		Vals:      []interface{}{3, user_id, cid, time.Now().Format("2006-01-02 15:04:05"), amount},
@@ -1081,7 +1081,7 @@ func (m *ContractModel) LegacyRebate(user_id, cid int, amount float64) (int64, e
 	}
 
 	for _, intPayment := range intPayments {
-		_, err := msql.Insert(msql.Table{
+		_, err := mysequel.Insert(mysequel.Table{
 			TableName: "contract_interest_payment",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
 			Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
@@ -1093,7 +1093,7 @@ func (m *ContractModel) LegacyRebate(user_id, cid int, amount float64) (int64, e
 		}
 	}
 
-	tid, err := msql.Insert(msql.Table{
+	tid, err := mysequel.Insert(mysequel.Table{
 		TableName: "transaction",
 		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
 		Vals:      []interface{}{user_id, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("INTEREST REBATE %d", rid)},
@@ -1111,7 +1111,7 @@ func (m *ContractModel) LegacyRebate(user_id, cid int, amount float64) (int64, e
 
 	for _, entry := range journalEntries {
 		if val, _ := strconv.ParseFloat(entry.Debit, 64); len(entry.Debit) != 0 && val != 0 {
-			_, err := msql.Insert(msql.Table{
+			_, err := mysequel.Insert(mysequel.Table{
 				TableName: "account_transaction",
 				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
@@ -1123,7 +1123,7 @@ func (m *ContractModel) LegacyRebate(user_id, cid int, amount float64) (int64, e
 			}
 		}
 		if val, _ := strconv.ParseFloat(entry.Credit, 64); len(entry.Credit) != 0 && val != 0 {
-			_, err := msql.Insert(msql.Table{
+			_, err := mysequel.Insert(mysequel.Table{
 				TableName: "account_transaction",
 				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
@@ -1178,7 +1178,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 
 	balance := amount
 
-	rid, err := msql.Insert(msql.Table{
+	rid, err := mysequel.Insert(mysequel.Table{
 		TableName: "contract_receipt",
 		Columns:   []string{"user_id", "contract_id", "datetime", "amount", "notes", "due_date"},
 		Vals:      []interface{}{user_id, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes, due_date},
@@ -1314,8 +1314,8 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 	}
 
 	for _, diUpdate := range diUpdates {
-		_, err = msql.Update(msql.UpdateTable{
-			Table: msql.Table{TableName: "contract_installment",
+		_, err = mysequel.Update(mysequel.UpdateTable{
+			Table: mysequel.Table{TableName: "contract_installment",
 				Columns: []string{"default_interest"},
 				Vals:    []interface{}{diUpdate.DefaultInterest},
 				Tx:      tx},
@@ -1329,7 +1329,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 	}
 
 	for _, diLog := range diLogs {
-		_, err := msql.Insert(msql.Table{
+		_, err := mysequel.Insert(mysequel.Table{
 			TableName: "contract_default_interest_change_history",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "default_interest"},
 			Vals:      []interface{}{diLog.ContractInstallmentID, diLog.ContractReceiptID, diLog.DefaultInterest},
@@ -1342,7 +1342,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 	}
 
 	for _, intPayment := range diPayments {
-		_, err := msql.Insert(msql.Table{
+		_, err := mysequel.Insert(mysequel.Table{
 			TableName: "contract_default_interest_payment",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
 			Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
@@ -1358,7 +1358,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 
 	for _, intPayment := range intPayments {
 		interestAmount += intPayment.Amount
-		_, err := msql.Insert(msql.Table{
+		_, err := mysequel.Insert(mysequel.Table{
 			TableName: "contract_interest_payment",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
 			Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
@@ -1371,7 +1371,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 	}
 
 	for _, capPayment := range capPayments {
-		_, err := msql.Insert(msql.Table{
+		_, err := mysequel.Insert(mysequel.Table{
 			TableName: "contract_capital_payment",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
 			Vals:      []interface{}{capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
@@ -1383,7 +1383,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 		}
 	}
 
-	tid, err := msql.Insert(msql.Table{
+	tid, err := mysequel.Insert(mysequel.Table{
 		TableName: "transaction",
 		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
 		Vals:      []interface{}{user_id, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("RECEIPT %d", rid)},
@@ -1395,7 +1395,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 	}
 
 	for _, capPayment := range debitPayments {
-		_, err := msql.Insert(msql.Table{
+		_, err := mysequel.Insert(mysequel.Table{
 			TableName: "account_transaction",
 			Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 			Vals:      []interface{}{tid, capPayment.UnearnedAccountID, "DR", capPayment.Amount},
@@ -1405,7 +1405,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 			tx.Rollback()
 			return 0, err
 		}
-		_, err = msql.Insert(msql.Table{
+		_, err = mysequel.Insert(mysequel.Table{
 			TableName: "account_transaction",
 			Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 			Vals:      []interface{}{tid, capPayment.IncomeAccountID, "CR", capPayment.Amount},
@@ -1415,7 +1415,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 			tx.Rollback()
 			return 0, err
 		}
-		_, err = msql.Insert(msql.Table{
+		_, err = mysequel.Insert(mysequel.Table{
 			TableName: "contract_capital_payment",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
 			Vals:      []interface{}{capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
@@ -1441,7 +1441,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 
 	for _, entry := range journalEntries {
 		if val, _ := strconv.ParseFloat(entry.Debit, 64); len(entry.Debit) != 0 && val != 0 {
-			_, err := msql.Insert(msql.Table{
+			_, err := mysequel.Insert(mysequel.Table{
 				TableName: "account_transaction",
 				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
@@ -1453,7 +1453,7 @@ func (m *ContractModel) Receipt(user_id, cid int, amount float64, notes, due_dat
 			}
 		}
 		if val, _ := strconv.ParseFloat(entry.Credit, 64); len(entry.Credit) != 0 && val != 0 {
-			_, err := msql.Insert(msql.Table{
+			_, err := mysequel.Insert(mysequel.Table{
 				TableName: "account_transaction",
 				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
@@ -1534,7 +1534,7 @@ func (m *ContractModel) LegacyReceipt(user_id, cid int, amount float64, notes st
 
 	balance := amount
 
-	rid, err := msql.Insert(msql.Table{
+	rid, err := mysequel.Insert(mysequel.Table{
 		TableName: "contract_receipt",
 		Columns:   []string{"user_id", "contract_id", "datetime", "amount", "notes"},
 		Vals:      []interface{}{user_id, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes},
@@ -1604,8 +1604,8 @@ func (m *ContractModel) LegacyReceipt(user_id, cid int, amount float64, notes st
 	}
 
 	for _, diUpdate := range diUpdates {
-		_, err = msql.Update(msql.UpdateTable{
-			Table: msql.Table{TableName: "contract_installment",
+		_, err = mysequel.Update(mysequel.UpdateTable{
+			Table: mysequel.Table{TableName: "contract_installment",
 				Columns: []string{"default_interest"},
 				Vals:    []interface{}{diUpdate.DefaultInterest},
 				Tx:      tx},
@@ -1619,7 +1619,7 @@ func (m *ContractModel) LegacyReceipt(user_id, cid int, amount float64, notes st
 	}
 
 	for _, diLog := range diLogs {
-		_, err := msql.Insert(msql.Table{
+		_, err := mysequel.Insert(mysequel.Table{
 			TableName: "contract_default_interest_change_history",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "default_interest"},
 			Vals:      []interface{}{diLog.ContractInstallmentID, diLog.ContractReceiptID, diLog.DefaultInterest},
@@ -1632,7 +1632,7 @@ func (m *ContractModel) LegacyReceipt(user_id, cid int, amount float64, notes st
 	}
 
 	for _, intPayment := range diPayments {
-		_, err := msql.Insert(msql.Table{
+		_, err := mysequel.Insert(mysequel.Table{
 			TableName: "contract_default_interest_payment",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
 			Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
@@ -1645,7 +1645,7 @@ func (m *ContractModel) LegacyReceipt(user_id, cid int, amount float64, notes st
 	}
 
 	for _, intPayment := range intPayments {
-		_, err := msql.Insert(msql.Table{
+		_, err := mysequel.Insert(mysequel.Table{
 			TableName: "contract_interest_payment",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
 			Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
@@ -1658,7 +1658,7 @@ func (m *ContractModel) LegacyReceipt(user_id, cid int, amount float64, notes st
 	}
 
 	for _, capPayment := range capPayments {
-		_, err := msql.Insert(msql.Table{
+		_, err := mysequel.Insert(mysequel.Table{
 			TableName: "contract_capital_payment",
 			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
 			Vals:      []interface{}{capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
@@ -1674,9 +1674,9 @@ func (m *ContractModel) LegacyReceipt(user_id, cid int, amount float64, notes st
 }
 
 func (m *ContractModel) PerformanceReview(startDate, endDate, state, officer, batch string) ([]models.PerformanceReview, error) {
-	s := msql.NewNullString(state)
-	o := msql.NewNullString(officer)
-	b := msql.NewNullString(batch)
+	s := mysequel.NewNullString(state)
+	o := mysequel.NewNullString(officer)
+	b := mysequel.NewNullString(batch)
 
 	results, err := m.DB.Query(queries.PERFORMANCE_REVIEW(startDate, endDate), s, s, o, o, b, b)
 	if err != nil {
@@ -1706,9 +1706,9 @@ func (m *ContractModel) SearchV2(search, state, officer, batch string) ([]models
 			String: "%" + search + "%",
 		}
 	}
-	s := msql.NewNullString(state)
-	o := msql.NewNullString(officer)
-	b := msql.NewNullString(batch)
+	s := mysequel.NewNullString(state)
+	o := mysequel.NewNullString(officer)
+	b := mysequel.NewNullString(batch)
 
 	results, err := m.DB.Query(queries.SEARCH_V2, k, k, s, s, o, o, b, b)
 	if err != nil {
@@ -1738,9 +1738,9 @@ func (m *ContractModel) SearchOld(search, state, officer, batch string) ([]model
 			String: "%" + search + "%",
 		}
 	}
-	s := msql.NewNullString(state)
-	o := msql.NewNullString(officer)
-	b := msql.NewNullString(batch)
+	s := mysequel.NewNullString(state)
+	o := mysequel.NewNullString(officer)
+	b := mysequel.NewNullString(batch)
 
 	results, err := m.DB.Query(queries.SEARCH_OLD, k, k, s, s, o, o, b, b)
 	if err != nil {
@@ -1770,9 +1770,9 @@ func (m *ContractModel) Search(search, state, officer, batch string) ([]models.S
 			String: "%" + search + "%",
 		}
 	}
-	s := msql.NewNullString(state)
-	o := msql.NewNullString(officer)
-	b := msql.NewNullString(batch)
+	s := mysequel.NewNullString(state)
+	o := mysequel.NewNullString(officer)
+	b := mysequel.NewNullString(batch)
 
 	results, err := m.DB.Query(queries.SEARCH, k, k, s, s, o, o, b, b)
 	if err != nil {
