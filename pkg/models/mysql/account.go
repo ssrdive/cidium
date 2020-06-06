@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/ssrdive/cidium/pkg/models"
-	msql "github.com/ssrdive/cidium/pkg/sql"
 	"github.com/ssrdive/cidium/pkg/sql/queries"
+	"github.com/ssrdive/mysequel"
 )
 
 type AccountModel struct {
@@ -29,7 +29,7 @@ func (m *AccountModel) CreateAccount(rparams, oparams []string, form url.Values)
 	}()
 
 	form.Set("datetime", time.Now().Format("2006-01-02 15:04:05"))
-	cid, err := msql.Insert(msql.FormTable{
+	cid, err := mysequel.Insert(mysequel.FormTable{
 		TableName: "account",
 		RCols:     rparams,
 		OCols:     oparams,
@@ -57,7 +57,7 @@ func (m *AccountModel) CreateCategory(rparams, oparams []string, form url.Values
 	}()
 
 	form.Set("datetime", time.Now().Format("2006-01-02 15:04:05"))
-	cid, err := msql.Insert(msql.FormTable{
+	cid, err := mysequel.Insert(mysequel.FormTable{
 		TableName: "account_category",
 		RCols:     rparams,
 		OCols:     oparams,
@@ -125,7 +125,7 @@ func (m *AccountModel) PaymentVoucher(user_id, posting_date, from_account_id, am
 	var paymentVoucher []models.PaymentVoucherEntry
 	json.Unmarshal([]byte(entries), &paymentVoucher)
 
-	tid, err := msql.Insert(msql.Table{
+	tid, err := mysequel.Insert(mysequel.Table{
 		TableName: "transaction",
 		Columns:   []string{"user_id", "datetime", "posting_date", "remark"},
 		Vals:      []interface{}{user_id, time.Now().Format("2006-01-02 15:04:05"), posting_date, remark},
@@ -136,7 +136,7 @@ func (m *AccountModel) PaymentVoucher(user_id, posting_date, from_account_id, am
 		return 0, err
 	}
 
-	_, err = msql.Insert(msql.Table{
+	_, err = mysequel.Insert(mysequel.Table{
 		TableName: "payment_voucher",
 		Columns:   []string{"transaction_id", "due_date", "check_number", "payee"},
 		Vals:      []interface{}{tid, due_date, check_number, payee},
@@ -147,7 +147,7 @@ func (m *AccountModel) PaymentVoucher(user_id, posting_date, from_account_id, am
 		return 0, err
 	}
 
-	_, err = msql.Insert(msql.Table{
+	_, err = mysequel.Insert(mysequel.Table{
 		TableName: "account_transaction",
 		Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 		Vals:      []interface{}{tid, from_account_id, "CR", amount},
@@ -159,7 +159,7 @@ func (m *AccountModel) PaymentVoucher(user_id, posting_date, from_account_id, am
 	}
 
 	for _, entry := range paymentVoucher {
-		_, err := msql.Insert(msql.Table{
+		_, err := mysequel.Insert(mysequel.Table{
 			TableName: "account_transaction",
 			Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 			Vals:      []interface{}{tid, entry.Account, "DR", entry.Amount},
@@ -189,7 +189,7 @@ func (m *AccountModel) Deposit(user_id, posting_date, to_account_id, amount, ent
 	var paymentVoucher []models.PaymentVoucherEntry
 	json.Unmarshal([]byte(entries), &paymentVoucher)
 
-	tid, err := msql.Insert(msql.Table{
+	tid, err := mysequel.Insert(mysequel.Table{
 		TableName: "transaction",
 		Columns:   []string{"user_id", "datetime", "posting_date", "remark"},
 		Vals:      []interface{}{user_id, time.Now().Format("2006-01-02 15:04:05"), posting_date, remark},
@@ -200,7 +200,7 @@ func (m *AccountModel) Deposit(user_id, posting_date, to_account_id, amount, ent
 		return 0, err
 	}
 
-	_, err = msql.Insert(msql.Table{
+	_, err = mysequel.Insert(mysequel.Table{
 		TableName: "deposit",
 		Columns:   []string{"transaction_id"},
 		Vals:      []interface{}{tid},
@@ -211,7 +211,7 @@ func (m *AccountModel) Deposit(user_id, posting_date, to_account_id, amount, ent
 		return 0, err
 	}
 
-	_, err = msql.Insert(msql.Table{
+	_, err = mysequel.Insert(mysequel.Table{
 		TableName: "account_transaction",
 		Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 		Vals:      []interface{}{tid, to_account_id, "DR", amount},
@@ -223,7 +223,7 @@ func (m *AccountModel) Deposit(user_id, posting_date, to_account_id, amount, ent
 	}
 
 	for _, entry := range paymentVoucher {
-		_, err := msql.Insert(msql.Table{
+		_, err := mysequel.Insert(mysequel.Table{
 			TableName: "account_transaction",
 			Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 			Vals:      []interface{}{tid, entry.Account, "CR", entry.Amount},
@@ -253,7 +253,7 @@ func (m *AccountModel) JournalEntry(user_id, posting_date, remark, entries strin
 	var journalEntries []models.JournalEntry
 	json.Unmarshal([]byte(entries), &journalEntries)
 
-	tid, err := msql.Insert(msql.Table{
+	tid, err := mysequel.Insert(mysequel.Table{
 		TableName: "transaction",
 		Columns:   []string{"user_id", "datetime", "posting_date", "remark"},
 		Vals:      []interface{}{user_id, time.Now().Format("2006-01-02 15:04:05"), posting_date, remark},
@@ -266,7 +266,7 @@ func (m *AccountModel) JournalEntry(user_id, posting_date, remark, entries strin
 
 	for _, entry := range journalEntries {
 		if len(entry.Debit) != 0 {
-			_, err := msql.Insert(msql.Table{
+			_, err := mysequel.Insert(mysequel.Table{
 				TableName: "account_transaction",
 				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
@@ -278,7 +278,7 @@ func (m *AccountModel) JournalEntry(user_id, posting_date, remark, entries strin
 			}
 		}
 		if len(entry.Credit) != 0 {
-			_, err := msql.Insert(msql.Table{
+			_, err := mysequel.Insert(mysequel.Table{
 				TableName: "account_transaction",
 				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
 				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},

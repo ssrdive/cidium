@@ -3,7 +3,7 @@ module github.com/ssrdive/cidium
 go 1.13
 
 require (
-	github.com/Masterminds/squirrel v1.1.0
+	github.com/Masterminds/squirrel v1.4.0
 	github.com/aws/aws-sdk-go v1.26.8
 	github.com/bmizerany/pat v0.0.0-20170815010413-6226ea591a40
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
@@ -13,5 +13,6 @@ require (
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.3
 	github.com/justinas/alice v1.2.0
+	github.com/ssrdive/mysequel v0.0.0-20200606061802-d811ce55d94f
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
 )
