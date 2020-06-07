@@ -188,95 +188,50 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 }
 
 func (m *ContractModel) WorkDocuments(cid int) ([]models.WorkDocument, error) {
-	results, err := m.DB.Query(queries.WORK_DOCUMENTS, cid)
+	var workDocuments []models.WorkDocument
+	err := mysequel.QueryToStructs(&workDocuments, m.DB, queries.WORK_DOCUMENTS, cid)
 	if err != nil {
 		return nil, err
-	}
-
-	var workDocuments []models.WorkDocument
-	for results.Next() {
-		var wd models.WorkDocument
-		err = results.Scan(&wd.ContractStateID, &wd.DocumentID, &wd.DocumentName, &wd.ID, &wd.Source, &wd.S3Bucket, &wd.S3Region, &wd.Compulsory)
-		if err != nil {
-			return nil, err
-		}
-		workDocuments = append(workDocuments, wd)
 	}
 
 	return workDocuments, nil
 }
 
 func (m *ContractModel) WorkQuestions(cid int) ([]models.WorkQuestion, error) {
-	results, err := m.DB.Query(queries.WORK_QUESTIONS, cid)
+	var workQuestions []models.WorkQuestion
+	err := mysequel.QueryToStructs(&workQuestions, m.DB, queries.WORK_QUESTIONS, cid)
 	if err != nil {
 		return nil, err
-	}
-
-	var workQuestions []models.WorkQuestion
-	for results.Next() {
-		var wq models.WorkQuestion
-		err = results.Scan(&wq.ContractStateID, &wq.QuestionID, &wq.Question, &wq.ID, &wq.Answer, &wq.Compulsory)
-		if err != nil {
-			return nil, err
-		}
-		workQuestions = append(workQuestions, wq)
 	}
 
 	return workQuestions, nil
 }
 
 func (m *ContractModel) Questions(cid int) ([]models.Question, error) {
-	results, err := m.DB.Query(queries.QUESTIONS, cid)
+	var questions []models.Question
+	err := mysequel.QueryToStructs(&questions, m.DB, queries.QUESTIONS, cid)
 	if err != nil {
 		return nil, err
-	}
-
-	var questions []models.Question
-	for results.Next() {
-		var q models.Question
-		err = results.Scan(&q.Question, &q.Answer)
-		if err != nil {
-			return nil, err
-		}
-		questions = append(questions, q)
 	}
 
 	return questions, nil
 }
 
 func (m *ContractModel) Documents(cid int) ([]models.Document, error) {
-	results, err := m.DB.Query(queries.DOCUMENTS, cid)
+	var documents []models.Document
+	err := mysequel.QueryToStructs(&documents, m.DB, queries.DOCUMENTS, cid)
 	if err != nil {
 		return nil, err
-	}
-
-	var documents []models.Document
-	for results.Next() {
-		var d models.Document
-		err = results.Scan(&d.Document, &d.S3Region, &d.S3Bucket, &d.Source)
-		if err != nil {
-			return nil, err
-		}
-		documents = append(documents, d)
 	}
 
 	return documents, nil
 }
 
 func (m *ContractModel) History(cid int) ([]models.History, error) {
-	results, err := m.DB.Query(queries.HISTORY, cid)
+	var history []models.History
+	err := mysequel.QueryToStructs(&history, m.DB, queries.HISTORY, cid)
 	if err != nil {
 		return nil, err
-	}
-
-	var history []models.History
-	for results.Next() {
-		var h models.History
-		err = results.Scan(&h.FromState, &h.ToState, &h.TransitionDate)
-		if err != nil {
-			return nil, err
-		}
-		history = append(history, h)
 	}
 
 	return history, nil
@@ -347,54 +302,30 @@ func (m *ContractModel) ContractDetail(cid int) (models.ContractDetail, error) {
 }
 
 func (m *ContractModel) ContractInstallments(cid int) ([]models.ActiveInstallment, error) {
-	results, err := m.DB.Query(queries.CONTRACT_INSTALLMENTS, cid, cid, cid)
+	var installments []models.ActiveInstallment
+	err := mysequel.QueryToStructs(&installments, m.DB, queries.CONTRACT_INSTALLMENTS, cid, cid, cid)
 	if err != nil {
 		return nil, err
-	}
-	var installments []models.ActiveInstallment
-	for results.Next() {
-		var installment models.ActiveInstallment
-		err = results.Scan(&installment.ID, &installment.InstallmentType, &installment.Installment, &installment.InstallmentPaid, &installment.DueDate, &installment.DueIn)
-		if err != nil {
-			return nil, err
-		}
-		installments = append(installments, installment)
 	}
 
 	return installments, nil
 }
 
 func (m *ContractModel) ContractReceiptsV2(cid int) ([]models.ReceiptV2, error) {
-	results, err := m.DB.Query(queries.CONTRACT_RECEIPTS_V2, cid)
+	var receipts []models.ReceiptV2
+	err := mysequel.QueryToStructs(&receipts, m.DB, queries.CONTRACT_RECEIPTS_V2, cid)
 	if err != nil {
 		return nil, err
-	}
-	var receipts []models.ReceiptV2
-	for results.Next() {
-		var receipt models.ReceiptV2
-		err = results.Scan(&receipt.ID, &receipt.Date, &receipt.Amount, &receipt.Notes, &receipt.Type)
-		if err != nil {
-			return nil, err
-		}
-		receipts = append(receipts, receipt)
 	}
 
 	return receipts, nil
 }
 
 func (m *ContractModel) ContractReceipts(cid int) ([]models.Receipt, error) {
-	results, err := m.DB.Query(queries.CONTRACT_RECEIPTS, cid)
+	var receipts []models.Receipt
+	err := mysequel.QueryToStructs(&receipts, m.DB, queries.CONTRACT_RECEIPTS, cid)
 	if err != nil {
 		return nil, err
-	}
-	var receipts []models.Receipt
-	for results.Next() {
-		var receipt models.Receipt
-		err = results.Scan(&receipt.ID, &receipt.Date, &receipt.Amount, &receipt.Notes)
-		if err != nil {
-			return nil, err
-		}
-		receipts = append(receipts, receipt)
 	}
 
 	return receipts, nil
