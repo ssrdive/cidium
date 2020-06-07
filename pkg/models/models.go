@@ -45,10 +45,10 @@ type DropdownAccount struct {
 }
 
 type WorkDocument struct {
-	ID              sql.NullInt32  `json:"id"`
 	ContractStateID int            `json:"contract_state_id"`
 	DocumentID      int            `json:"document_id"`
 	DocumentName    string         `json:"document_name"`
+	ID              sql.NullInt32  `json:"id"`
 	Source          sql.NullString `json:"source"`
 	S3Bucket        sql.NullString `json:"s3bucket"`
 	S3Region        sql.NullString `json:"s3region"`
@@ -56,10 +56,10 @@ type WorkDocument struct {
 }
 
 type WorkQuestion struct {
-	ID              sql.NullInt32  `json:"id"`
 	ContractStateID int            `json:"contract_state_id"`
 	QuestionID      int            `json:"question_id"`
 	Question        string         `json:"question"`
+	ID              sql.NullInt32  `json:"id"`
 	Answer          sql.NullString `json:"answer"`
 	Compulsory      int            `json:"compulsory"`
 }
