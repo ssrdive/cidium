@@ -190,57 +190,57 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 
 // WorkDocuments returns documents to be completed at the current stage of the contract
 func (m *ContractModel) WorkDocuments(cid int) ([]models.WorkDocument, error) {
-	var workDocuments []models.WorkDocument
-	err := mysequel.QueryToStructs(&workDocuments, m.DB, queries.WORK_DOCUMENTS, cid)
+	var res []models.WorkDocument
+	err := mysequel.QueryToStructs(&res, m.DB, queries.WORK_DOCUMENTS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return workDocuments, nil
+	return res, nil
 }
 
 // WorkQuestions returns questions to be answered at the current stage of the contract
 func (m *ContractModel) WorkQuestions(cid int) ([]models.WorkQuestion, error) {
-	var workQuestions []models.WorkQuestion
-	err := mysequel.QueryToStructs(&workQuestions, m.DB, queries.WORK_QUESTIONS, cid)
+	var res []models.WorkQuestion
+	err := mysequel.QueryToStructs(&res, m.DB, queries.WORK_QUESTIONS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return workQuestions, nil
+	return res, nil
 }
 
 // Questions returns all the answered questions of the contract
 func (m *ContractModel) Questions(cid int) ([]models.Question, error) {
-	var questions []models.Question
-	err := mysequel.QueryToStructs(&questions, m.DB, queries.QUESTIONS, cid)
+	var res []models.Question
+	err := mysequel.QueryToStructs(&res, m.DB, queries.QUESTIONS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return questions, nil
+	return res, nil
 }
 
 // Documents returns all the documents of the contract
 func (m *ContractModel) Documents(cid int) ([]models.Document, error) {
-	var documents []models.Document
-	err := mysequel.QueryToStructs(&documents, m.DB, queries.DOCUMENTS, cid)
+	var res []models.Document
+	err := mysequel.QueryToStructs(&res, m.DB, queries.DOCUMENTS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return documents, nil
+	return res, nil
 }
 
 // History returns the state history of the contract
 func (m *ContractModel) History(cid int) ([]models.History, error) {
-	var history []models.History
-	err := mysequel.QueryToStructs(&history, m.DB, queries.HISTORY, cid)
+	var res []models.History
+	err := mysequel.QueryToStructs(&res, m.DB, queries.HISTORY, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return history, nil
+	return res, nil
 }
 
 // StateAnswer adds an answer to a question in the current contract state
@@ -312,57 +312,57 @@ func (m *ContractModel) Detail(cid int) (models.ContractDetail, error) {
 
 // Installment returns installments
 func (m *ContractModel) Installment(cid int) ([]models.ActiveInstallment, error) {
-	var installments []models.ActiveInstallment
-	err := mysequel.QueryToStructs(&installments, m.DB, queries.CONTRACT_INSTALLMENTS, cid, cid, cid)
+	var res []models.ActiveInstallment
+	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_INSTALLMENTS, cid, cid, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return installments, nil
+	return res, nil
 }
 
 // ReceiptsV2 returns v2 of receipts
 func (m *ContractModel) ReceiptsV2(cid int) ([]models.ReceiptV2, error) {
-	var receipts []models.ReceiptV2
-	err := mysequel.QueryToStructs(&receipts, m.DB, queries.CONTRACT_RECEIPTS_V2, cid)
+	var res []models.ReceiptV2
+	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_RECEIPTS_V2, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return receipts, nil
+	return res, nil
 }
 
 // Receipts returns receipts
 func (m *ContractModel) Receipts(cid int) ([]models.Receipt, error) {
-	var receipts []models.Receipt
-	err := mysequel.QueryToStructs(&receipts, m.DB, queries.CONTRACT_RECEIPTS, cid)
+	var res []models.Receipt
+	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_RECEIPTS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return receipts, nil
+	return res, nil
 }
 
 // OfficerReceipts returns receipts issued on a date
 func (m *ContractModel) OfficerReceipts(oid int, date string) ([]models.Receipt, error) {
-	var receipts []models.Receipt
-	err := mysequel.QueryToStructs(&receipts, m.DB, queries.CONTRACT_OFFICER_RECEIPTS, oid, date)
+	var res []models.Receipt
+	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_OFFICER_RECEIPTS, oid, date)
 	if err != nil {
 		return nil, err
 	}
 
-	return receipts, nil
+	return res, nil
 }
 
 // Commitments returns contract commitments
 func (m *ContractModel) Commitments(cid int) ([]models.Commitment, error) {
-	var commitments []models.Commitment
-	err := mysequel.QueryToStructs(&commitments, m.DB, queries.CONTRACT_COMMITMENTS, cid)
+	var res []models.Commitment
+	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_COMMITMENTS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return commitments, nil
+	return res, nil
 }
 
 // DashboardCommitmentsByOfficer returns commitments related to an officer
@@ -380,17 +380,17 @@ func (m *ContractModel) DashboardCommitmentsByOfficer(ctype, officer string) ([]
 		return nil, err
 	}
 
-	var commitments []models.DashboardCommitment
+	var res []models.DashboardCommitment
 	for results.Next() {
 		var commitment models.DashboardCommitment
 		err = results.Scan(&commitment.ContractID, &commitment.DueIn, &commitment.Text)
 		if err != nil {
 			return nil, err
 		}
-		commitments = append(commitments, commitment)
+		res = append(res, commitment)
 	}
 
-	return commitments, nil
+	return res, nil
 }
 
 // DashboardCommitments returns web application dashboard commitments
@@ -408,39 +408,39 @@ func (m *ContractModel) DashboardCommitments(ctype string) ([]models.DashboardCo
 		return nil, err
 	}
 
-	var commitments []models.DashboardCommitment
+	var res []models.DashboardCommitment
 	for results.Next() {
 		var commitment models.DashboardCommitment
 		err = results.Scan(&commitment.ContractID, &commitment.DueIn, &commitment.Text)
 		if err != nil {
 			return nil, err
 		}
-		commitments = append(commitments, commitment)
+		res = append(res, commitment)
 	}
 
-	return commitments, nil
+	return res, nil
 }
 
 // TransionableStates returns the list of states a contract can be transition into
 func (m *ContractModel) TransionableStates(cid int) ([]models.Dropdown, error) {
-	var states []models.Dropdown
-	err := mysequel.QueryToStructs(&states, m.DB, queries.TRANSITIONABLE_STATES, cid)
+	var res []models.Dropdown
+	err := mysequel.QueryToStructs(&res, m.DB, queries.TRANSITIONABLE_STATES, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return states, nil
+	return res, nil
 }
 
 // RejectedRequests returns rejected requests
 func (m *ContractModel) RejectedRequests(cid int) ([]models.RejectedRequest, error) {
-	var requests []models.RejectedRequest
-	err := mysequel.QueryToStructs(&requests, m.DB, queries.REJECTED_REQUESTS, cid)
+	var res []models.RejectedRequest
+	err := mysequel.QueryToStructs(&res, m.DB, queries.REJECTED_REQUESTS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return requests, nil
+	return res, nil
 }
 
 // CurrentRequestExists returns whether a current request exists or not
@@ -511,13 +511,13 @@ func (m *ContractModel) Request(rparams, oparams []string, form url.Values) (int
 
 // Requests returns a list of requests made
 func (m *ContractModel) Requests(user int) ([]models.Request, error) {
-	var requests []models.Request
-	err := mysequel.QueryToStructs(&requests, m.DB, queries.REQUESTS)
+	var res []models.Request
+	err := mysequel.QueryToStructs(&res, m.DB, queries.REQUESTS)
 	if err != nil {
 		return nil, err
 	}
 
-	return requests, nil
+	return res, nil
 }
 
 // RequestName returns the name of the request from the given id
@@ -1074,20 +1074,11 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		_ = tx.Commit()
 	}()
 
-	results, err := tx.Query(queries.DEBITS, cid)
+	var debits []models.DebitsPayable
+	err = mysequel.QueryToStructs(&debits, tx, queries.DEBITS, cid)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
-	}
-
-	var debits []models.DebitsPayable
-	for results.Next() {
-		var d models.DebitsPayable
-		err = results.Scan(&d.InstallmentID, &d.ContractID, &d.CapitalPayable, &d.InterestPayable, &d.DefaultInterest, &d.UnearnedAccountID, &d.IncomeAccountID)
-		if err != nil {
-			return 0, err
-		}
-		debits = append(debits, d)
 	}
 
 	var diUpdates []models.ContractDefaultInterestUpdate
@@ -1124,20 +1115,11 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		}
 	}
 
-	results, err = tx.Query(queries.OVERDUE_INSTALLMENTS, cid)
+	var payables []models.ContractPayable
+	err = mysequel.QueryToStructs(&payables, tx, queries.OVERDUE_INSTALLMENTS, cid)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
-	}
-
-	var payables []models.ContractPayable
-	for results.Next() {
-		var p models.ContractPayable
-		err = results.Scan(&p.InstallmentID, &p.ContractID, &p.CapitalPayable, &p.InterestPayable, &p.DefaultInterest)
-		if err != nil {
-			return 0, err
-		}
-		payables = append(payables, p)
 	}
 
 	diAmount := 0.0
@@ -1191,20 +1173,11 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 	}
 
 	if balance != 0 {
-		results, err = tx.Query(queries.UPCOMING_INSTALLMENTS, cid)
+		var upcoming []models.ContractPayable
+		err = mysequel.QueryToStructs(&upcoming, tx, queries.UPCOMING_INSTALLMENTS, cid)
 		if err != nil {
 			tx.Rollback()
 			return 0, err
-		}
-
-		var upcoming []models.ContractPayable
-		for results.Next() {
-			var u models.ContractPayable
-			err = results.Scan(&u.InstallmentID, &u.ContractID, &u.CapitalPayable, &u.InterestPayable, &u.DefaultInterest)
-			if err != nil {
-				return 0, err
-			}
-			upcoming = append(upcoming, u)
 		}
 
 		for _, p := range upcoming {
@@ -1418,202 +1391,16 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 	return rid, nil
 }
 
-// LegacyReceipt issues a legacy receipt
-func (m *ContractModel) LegacyReceipt(userID, cid int, amount float64, notes string) (int64, error) {
-	tx, err := m.DB.Begin()
-	if err != nil {
-		return 0, err
-	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-			return
-		}
-		_ = tx.Commit()
-	}()
-
-	results, err := tx.Query(queries.DEBITS, cid)
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	var debits []models.ContractPayable
-	for results.Next() {
-		var d models.ContractPayable
-		err = results.Scan(&d.InstallmentID, &d.ContractID, &d.CapitalPayable, &d.InterestPayable, &d.DefaultInterest)
-		if err != nil {
-			return 0, err
-		}
-		debits = append(debits, d)
-	}
-
-	var diUpdates []models.ContractDefaultInterestUpdate
-	var diLogs []models.ContractDefaultInterestChangeHistory
-	var diPayments []models.ContractPayment
-	var intPayments []models.ContractPayment
-	var capPayments []models.ContractPayment
-
-	balance := amount
-
-	rid, err := mysequel.Insert(mysequel.Table{
-		TableName: "contract_receipt",
-		Columns:   []string{"user_id", "contract_id", "datetime", "amount", "notes"},
-		Vals:      []interface{}{userID, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes},
-		Tx:        tx,
-	})
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	if balance != 0 {
-		for _, p := range debits {
-			if p.CapitalPayable != 0 && balance != 0 {
-				if balance-p.CapitalPayable >= 0 {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, p.CapitalPayable})
-					balance = math.Round((balance-p.CapitalPayable)*100) / 100
-				} else {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, balance})
-					balance = 0
-				}
-			}
-		}
-	}
-
-	if balance != 0 {
-		results, err = tx.Query(queries.LEGACY_PAYMENTS, cid)
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-
-		var upcoming []models.ContractPayable
-		for results.Next() {
-			var u models.ContractPayable
-			err = results.Scan(&u.InstallmentID, &u.ContractID, &u.CapitalPayable, &u.InterestPayable, &u.DefaultInterest)
-			if err != nil {
-				return 0, err
-			}
-			upcoming = append(upcoming, u)
-		}
-
-		for _, p := range upcoming {
-			if p.InterestPayable != 0 && balance != 0 {
-				if balance-p.InterestPayable >= 0 {
-					intPayments = append(intPayments, models.ContractPayment{p.InstallmentID, rid, p.InterestPayable})
-					balance = math.Round((balance-p.InterestPayable)*100) / 100
-				} else {
-					intPayments = append(intPayments, models.ContractPayment{p.InstallmentID, rid, balance})
-					balance = 0
-				}
-			}
-			if p.CapitalPayable != 0 && balance != 0 {
-				if balance-p.CapitalPayable >= 0 {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, p.CapitalPayable})
-					balance = math.Round((balance-p.CapitalPayable)*100) / 100
-				} else {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, balance})
-					balance = 0
-				}
-			}
-		}
-	}
-
-	if balance != 0 {
-		tx.Rollback()
-		return 0, errors.New("Error: Payment exceeds payables")
-	}
-
-	for _, diUpdate := range diUpdates {
-		_, err = mysequel.Update(mysequel.UpdateTable{
-			Table: mysequel.Table{TableName: "contract_installment",
-				Columns: []string{"default_interest"},
-				Vals:    []interface{}{diUpdate.DefaultInterest},
-				Tx:      tx},
-			WColumns: []string{"id"},
-			WVals:    []string{fmt.Sprintf("%d", diUpdate.ContractInstallmentID)},
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-	}
-
-	for _, diLog := range diLogs {
-		_, err := mysequel.Insert(mysequel.Table{
-			TableName: "contract_default_interest_change_history",
-			Columns:   []string{"contract_installment_id", "contract_receipt_id", "default_interest"},
-			Vals:      []interface{}{diLog.ContractInstallmentID, diLog.ContractReceiptID, diLog.DefaultInterest},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-	}
-
-	for _, intPayment := range diPayments {
-		_, err := mysequel.Insert(mysequel.Table{
-			TableName: "contract_default_interest_payment",
-			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-			Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-	}
-
-	for _, intPayment := range intPayments {
-		_, err := mysequel.Insert(mysequel.Table{
-			TableName: "contract_interest_payment",
-			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-			Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-	}
-
-	for _, capPayment := range capPayments {
-		_, err := mysequel.Insert(mysequel.Table{
-			TableName: "contract_capital_payment",
-			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-			Vals:      []interface{}{capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-	}
-
-	return rid, nil
-}
-
 // PerformanceReview returns contract performance review
 func (m *ContractModel) PerformanceReview(startDate, endDate, state, officer, batch string) ([]models.PerformanceReview, error) {
 	s := mysequel.NewNullString(state)
 	o := mysequel.NewNullString(officer)
 	b := mysequel.NewNullString(batch)
 
-	results, err := m.DB.Query(queries.PERFORMANCE_REVIEW(startDate, endDate), s, s, o, o, b, b)
+	var res []models.PerformanceReview
+	err := mysequel.QueryToStructs(&res, m.DB, queries.PERFORMANCE_REVIEW(startDate, endDate), s, s, o, o, b, b)
 	if err != nil {
 		return nil, err
-	}
-
-	var res []models.PerformanceReview
-	for results.Next() {
-		var r models.PerformanceReview
-		err = results.Scan(&r.ID, &r.Agrivest, &r.RecoveryOfficer, &r.State, &r.Model, &r.Batch, &r.ChassisNumber, &r.CustomerName, &r.CustomerAddress, &r.CustomerContact, &r.AmountPending, &r.StartAmountPending, &r.EndAmountPending, &r.StartBetweenAmountPending, &r.EndBetweenAmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid, &r.LastPaymentDate, &r.StartOverdueIndex, &r.EndOverdueIndex)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, r)
 	}
 
 	return res, nil
@@ -1662,19 +1449,10 @@ func (m *ContractModel) SearchOld(search, state, officer, batch string) ([]model
 	o := mysequel.NewNullString(officer)
 	b := mysequel.NewNullString(batch)
 
-	results, err := m.DB.Query(queries.SEARCH_OLD, k, k, s, s, o, o, b, b)
+	var res []models.SearchResultOld
+	err := mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_OLD, k, k, s, s, o, o, b, b)
 	if err != nil {
 		return nil, err
-	}
-
-	var res []models.SearchResultOld
-	for results.Next() {
-		var r models.SearchResultOld
-		err = results.Scan(&r.ID, &r.Agrivest, &r.RecoveryOfficer, &r.State, &r.Model, &r.ChassisNumber, &r.CustomerName, &r.CustomerAddress, &r.CustomerContact, &r.AmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, r)
 	}
 
 	return res, nil
@@ -1725,29 +1503,4 @@ func (m *ContractModel) CSQASearch(search, question, empty string) ([]models.CSQ
 	}
 
 	return res, nil
-}
-
-// PaymentVouchers returns payment vouchers
-func (m *ContractModel) PaymentVouchers() ([]models.PaymentVoucherList, error) {
-	var vouchers []models.PaymentVoucherList
-	err := mysequel.QueryToStructs(&vouchers, m.DB, queries.PAYMENT_VOUCHERS)
-	if err != nil {
-		return nil, err
-	}
-
-	return vouchers, nil
-}
-
-// PaymentVoucherDetails returns payment voucher details
-func (m *ContractModel) PaymentVoucherDetails(pid int) (models.PaymentVoucherSummary, error) {
-	var dueDate, checkNumber, payee, remark, account sql.NullString
-	err := m.DB.QueryRow(queries.PAYMENT_VOUCHER_CHECK_DETAILS, pid).Scan(&dueDate, &checkNumber, &payee, &remark, &account)
-
-	var vouchers []models.PaymentVoucherDetails
-	err = mysequel.QueryToStructs(&vouchers, m.DB, queries.PAYMENT_VOUCHER_DETAILS, pid)
-	if err != nil {
-		return models.PaymentVoucherSummary{}, err
-	}
-
-	return models.PaymentVoucherSummary{DueDate: dueDate, CheckNumber: checkNumber, Payee: payee, Remark: remark, Account: account, PaymentVoucherDetails: vouchers}, nil
 }
