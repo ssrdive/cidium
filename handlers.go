@@ -614,7 +614,7 @@ func (app *application) contractDetails(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	cds, err := app.contract.ContractDetail(cid)
+	cds, err := app.contract.Detail(cid)
 	if err != nil {
 		app.serverError(w, err)
 		return
@@ -632,7 +632,7 @@ func (app *application) contractInstallments(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	installments, err := app.contract.ContractInstallments(cid)
+	installments, err := app.contract.Installment(cid)
 	if err != nil {
 		app.serverError(w, err)
 		return
@@ -650,7 +650,7 @@ func (app *application) contractReceiptsV2(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	receipts, err := app.contract.ContractReceiptsV2(cid)
+	receipts, err := app.contract.ReceiptsV2(cid)
 	if err != nil {
 		app.serverError(w, err)
 		return
@@ -668,7 +668,7 @@ func (app *application) contractReceipts(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	receipts, err := app.contract.ContractReceipts(cid)
+	receipts, err := app.contract.Receipts(cid)
 	if err != nil {
 		app.serverError(w, err)
 		return
@@ -687,7 +687,7 @@ func (app *application) contractOfficerReceipts(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	receipts, err := app.contract.ContractOfficerReceipts(oid, date)
+	receipts, err := app.contract.OfficerReceipts(oid, date)
 	if err != nil {
 		app.serverError(w, err)
 		return
@@ -706,7 +706,7 @@ func (app *application) contractRequestability(w http.ResponseWriter, r *http.Re
 	}
 
 	// Check if a request current exists for the contract current state
-	requestExists, err := app.contract.CurrentRequetExists(cid)
+	requestExists, err := app.contract.CurrentRequestExists(cid)
 	if err != nil {
 		app.serverError(w, err)
 		return
@@ -761,7 +761,7 @@ func (app *application) contractRequestability(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	ts, err := app.contract.ContractTransionableStates(cid)
+	ts, err := app.contract.TransionableStates(cid)
 	if err != nil {
 		app.serverError(w, err)
 		return
