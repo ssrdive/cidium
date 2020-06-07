@@ -12,7 +12,7 @@ require (
 	github.com/gorilla/mux v1.7.3
 	github.com/justinas/alice v1.2.0
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
-	github.com/ssrdive/mysequel v0.0.0-20200607071421-27e72dd78660
+	github.com/ssrdive/mysequel v0.0.0-20200607152047-bfb6d81da001
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
 	google.golang.org/appengine v1.6.6 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect

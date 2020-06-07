@@ -1074,20 +1074,11 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		_ = tx.Commit()
 	}()
 
-	results, err := tx.Query(queries.DEBITS, cid)
+	var debits []models.DebitsPayable
+	err = mysequel.QueryToStructs(&debits, tx, queries.DEBITS, cid)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
-	}
-
-	var debits []models.DebitsPayable
-	for results.Next() {
-		var d models.DebitsPayable
-		err = results.Scan(&d.InstallmentID, &d.ContractID, &d.CapitalPayable, &d.InterestPayable, &d.DefaultInterest, &d.UnearnedAccountID, &d.IncomeAccountID)
-		if err != nil {
-			return 0, err
-		}
-		debits = append(debits, d)
 	}
 
 	var diUpdates []models.ContractDefaultInterestUpdate
@@ -1124,20 +1115,11 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		}
 	}
 
-	results, err = tx.Query(queries.OVERDUE_INSTALLMENTS, cid)
+	var payables []models.ContractPayable
+	err = mysequel.QueryToStructs(&payables, tx, queries.OVERDUE_INSTALLMENTS, cid)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
-	}
-
-	var payables []models.ContractPayable
-	for results.Next() {
-		var p models.ContractPayable
-		err = results.Scan(&p.InstallmentID, &p.ContractID, &p.CapitalPayable, &p.InterestPayable, &p.DefaultInterest)
-		if err != nil {
-			return 0, err
-		}
-		payables = append(payables, p)
 	}
 
 	diAmount := 0.0
@@ -1191,20 +1173,11 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 	}
 
 	if balance != 0 {
-		results, err = tx.Query(queries.UPCOMING_INSTALLMENTS, cid)
+		var upcoming []models.ContractPayable
+		err = mysequel.QueryToStructs(&upcoming, tx, queries.UPCOMING_INSTALLMENTS, cid)
 		if err != nil {
 			tx.Rollback()
 			return 0, err
-		}
-
-		var upcoming []models.ContractPayable
-		for results.Next() {
-			var u models.ContractPayable
-			err = results.Scan(&u.InstallmentID, &u.ContractID, &u.CapitalPayable, &u.InterestPayable, &u.DefaultInterest)
-			if err != nil {
-				return 0, err
-			}
-			upcoming = append(upcoming, u)
 		}
 
 		for _, p := range upcoming {
@@ -1476,19 +1449,10 @@ func (m *ContractModel) SearchOld(search, state, officer, batch string) ([]model
 	o := mysequel.NewNullString(officer)
 	b := mysequel.NewNullString(batch)
 
-	results, err := m.DB.Query(queries.SEARCH_OLD, k, k, s, s, o, o, b, b)
+	var res []models.SearchResultOld
+	err := mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_OLD, k, k, s, s, o, o, b, b)
 	if err != nil {
 		return nil, err
-	}
-
-	var res []models.SearchResultOld
-	for results.Next() {
-		var r models.SearchResultOld
-		err = results.Scan(&r.ID, &r.Agrivest, &r.RecoveryOfficer, &r.State, &r.Model, &r.ChassisNumber, &r.CustomerName, &r.CustomerAddress, &r.CustomerContact, &r.AmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, r)
 	}
 
 	return res, nil
