@@ -92,7 +92,7 @@ func (app *application) dropdownHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *application) paymentVouchers(w http.ResponseWriter, r *http.Request) {
-	items, err := app.contract.PaymentVouchers()
+	items, err := app.account.PaymentVouchers()
 	if err != nil {
 		app.clientError(w, http.StatusBadRequest)
 		return
@@ -111,7 +111,7 @@ func (app *application) paymentVoucherDetails(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	items, err := app.contract.PaymentVoucherDetails(pid)
+	items, err := app.account.PaymentVoucherDetails(pid)
 	if err != nil {
 		app.clientError(w, http.StatusBadRequest)
 		return

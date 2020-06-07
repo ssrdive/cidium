@@ -190,57 +190,57 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 
 // WorkDocuments returns documents to be completed at the current stage of the contract
 func (m *ContractModel) WorkDocuments(cid int) ([]models.WorkDocument, error) {
-	var workDocuments []models.WorkDocument
-	err := mysequel.QueryToStructs(&workDocuments, m.DB, queries.WORK_DOCUMENTS, cid)
+	var res []models.WorkDocument
+	err := mysequel.QueryToStructs(&res, m.DB, queries.WORK_DOCUMENTS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return workDocuments, nil
+	return res, nil
 }
 
 // WorkQuestions returns questions to be answered at the current stage of the contract
 func (m *ContractModel) WorkQuestions(cid int) ([]models.WorkQuestion, error) {
-	var workQuestions []models.WorkQuestion
-	err := mysequel.QueryToStructs(&workQuestions, m.DB, queries.WORK_QUESTIONS, cid)
+	var res []models.WorkQuestion
+	err := mysequel.QueryToStructs(&res, m.DB, queries.WORK_QUESTIONS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return workQuestions, nil
+	return res, nil
 }
 
 // Questions returns all the answered questions of the contract
 func (m *ContractModel) Questions(cid int) ([]models.Question, error) {
-	var questions []models.Question
-	err := mysequel.QueryToStructs(&questions, m.DB, queries.QUESTIONS, cid)
+	var res []models.Question
+	err := mysequel.QueryToStructs(&res, m.DB, queries.QUESTIONS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return questions, nil
+	return res, nil
 }
 
 // Documents returns all the documents of the contract
 func (m *ContractModel) Documents(cid int) ([]models.Document, error) {
-	var documents []models.Document
-	err := mysequel.QueryToStructs(&documents, m.DB, queries.DOCUMENTS, cid)
+	var res []models.Document
+	err := mysequel.QueryToStructs(&res, m.DB, queries.DOCUMENTS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return documents, nil
+	return res, nil
 }
 
 // History returns the state history of the contract
 func (m *ContractModel) History(cid int) ([]models.History, error) {
-	var history []models.History
-	err := mysequel.QueryToStructs(&history, m.DB, queries.HISTORY, cid)
+	var res []models.History
+	err := mysequel.QueryToStructs(&res, m.DB, queries.HISTORY, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return history, nil
+	return res, nil
 }
 
 // StateAnswer adds an answer to a question in the current contract state
@@ -312,57 +312,57 @@ func (m *ContractModel) Detail(cid int) (models.ContractDetail, error) {
 
 // Installment returns installments
 func (m *ContractModel) Installment(cid int) ([]models.ActiveInstallment, error) {
-	var installments []models.ActiveInstallment
-	err := mysequel.QueryToStructs(&installments, m.DB, queries.CONTRACT_INSTALLMENTS, cid, cid, cid)
+	var res []models.ActiveInstallment
+	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_INSTALLMENTS, cid, cid, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return installments, nil
+	return res, nil
 }
 
 // ReceiptsV2 returns v2 of receipts
 func (m *ContractModel) ReceiptsV2(cid int) ([]models.ReceiptV2, error) {
-	var receipts []models.ReceiptV2
-	err := mysequel.QueryToStructs(&receipts, m.DB, queries.CONTRACT_RECEIPTS_V2, cid)
+	var res []models.ReceiptV2
+	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_RECEIPTS_V2, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return receipts, nil
+	return res, nil
 }
 
 // Receipts returns receipts
 func (m *ContractModel) Receipts(cid int) ([]models.Receipt, error) {
-	var receipts []models.Receipt
-	err := mysequel.QueryToStructs(&receipts, m.DB, queries.CONTRACT_RECEIPTS, cid)
+	var res []models.Receipt
+	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_RECEIPTS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return receipts, nil
+	return res, nil
 }
 
 // OfficerReceipts returns receipts issued on a date
 func (m *ContractModel) OfficerReceipts(oid int, date string) ([]models.Receipt, error) {
-	var receipts []models.Receipt
-	err := mysequel.QueryToStructs(&receipts, m.DB, queries.CONTRACT_OFFICER_RECEIPTS, oid, date)
+	var res []models.Receipt
+	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_OFFICER_RECEIPTS, oid, date)
 	if err != nil {
 		return nil, err
 	}
 
-	return receipts, nil
+	return res, nil
 }
 
 // Commitments returns contract commitments
 func (m *ContractModel) Commitments(cid int) ([]models.Commitment, error) {
-	var commitments []models.Commitment
-	err := mysequel.QueryToStructs(&commitments, m.DB, queries.CONTRACT_COMMITMENTS, cid)
+	var res []models.Commitment
+	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_COMMITMENTS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return commitments, nil
+	return res, nil
 }
 
 // DashboardCommitmentsByOfficer returns commitments related to an officer
@@ -380,17 +380,17 @@ func (m *ContractModel) DashboardCommitmentsByOfficer(ctype, officer string) ([]
 		return nil, err
 	}
 
-	var commitments []models.DashboardCommitment
+	var res []models.DashboardCommitment
 	for results.Next() {
 		var commitment models.DashboardCommitment
 		err = results.Scan(&commitment.ContractID, &commitment.DueIn, &commitment.Text)
 		if err != nil {
 			return nil, err
 		}
-		commitments = append(commitments, commitment)
+		res = append(res, commitment)
 	}
 
-	return commitments, nil
+	return res, nil
 }
 
 // DashboardCommitments returns web application dashboard commitments
@@ -408,39 +408,39 @@ func (m *ContractModel) DashboardCommitments(ctype string) ([]models.DashboardCo
 		return nil, err
 	}
 
-	var commitments []models.DashboardCommitment
+	var res []models.DashboardCommitment
 	for results.Next() {
 		var commitment models.DashboardCommitment
 		err = results.Scan(&commitment.ContractID, &commitment.DueIn, &commitment.Text)
 		if err != nil {
 			return nil, err
 		}
-		commitments = append(commitments, commitment)
+		res = append(res, commitment)
 	}
 
-	return commitments, nil
+	return res, nil
 }
 
 // TransionableStates returns the list of states a contract can be transition into
 func (m *ContractModel) TransionableStates(cid int) ([]models.Dropdown, error) {
-	var states []models.Dropdown
-	err := mysequel.QueryToStructs(&states, m.DB, queries.TRANSITIONABLE_STATES, cid)
+	var res []models.Dropdown
+	err := mysequel.QueryToStructs(&res, m.DB, queries.TRANSITIONABLE_STATES, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return states, nil
+	return res, nil
 }
 
 // RejectedRequests returns rejected requests
 func (m *ContractModel) RejectedRequests(cid int) ([]models.RejectedRequest, error) {
-	var requests []models.RejectedRequest
-	err := mysequel.QueryToStructs(&requests, m.DB, queries.REJECTED_REQUESTS, cid)
+	var res []models.RejectedRequest
+	err := mysequel.QueryToStructs(&res, m.DB, queries.REJECTED_REQUESTS, cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return requests, nil
+	return res, nil
 }
 
 // CurrentRequestExists returns whether a current request exists or not
@@ -511,13 +511,13 @@ func (m *ContractModel) Request(rparams, oparams []string, form url.Values) (int
 
 // Requests returns a list of requests made
 func (m *ContractModel) Requests(user int) ([]models.Request, error) {
-	var requests []models.Request
-	err := mysequel.QueryToStructs(&requests, m.DB, queries.REQUESTS)
+	var res []models.Request
+	err := mysequel.QueryToStructs(&res, m.DB, queries.REQUESTS)
 	if err != nil {
 		return nil, err
 	}
 
-	return requests, nil
+	return res, nil
 }
 
 // RequestName returns the name of the request from the given id
@@ -1601,19 +1601,10 @@ func (m *ContractModel) PerformanceReview(startDate, endDate, state, officer, ba
 	o := mysequel.NewNullString(officer)
 	b := mysequel.NewNullString(batch)
 
-	results, err := m.DB.Query(queries.PERFORMANCE_REVIEW(startDate, endDate), s, s, o, o, b, b)
+	var res []models.PerformanceReview
+	err := mysequel.QueryToStructs(&res, m.DB, queries.PERFORMANCE_REVIEW(startDate, endDate), s, s, o, o, b, b)
 	if err != nil {
 		return nil, err
-	}
-
-	var res []models.PerformanceReview
-	for results.Next() {
-		var r models.PerformanceReview
-		err = results.Scan(&r.ID, &r.Agrivest, &r.RecoveryOfficer, &r.State, &r.Model, &r.Batch, &r.ChassisNumber, &r.CustomerName, &r.CustomerAddress, &r.CustomerContact, &r.AmountPending, &r.StartAmountPending, &r.EndAmountPending, &r.StartBetweenAmountPending, &r.EndBetweenAmountPending, &r.TotalPayable, &r.TotalAgreement, &r.TotalPaid, &r.TotalDIPaid, &r.LastPaymentDate, &r.StartOverdueIndex, &r.EndOverdueIndex)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, r)
 	}
 
 	return res, nil
@@ -1725,29 +1716,4 @@ func (m *ContractModel) CSQASearch(search, question, empty string) ([]models.CSQ
 	}
 
 	return res, nil
-}
-
-// PaymentVouchers returns payment vouchers
-func (m *ContractModel) PaymentVouchers() ([]models.PaymentVoucherList, error) {
-	var vouchers []models.PaymentVoucherList
-	err := mysequel.QueryToStructs(&vouchers, m.DB, queries.PAYMENT_VOUCHERS)
-	if err != nil {
-		return nil, err
-	}
-
-	return vouchers, nil
-}
-
-// PaymentVoucherDetails returns payment voucher details
-func (m *ContractModel) PaymentVoucherDetails(pid int) (models.PaymentVoucherSummary, error) {
-	var dueDate, checkNumber, payee, remark, account sql.NullString
-	err := m.DB.QueryRow(queries.PAYMENT_VOUCHER_CHECK_DETAILS, pid).Scan(&dueDate, &checkNumber, &payee, &remark, &account)
-
-	var vouchers []models.PaymentVoucherDetails
-	err = mysequel.QueryToStructs(&vouchers, m.DB, queries.PAYMENT_VOUCHER_DETAILS, pid)
-	if err != nil {
-		return models.PaymentVoucherSummary{}, err
-	}
-
-	return models.PaymentVoucherSummary{DueDate: dueDate, CheckNumber: checkNumber, Payee: payee, Remark: remark, Account: account, PaymentVoucherDetails: vouchers}, nil
 }
