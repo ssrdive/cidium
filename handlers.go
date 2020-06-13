@@ -660,6 +660,24 @@ func (app *application) contractReceiptsV2(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(receipts)
 }
 
+func (app *application) contractFloatReceipts(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cid, err := strconv.Atoi(vars["cid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	receipts, err := app.contract.FloatReceipts(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(receipts)
+}
+
 func (app *application) contractReceipts(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	cid, err := strconv.Atoi(vars["cid"])
