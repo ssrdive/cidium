@@ -385,3 +385,17 @@ type CSQASearchResult struct {
 	CreatedAgo      sql.NullInt32  `json:"created_ago"`
 	StateAtAnswer   sql.NullString `json:"state_at_answer"`
 }
+
+type FloatReceipts struct {
+	ID       int       `json:"id"`
+	UserID   int       `json:"user_id"`
+	Amount   float64   `json:"amount"`
+	Date     string    `json:"date"`
+	Datetime time.Time `json:"datetime"`
+}
+
+type FloatReceiptsClient struct {
+	ID       int     `json:"id"`
+	Datetime string  `json:"datetime"`
+	Amount   float64 `json:"amount"`
+}

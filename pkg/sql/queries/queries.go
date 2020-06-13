@@ -155,7 +155,7 @@ const OVERDUE_INSTALLMENTS = `
 		GROUP BY CCP.contract_installment_id
 	) CCP ON CCP.contract_installment_id = CI.id
 	LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
-	WHERE CI.contract_id = ? AND CIT.di_chargable = 1 AND CI.due_date < NOW()
+	WHERE CI.contract_id = ? AND CIT.di_chargable = 1 AND CI.due_date < ?
 	GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
 	ORDER BY CI.due_date ASC
 	`
@@ -174,7 +174,7 @@ const UPCOMING_INSTALLMENTS = `
 		GROUP BY CCP.contract_installment_id
 	) CCP ON CCP.contract_installment_id = CI.id
 	LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
-	WHERE CI.contract_id = ? AND CIT.di_chargable = 1 AND CI.due_date > NOW()
+	WHERE CI.contract_id = ? AND CIT.di_chargable = 1 AND CI.due_date >= ?
 	GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
 	ORDER BY CI.due_date ASC
 	`
@@ -562,4 +562,45 @@ const CSQA_SEARCH = `
 	LEFT JOIN state S ON S.id = CS.state_id
 	LEFT JOIN user U ON U.id = C.recovery_officer_id
 	WHERE C.legacy = 0 AND S.name <> 'Deleted' AND (CASE WHEN ? = 0 THEN ? IS NULL OR CSQA.answer LIKE ? ELSE CSQA.answer IS NULL END)
+`
+
+const CONTRACT_PAYABLE = `
+	SELECT COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable
+	FROM contract C
+	LEFT JOIN (SELECT CI.contract_id, MIN(CI.due_date) AS due_date FROM contract_installment CI WHERE CI.due_date > (SELECT MIN(CI2.due_date) FROM contract_installment CI2 WHERE CI.contract_id = CI2.contract_id) GROUP BY CI.contract_id) CI2 ON CI2.contract_id = C.id
+	LEFT JOIN (SELECT CRL.contract_id, MAX(CRL.legacy_payment_date) as legacy_payment_date FROM contract_receipt CRL GROUP BY CRL.contract_id) CRL ON CRL.contract_id = C.id
+	LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment,CI.capital+CI.interest AS agreed_installment,SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, COALESCE(SUM(CDIP.amount), 0) AS defalut_interest_paid, CI.due_date
+	FROM contract_installment CI
+	LEFT JOIN (
+		SELECT CDIP.contract_installment_id, COALESCE(SUM(amount), 0) AS amount
+		FROM contract_default_interest_payment CDIP
+		GROUP BY CDIP.contract_installment_id
+	) CDIP ON CDIP.contract_installment_id = CI.id
+	LEFT JOIN (
+		SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) AS amount
+		FROM contract_interest_payment CIP
+		GROUP BY CIP.contract_installment_id
+	) CIP ON CIP.contract_installment_id = CI.id
+	LEFT JOIN (
+		SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) AS amount
+		FROM contract_capital_payment CCP
+		GROUP BY CCP.contract_installment_id
+	) CCP ON CCP.contract_installment_id = CI.id
+	GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
+	ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
+	WHERE C.id = ?
+	GROUP BY C.id
+`
+
+const FLOAT_RECEIPTS = `
+	SELECT CRF.id, CRF.user_id, CRF.amount, DATE(CRF.datetime) AS date, CRF.datetime
+	FROM contract_receipt_float CRF
+	WHERE CRF.contract_id = ? AND CRF.cleared = 0
+	ORDER BY CRF.datetime ASC
+`
+
+const FLOAT_RECEIPTS_CLIENT = `
+	SELECT CRF.id, CRF.datetime, CRF.amount
+	FROM contract_receipt_float CRF
+	WHERE CRF.contract_id = ? AND CRF.cleared = 0
 `
