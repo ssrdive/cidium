@@ -1101,7 +1101,12 @@ func (app *application) contractCommitment(w http.ResponseWriter, r *http.Reques
 		r.PostForm.Set("commitment", "1")
 	}
 
-	comid, err := app.contract.Commitment(requiredParams, optionalParams, r.PostForm)
+	specialMessage := "0"
+	if r.PostForm.Get("special_message") == "1" {
+		specialMessage = "1"
+	}
+
+	comid, err := app.contract.Commitment(requiredParams, optionalParams, r.PostForm, specialMessage, app.aAPIKey)
 	if err != nil {
 		app.serverError(w, err)
 		return
