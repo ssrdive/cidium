@@ -852,7 +852,7 @@ func (m *ContractModel) DeleteStateInfo(form url.Values) (int64, error) {
 }
 
 // Commitment adds a commitment
-func (m *ContractModel) Commitment(rparams, oparams []string, form url.Values) (int64, error) {
+func (m *ContractModel) Commitment(rparams, oparams []string, form url.Values, specialMessage, aAPIKey string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -875,6 +875,24 @@ func (m *ContractModel) Commitment(rparams, oparams []string, form url.Values) (
 	if err != nil {
 		tx.Rollback()
 		return 0, err
+	}
+
+	if specialMessage == "1" {
+		var officerName string
+		err = tx.QueryRow(queries.OFFICER_NAME, form.Get("user_id")).Scan(&officerName)
+
+		var senderMobile string
+		err = tx.QueryRow(queries.SENDER_MOBILE, form.Get("contract_id")).Scan(&senderMobile)
+
+		message := fmt.Sprintf("%s left a special comment on your contract %s", officerName, form.Get("contract_id"))
+
+		requestURL := fmt.Sprintf("https://cpsolutions.dialog.lk/index.php/cbs/sms/send?destination=%s&q=%s&message=%s", senderMobile, aAPIKey, url.QueryEscape(message))
+
+		resp, err := http.Get(requestURL)
+
+		if err == nil {
+			defer resp.Body.Close()
+		}
 	}
 
 	return comid, nil

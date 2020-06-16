@@ -604,3 +604,14 @@ const FLOAT_RECEIPTS_CLIENT = `
 	FROM contract_receipt_float CRF
 	WHERE CRF.contract_id = ? AND CRF.cleared = 0
 `
+
+const OFFICER_NAME = `
+	SELECT name FROM user WHERE id = ?
+`
+
+const SENDER_MOBILE = `
+	SELECT U.mobile
+	FROM contract C 
+	LEFT JOIN user U ON C.recovery_officer_id = U.id
+	WHERE C.id = ?
+`
