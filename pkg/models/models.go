@@ -293,6 +293,7 @@ type PaymentVoucherDetails struct {
 	AccountID   int     `json:"account_id"`
 	AccountName string  `json:"account_name"`
 	Amount      float64 `json:"amount"`
+	PostingDate string  `json:"posting_date"`
 }
 
 type PaymentVoucherSummary struct {
@@ -301,6 +302,7 @@ type PaymentVoucherSummary struct {
 	Payee                 sql.NullString          `json:"payee"`
 	Remark                sql.NullString          `json:"remark"`
 	Account               sql.NullString          `json:"account"`
+	Datetime              sql.NullString          `json:"datetime"`
 	PaymentVoucherDetails []PaymentVoucherDetails `json:"payment_voucher_details"`
 }
 

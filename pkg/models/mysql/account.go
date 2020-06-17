@@ -318,8 +318,8 @@ func (m *AccountModel) PaymentVouchers() ([]models.PaymentVoucherList, error) {
 
 // PaymentVoucherDetails returns payment voucher details
 func (m *AccountModel) PaymentVoucherDetails(pid int) (models.PaymentVoucherSummary, error) {
-	var dueDate, checkNumber, payee, remark, account sql.NullString
-	err := m.DB.QueryRow(queries.PAYMENT_VOUCHER_CHECK_DETAILS, pid).Scan(&dueDate, &checkNumber, &payee, &remark, &account)
+	var dueDate, checkNumber, payee, remark, account, datetime sql.NullString
+	err := m.DB.QueryRow(queries.PAYMENT_VOUCHER_CHECK_DETAILS, pid).Scan(&dueDate, &checkNumber, &payee, &remark, &account, &datetime)
 
 	var vouchers []models.PaymentVoucherDetails
 	err = mysequel.QueryToStructs(&vouchers, m.DB, queries.PAYMENT_VOUCHER_DETAILS, pid)
@@ -327,5 +327,5 @@ func (m *AccountModel) PaymentVoucherDetails(pid int) (models.PaymentVoucherSumm
 		return models.PaymentVoucherSummary{}, err
 	}
 
-	return models.PaymentVoucherSummary{DueDate: dueDate, CheckNumber: checkNumber, Payee: payee, Remark: remark, Account: account, PaymentVoucherDetails: vouchers}, nil
+	return models.PaymentVoucherSummary{DueDate: dueDate, CheckNumber: checkNumber, Payee: payee, Remark: remark, Account: account, Datetime: datetime, PaymentVoucherDetails: vouchers}, nil
 }
