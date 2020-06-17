@@ -537,7 +537,7 @@ const PAYMENT_VOUCHERS = `
 `
 
 const PAYMENT_VOUCHER_DETAILS = `
-	SELECT A.account_id, A.name AS account_name, AT.amount
+	SELECT A.account_id, A.name AS account_name, AT.amount, DATE(T.posting_date) as posting_date
 	FROM payment_voucher PV
 	LEFT JOIN transaction T ON T.id = PV.transaction_id
 	LEFT JOIN account_transaction AT ON AT.transaction_id = T.id AND AT.type = 'DR'
@@ -546,7 +546,7 @@ const PAYMENT_VOUCHER_DETAILS = `
 `
 
 const PAYMENT_VOUCHER_CHECK_DETAILS = `
-	SELECT PV.due_date, PV.check_number, PV.payee, T.remark, A.name AS account_name
+	SELECT PV.due_date, PV.check_number, PV.payee, T.remark, A.name AS account_name, T.datetime
 	FROM payment_voucher PV
 	LEFT JOIN transaction T ON T.id = PV.transaction_id
 	LEFT JOIN account_transaction AT ON AT.transaction_id = T.id AND AT.type = 'CR'
