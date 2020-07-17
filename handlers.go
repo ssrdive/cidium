@@ -298,8 +298,9 @@ func (app *application) searchContractV2(w http.ResponseWriter, r *http.Request)
 	state := r.URL.Query().Get("state")
 	officer := r.URL.Query().Get("officer")
 	batch := r.URL.Query().Get("batch")
+	npl := r.URL.Query().Get("npl")
 
-	results, err := app.contract.SearchV2(search, state, officer, batch)
+	results, err := app.contract.SearchV2(search, state, officer, batch, npl)
 	if err != nil {
 		app.serverError(w, err)
 		return
@@ -327,8 +328,9 @@ func (app *application) performanceReview(w http.ResponseWriter, r *http.Request
 	state := r.URL.Query().Get("state")
 	officer := r.URL.Query().Get("officer")
 	batch := r.URL.Query().Get("batch")
+	npl := r.URL.Query().Get("npl")
 
-	results, err := app.contract.PerformanceReview(startDate, endDate, state, officer, batch)
+	results, err := app.contract.PerformanceReview(startDate, endDate, state, officer, batch, npl)
 	if err != nil {
 		app.serverError(w, err)
 		return
