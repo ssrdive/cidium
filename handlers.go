@@ -829,6 +829,25 @@ func (app *application) contractRequest(w http.ResponseWriter, r *http.Request) 
 	fmt.Fprintf(w, "%v", rid)
 }
 
+func (app *application) contractSeasonalIncentive(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	uid := vars["uid"]
+	user, err := strconv.Atoi(uid)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	amt, err := app.contract.SeasonalIncentive(user)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(amt)
+}
+
 func (app *application) contractRequests(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	uid := vars["uid"]
