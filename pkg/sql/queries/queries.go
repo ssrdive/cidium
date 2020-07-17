@@ -616,3 +616,12 @@ const SENDER_MOBILE = `
 	LEFT JOIN user U ON C.recovery_officer_id = U.id
 	WHERE C.id = ?
 `
+
+const SEASONAL_INCENTIVE = `
+	SELECT ROUND(SUM(CIP.amount)*(1.6/100), 2) as seasonal_incentive
+	FROM contract_interest_payment CIP
+	WHERE CIP.contract_receipt_id IN (SELECT CR.id
+	FROM contract_receipt CR 
+	LEFT JOIN contract C ON C.id = CR.contract_id
+	WHERE CR.contract_receipt_type_id = 1  AND C.recovery_officer_id = ? AND DATE(CR.datetime) BETWEEN '2020-07-01' AND '2020-12-31')
+`

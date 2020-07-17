@@ -531,6 +531,16 @@ func (m *ContractModel) Requests(user int) ([]models.Request, error) {
 	return res, nil
 }
 
+// SeasonalIncentive returns the seasonal incentive for the given user
+func (m *ContractModel) SeasonalIncentive(user int) (models.SeasonalIncentive, error) {
+	var r models.SeasonalIncentive
+	err := m.DB.QueryRow(queries.SEASONAL_INCENTIVE, user).Scan(&r.Amount)
+	if err != nil {
+		return models.SeasonalIncentive{}, nil
+	}
+	return r, nil
+}
+
 // RequestName returns the name of the request from the given id
 func (m *ContractModel) RequestName(request int) (string, error) {
 	var r models.Dropdown

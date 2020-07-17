@@ -402,3 +402,7 @@ type FloatReceiptsClient struct {
 	Datetime string  `json:"datetime"`
 	Amount   float64 `json:"amount"`
 }
+
+type SeasonalIncentive struct {
+	Amount float64 `json:"amount"`
+}
