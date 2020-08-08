@@ -406,3 +406,12 @@ type FloatReceiptsClient struct {
 type SeasonalIncentive struct {
 	Amount float64 `json:"amount"`
 }
+
+type AchievementSummaryItem struct {
+	UserID               int     `json:"user_id"`
+	Officer              string  `json:"officer"`
+	Month                string  `json:"month"`
+	Target               float64 `json:"target"`
+	Collection           float64 `json:"collection"`
+	CollectionPercentage float64 `json:"collection_percentage"`
+}
