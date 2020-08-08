@@ -23,3 +23,16 @@ func (m *ReportingModel) AchievementSummary() ([]models.AchievementSummaryItem, 
 
 	return res, nil
 }
+
+// ReceiptSearch returns receipt search
+func (m *ReportingModel) ReceiptSearch(startDate, endDate, officer string) ([]models.ReceiptSearchItem, error) {
+	o := mysequel.NewNullString(officer)
+
+	var res []models.ReceiptSearchItem
+	err := mysequel.QueryToStructs(&res, m.DB, queries.RECEIPT_SEARCH, o, o, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
