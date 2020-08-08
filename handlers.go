@@ -91,6 +91,17 @@ func (app *application) dropdownHandler(w http.ResponseWriter, r *http.Request) 
 
 }
 
+func (app *application) achievementSummary(w http.ResponseWriter, r *http.Request) {
+	items, err := app.reporting.AchievementSummary()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items)
+}
+
 func (app *application) paymentVouchers(w http.ResponseWriter, r *http.Request) {
 	items, err := app.account.PaymentVouchers()
 	if err != nil {
