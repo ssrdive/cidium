@@ -321,6 +321,33 @@ func (app *application) searchContractV2(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(results)
 }
 
+func (app *application) receiptSearch(w http.ResponseWriter, r *http.Request) {
+	startDate := r.URL.Query().Get("startdate")
+	_, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	endDate := r.URL.Query().Get("enddate")
+	_, err = time.Parse("2006-01-02", endDate)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	officer := r.URL.Query().Get("officer")
+
+	results, err := app.reporting.ReceiptSearch(startDate, endDate, officer)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
 func (app *application) performanceReview(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("startdate")
 	_, err := time.Parse("2006-01-02", startDate)

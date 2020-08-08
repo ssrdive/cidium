@@ -415,3 +415,13 @@ type AchievementSummaryItem struct {
 	Collection           float64 `json:"collection"`
 	CollectionPercentage float64 `json:"collection_percentage"`
 }
+
+type ReceiptSearchItem struct {
+	ID         int            `json:"id"`
+	ContractID int            `json:"contract_id"`
+	Officer    string         `json:"officer"`
+	Issuer     string         `json:"issuer"`
+	Datetime   string         `json:"datetime"`
+	Amount     float64        `json:"amount"`
+	Notes      sql.NullString `json:"notes"`
+}

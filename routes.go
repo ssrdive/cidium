@@ -67,6 +67,7 @@ func (app *application) routes() http.Handler {
 	r.Handle("/paymentvoucher/{pid}", app.validateToken(http.HandlerFunc(app.paymentVoucherDetails))).Methods("GET")
 
 	r.Handle("/reporting/achievementsummary", app.validateToken(http.HandlerFunc(app.achievementSummary))).Methods("GET")
+	r.Handle("/reporting/receiptsearch", app.validateToken(http.HandlerFunc(app.receiptSearch))).Methods("GET")
 
 	fileServer := http.FileServer(http.Dir("./ui/static/"))
 	r.Handle("/static/", http.StripPrefix("/static", fileServer))

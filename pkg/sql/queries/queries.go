@@ -638,3 +638,12 @@ const ACHIEVEMENT_SUMMARY = `
 	GROUP BY T.user_id, U.name, month, T.amount
 	ORDER BY month ASC
 `
+
+const RECEIPT_SEARCH = `
+	SELECT CR.id, CR.contract_id, U.name AS officer, U2.name AS issuer, CR.datetime, CR.amount, CR.notes
+	FROM contract_receipt CR
+	LEFT JOIN contract C ON C.id = CR.contract_id
+	LEFT JOIN user U ON U.id = C.recovery_officer_id
+	LEFT JOIN user U2 ON U2.id = CR.user_id
+	WHERE CR.contract_receipt_type_id = 1 AND (? IS NULL OR C.recovery_officer_id = ?) AND DATE(CR.datetime) BETWEEN ? AND ?
+`
