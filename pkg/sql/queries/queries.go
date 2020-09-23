@@ -272,9 +272,15 @@ const CONTRACT_RECEIPTS_V2 = `
 `
 
 const CONTRACT_OFFICER_RECEIPTS = `
-	SELECT CR.id, CR.datetime, CR.amount, CR.notes
+	SELECT R.*
+	FROM ((SELECT CR.id, CR.datetime, CR.amount, CR.notes
 	FROM contract_receipt CR
-	WHERE CR.user_id = ? AND DATE(CR.datetime) = ?;
+	WHERE CR.user_id = ? AND DATE(CR.datetime) = ?)
+	UNION
+	(SELECT CRF.id, CRF.datetime, CRF.amount, NULL AS notes
+	FROM contract_receipt_float CRF
+	WHERE CRF.user_id = ? AND CRF.cleared = 0 AND DATE(CRF.datetime) = ?)) R
+	ORDER BY R.datetime ASC
 `
 
 const CONTRACT_COMMITMENTS = `
@@ -642,10 +648,19 @@ const ACHIEVEMENT_SUMMARY = `
 `
 
 const RECEIPT_SEARCH = `
-	SELECT CR.id, CR.contract_id, U.name AS officer, U2.name AS issuer, CR.datetime, CR.amount, CR.notes
-	FROM contract_receipt CR
-	LEFT JOIN contract C ON C.id = CR.contract_id
-	LEFT JOIN user U ON U.id = C.recovery_officer_id
-	LEFT JOIN user U2 ON U2.id = CR.user_id
-	WHERE CR.contract_receipt_type_id = 1 AND (? IS NULL OR C.recovery_officer_id = ?) AND DATE(CR.datetime) BETWEEN ? AND ?
+	SELECT R.*
+	FROM ((SELECT CR.id, CR.contract_id, U.name AS officer, U2.name AS issuer, CR.datetime, CR.amount, CR.notes
+		FROM contract_receipt CR
+		LEFT JOIN contract C ON C.id = CR.contract_id
+		LEFT JOIN user U ON U.id = C.recovery_officer_id
+		LEFT JOIN user U2 ON U2.id = CR.user_id
+		WHERE CR.contract_receipt_type_id = 1 AND (? IS NULL OR C.recovery_officer_id = ?) AND DATE(CR.datetime) BETWEEN ? AND ?)
+	UNION
+	(SELECT CRF.id, CRF.contract_id, U.name AS officer, U2.name AS issuer, CRF.datetime, CRF.amount, NULL AS notes
+		FROM contract_receipt_float CRF
+		LEFT JOIN contract C ON C.id = CRF.contract_id
+		LEFT JOIN user U ON U.id = C.recovery_officer_id
+		LEFT JOIN user U2 ON U2.id = CRF.user_id
+		WHERE CRF.cleared = 0 AND (? IS NULL OR C.recovery_officer_id = ?) AND DATE(CRF.datetime) BETWEEN ? AND ?)) R
+	ORDER BY R.datetime ASC
 `
