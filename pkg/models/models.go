@@ -262,6 +262,15 @@ type Receipt struct {
 	Notes  sql.NullString `json:"notes"`
 }
 
+type PendingPayment struct {
+	InstallmentID          int       `json:"installment_id"`
+	InstallmentType        string    `json:"installment_type"`
+	DueDate                time.Time `json:"due_date"`
+	CapitalPayable         float64   `json:"capital_payable"`
+	InterestPayable        float64   `json:"interest_payable"`
+	DefaultInterestPayable float64   `json:"default_interest_payable"`
+}
+
 type ReceiptV2 struct {
 	ID     int            `json:"id"`
 	Date   time.Time      `json:"date"`

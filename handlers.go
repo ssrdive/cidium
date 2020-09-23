@@ -721,6 +721,24 @@ func (app *application) contractFloatReceipts(w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(receipts)
 }
 
+func (app *application) pendingPayments(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cid, err := strconv.Atoi(vars["cid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	receipts, err := app.contract.PendingPayments(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(receipts)
+}
+
 func (app *application) contractReceipts(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	cid, err := strconv.Atoi(vars["cid"])

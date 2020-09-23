@@ -264,6 +264,25 @@ const CONTRACT_RECEIPTS = `
 	WHERE CR.contract_id = ?
 `
 
+const PENDING_PAYMENTS = `
+	SELECT CI.id as installment_id, CIT.name, CI.due_date, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
+	FROM contract_installment CI
+	LEFT JOIN (
+		SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+		FROM contract_interest_payment CIP
+		GROUP BY CIP.contract_installment_id
+	) CIP ON CIP.contract_installment_id = CI.id
+	LEFT JOIN (
+		SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+		FROM contract_capital_payment CCP
+		GROUP BY CCP.contract_installment_id
+	) CCP ON CCP.contract_installment_id = CI.id
+	LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
+	WHERE CI.contract_id = ?
+	GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
+	ORDER BY CI.due_date ASC
+`
+
 const CONTRACT_RECEIPTS_V2 = `
 	SELECT CR.id, CR.datetime, CR.amount, CR.notes, CRT.name as type
 	FROM contract_receipt CR

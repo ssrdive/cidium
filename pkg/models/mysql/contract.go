@@ -343,6 +343,17 @@ func (m *ContractModel) FloatReceipts(cid int) ([]models.FloatReceiptsClient, er
 	return res, nil
 }
 
+// PendingPayments returns pending payments for a contract
+func (m *ContractModel) PendingPayments(cid int) ([]models.PendingPayment, error) {
+	var res []models.PendingPayment
+	err := mysequel.QueryToStructs(&res, m.DB, queries.PENDING_PAYMENTS, cid)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
 // Receipts returns receipts
 func (m *ContractModel) Receipts(cid int) ([]models.Receipt, error) {
 	var res []models.Receipt
