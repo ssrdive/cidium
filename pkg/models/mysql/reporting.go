@@ -29,7 +29,7 @@ func (m *ReportingModel) ReceiptSearch(startDate, endDate, officer string) ([]mo
 	o := mysequel.NewNullString(officer)
 
 	var res []models.ReceiptSearchItem
-	err := mysequel.QueryToStructs(&res, m.DB, queries.RECEIPT_SEARCH, o, o, startDate, endDate)
+	err := mysequel.QueryToStructs(&res, m.DB, queries.RECEIPT_SEARCH, o, o, startDate, endDate, o, o, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
