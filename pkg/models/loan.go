@@ -35,13 +35,31 @@ func Create(capital, rate float64, installments, installmentInterval int, initia
 				DueDate:         initDate.Format("2006-01-02 15:04:05"),
 			}
 		}
-	} else {
+	} else if method == "R" {
 		instInterest := (rate / (float64(12) / float64(installmentInterval))) * 0.01
 		for i := 0; i < installments; i++ {
 			initDate = initDate.AddDate(0, installmentInterval, 0)
 			schedule[i] = Installment{
 				Capital:         installmentCapital,
 				Interest:        math.Round(((capital-(installmentCapital*float64(i)))*instInterest)*100) / 100,
+				DefaultInterest: 0,
+				DueDate:         initDate.Format("2006-01-02 15:04:05"),
+			}
+		}
+	} else if method == "IRR" {
+		P := capital
+		r := rate / float64(12/installmentInterval) / 100
+		n := installments
+
+		payment := math.Round((P*r*(math.Pow(1+r, float64(n))/(math.Pow(1+r, float64(n))-1)))*100) / 100
+
+		for i := 1; i <= n; i++ {
+			initDate = initDate.AddDate(0, installmentInterval, 0)
+			rentalInterest := math.Round((((P*r)-payment)*math.Pow((r+1), (float64(i)-1))+payment)*100) / 100
+			rentalCapital := math.Round((payment-rentalInterest)*100) / 100
+			schedule[i-1] = Installment{
+				Capital:         rentalCapital,
+				Interest:        rentalInterest,
 				DefaultInterest: 0,
 				DueDate:         initDate.Format("2006-01-02 15:04:05"),
 			}
