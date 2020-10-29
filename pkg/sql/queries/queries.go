@@ -399,7 +399,7 @@ const SEARCH_V2 = `
 		LEFT JOIN (SELECT CI.contract_id, MIN(CI.due_date) AS due_date FROM contract_installment CI WHERE CI.due_date > (SELECT MIN(CI2.due_date) FROM contract_installment CI2 WHERE CI.contract_id = CI2.contract_id) GROUP BY CI.contract_id) CI2 ON CI2.contract_id = C.id
 		WHERE (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND (? IS NULL OR C.non_performing = ?)
 		GROUP BY C.id, in_state_for) SR
-		WHERE ((? IS NULL OR ? IS NULL) OR SR.overdue_index BETWEEN ? AND ?) AND (? = 0 OR SR.state <> 'Deleted')
+		WHERE ((? IS NULL OR ? IS NULL) OR SR.overdue_index BETWEEN ? AND ?) AND (? = 0 OR SR.state NOT IN ('Deleted', 'Settled'))
 `
 
 func PERFORMANCE_REVIEW(startDate, endDate string) string {
