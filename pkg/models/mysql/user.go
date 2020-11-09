@@ -43,7 +43,7 @@ func (m *UserModel) Insert(groupID int, firstName, middleName, lastName, commonN
 func (m *UserModel) Get(username, password string) (*models.JWTUser, error) {
 	u := &models.JWTUser{}
 
-	err := m.DB.QueryRow("SELECT id, username, password, name, type FROM user WHERE username = ?", username).Scan(&u.ID, &u.Username, &u.Password, &u.Name, &u.Type)
+	err := m.DB.QueryRow("SELECT id, username, password, name, type FROM user WHERE username = ? AND disabled = 0", username).Scan(&u.ID, &u.Username, &u.Password, &u.Name, &u.Type)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, models.ErrNoRecord
