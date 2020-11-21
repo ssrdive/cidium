@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/ssrdive/cidium/pkg/loan"
 	"github.com/ssrdive/cidium/pkg/models"
 	"github.com/ssrdive/cidium/pkg/sql/queries"
 	"github.com/ssrdive/mysequel"
@@ -111,7 +112,7 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 		return err
 	}
 
-	schedule, err := models.Create(capital, rate, installments, installmentInterval, initiationDate, method)
+	schedule, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate, method)
 	if err != nil {
 		return err
 	}
@@ -635,7 +636,7 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 		return err
 	}
 
-	schedule, err := models.Create(capital, rate, installments, installmentInterval, initiationDate.Format("2006-01-02"), method)
+	schedule, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate.Format("2006-01-02"), method)
 	if err != nil {
 		return err
 	}

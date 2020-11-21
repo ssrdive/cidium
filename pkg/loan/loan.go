@@ -1,4 +1,4 @@
-package models
+package loan
 
 import (
 	"fmt"

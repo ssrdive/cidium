@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
+	"github.com/ssrdive/cidium/pkg/loan"
 	"github.com/ssrdive/cidium/pkg/models"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -1034,7 +1035,7 @@ func (app *application) contractCalculation(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	schedule, err := models.Create(capital, rate, installments, installmentInterval, initiationDate, method)
+	schedule, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate, method)
 	if err != nil {
 		app.serverError(w, err)
 		return
