@@ -112,7 +112,7 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 		return err
 	}
 
-	schedule, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate, method)
+	marketedSchedule, _, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate, method)
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 
 	capitalAmount := 0.0
 	interestAmount := 0.0
-	for _, inst := range schedule {
+	for _, inst := range marketedSchedule {
 		capitalAmount += inst.Capital
 		interestAmount += inst.Interest
 		_, err = mysequel.Insert(mysequel.Table{
@@ -636,7 +636,7 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 		return err
 	}
 
-	schedule, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate.Format("2006-01-02"), method)
+	marketedSchedule, financialSchedule, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate.Format("2006-01-02"), method)
 	if err != nil {
 		return err
 	}
@@ -657,13 +657,13 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 
 	capitalAmount := 0.0
 	interestAmount := 0.0
-	for _, inst := range schedule {
+	for _, inst := range financialSchedule {
 		capitalAmount += inst.Capital
 		interestAmount += inst.Interest
 		_, err = mysequel.Insert(mysequel.Table{
-			TableName: "contract_installment",
-			Columns:   []string{"contract_id", "contract_installment_type_id", "capital", "interest", "default_interest", "due_date"},
-			Vals:      []interface{}{cid, citid, inst.Capital, inst.Interest, inst.DefaultInterest, inst.DueDate},
+			TableName: "contract_schedule",
+			Columns:   []string{"contract_id", "contract_installment_type_id", "capital", "interest", "installment", "monthly_date", "marketed_installment", "marketed_capital", "marketed_interest", "marketed_due_date"},
+			Vals:      []interface{}{cid, citid, inst.Capital, inst.Interest, inst.Capital + inst.Interest, inst.MonthlyDate, inst.MarketedInstallment, inst.MarketedCapital, inst.MarketedInterest, inst.MarketedDueDate},
 			Tx:        tx,
 		})
 		if err != nil {
@@ -672,6 +672,17 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 		}
 	}
 	fullRecievables := capitalAmount + interestAmount
+
+	_, err = mysequel.Insert(mysequel.Table{
+		TableName: "contract_financial",
+		Columns:   []string{"contract_id", "payment", "agreed_capital", "agreed_interest", "agreed_amount", "financial_schedule_start_date", "financial_schedule_end_date", "marketed_schedule_start_date", "marketed_schedule_end_date", "payment_interval", "payments"},
+		Vals:      []interface{}{cid, financialSchedule[0].Capital + financialSchedule[0].Interest, capitalAmount, interestAmount, fullRecievables, financialSchedule[0].MonthlyDate, financialSchedule[len(financialSchedule)-1].MonthlyDate, marketedSchedule[0].DueDate, marketedSchedule[len(marketedSchedule)-1].DueDate, installmentInterval, installments},
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
 
 	tid, err := mysequel.Insert(mysequel.Table{
 		TableName: "transaction",
@@ -684,10 +695,14 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 		return err
 	}
 
+	receivableAccount := 185
+	unearnedInterestAccount := 188
+	payableAccount := 189
+
 	journalEntries := []models.JournalEntry{
-		{fmt.Sprintf("%d", 95), "", fmt.Sprintf("%f", capital)},
-		{fmt.Sprintf("%d", 78), "", fmt.Sprintf("%f", interestAmount)},
-		{fmt.Sprintf("%d", 25), fmt.Sprintf("%f", fullRecievables), ""},
+		{fmt.Sprintf("%d", receivableAccount), fmt.Sprintf("%f", fullRecievables), ""},
+		{fmt.Sprintf("%d", payableAccount), "", fmt.Sprintf("%f", capital)},
+		{fmt.Sprintf("%d", unearnedInterestAccount), "", fmt.Sprintf("%f", interestAmount)},
 	}
 
 	for _, entry := range journalEntries {

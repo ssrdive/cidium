@@ -1035,14 +1035,14 @@ func (app *application) contractCalculation(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	schedule, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate, method)
+	marketedSchedule, _, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate, method)
 	if err != nil {
 		app.serverError(w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(schedule)
+	json.NewEncoder(w).Encode(marketedSchedule)
 }
 
 func (app *application) contractLegacyRebate(w http.ResponseWriter, r *http.Request) {
