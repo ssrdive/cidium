@@ -142,9 +142,6 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		return 0, err
 	}
 
-	var diUpdates []models.ContractDefaultInterestUpdate
-	var diLogs []models.ContractDefaultInterestChangeHistory
-	var diPayments []models.ContractPayment
 	var intPayments []models.ContractPayment
 	var capPayments []models.ContractPayment
 	var debitPayments []models.DebitPayment
@@ -166,10 +163,10 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		for _, p := range debits {
 			if p.CapitalPayable != 0 && balance != 0 {
 				if balance-p.CapitalPayable >= 0 {
-					debitPayments = append(debitPayments, models.DebitPayment{p.InstallmentID, rid, p.CapitalPayable, p.UnearnedAccountID, p.IncomeAccountID})
+					debitPayments = append(debitPayments, models.DebitPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: p.CapitalPayable, UnearnedAccountID: p.UnearnedAccountID, IncomeAccountID: p.IncomeAccountID})
 					balance = math.Round((balance-p.CapitalPayable)*100) / 100
 				} else {
-					debitPayments = append(debitPayments, models.DebitPayment{p.InstallmentID, rid, balance, p.UnearnedAccountID, p.IncomeAccountID})
+					debitPayments = append(debitPayments, models.DebitPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: balance, UnearnedAccountID: p.UnearnedAccountID, IncomeAccountID: p.IncomeAccountID})
 					balance = 0
 				}
 			}
@@ -181,28 +178,6 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 	if err != nil {
 		tx.Rollback()
 		return 0, err
-	}
-
-	diAmount := 0.0
-
-	if balance != 0 {
-		for _, p := range payables {
-			if p.DefaultInterest != 0 && balance != 0 {
-				if balance-p.DefaultInterest >= 0 {
-					diAmount += p.DefaultInterest
-					diUpdates = append(diUpdates, models.ContractDefaultInterestUpdate{p.InstallmentID, float64(0)})
-					diLogs = append(diLogs, models.ContractDefaultInterestChangeHistory{p.InstallmentID, rid, p.DefaultInterest})
-					diPayments = append(diPayments, models.ContractPayment{p.InstallmentID, rid, p.DefaultInterest})
-					balance = math.Round((balance-p.DefaultInterest)*100) / 100
-				} else {
-					diAmount += math.Round((p.DefaultInterest-balance)*100) / 100
-					diUpdates = append(diUpdates, models.ContractDefaultInterestUpdate{p.InstallmentID, math.Round((p.DefaultInterest-balance)*100) / 100})
-					diLogs = append(diLogs, models.ContractDefaultInterestChangeHistory{p.InstallmentID, rid, p.DefaultInterest})
-					diPayments = append(diPayments, models.ContractPayment{p.InstallmentID, rid, balance})
-					balance = 0
-				}
-			}
-		}
 	}
 
 	if balance != 0 {
@@ -230,47 +205,6 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 	if balance != 0 {
 		tx.Rollback()
 		return 0, errors.New("Error: Payment exceeds payables")
-	}
-
-	for _, diUpdate := range diUpdates {
-		_, err = mysequel.Update(mysequel.UpdateTable{
-			Table: mysequel.Table{TableName: "contract_installment",
-				Columns: []string{"default_interest"},
-				Vals:    []interface{}{diUpdate.DefaultInterest},
-				Tx:      tx},
-			WColumns: []string{"id"},
-			WVals:    []string{fmt.Sprintf("%d", diUpdate.ContractInstallmentID)},
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-	}
-
-	for _, diLog := range diLogs {
-		_, err := mysequel.Insert(mysequel.Table{
-			TableName: "contract_default_interest_change_history",
-			Columns:   []string{"contract_installment_id", "contract_receipt_id", "default_interest"},
-			Vals:      []interface{}{diLog.ContractInstallmentID, diLog.ContractReceiptID, diLog.DefaultInterest},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-	}
-
-	for _, intPayment := range diPayments {
-		_, err := mysequel.Insert(mysequel.Table{
-			TableName: "contract_default_interest_payment",
-			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-			Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
 	}
 
 	interestAmount := 0.0
@@ -347,12 +281,10 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 	}
 
 	journalEntries := []models.JournalEntry{
-		{fmt.Sprintf("%d", officerAccountID), fmt.Sprintf("%f", amount), ""},
-		{fmt.Sprintf("%d", 25), "", fmt.Sprintf("%f", amount)},
-		{fmt.Sprintf("%d", 46), "", fmt.Sprintf("%f", interestAmount)},
-		{fmt.Sprintf("%d", 78), fmt.Sprintf("%f", interestAmount), ""},
-		{fmt.Sprintf("%d", 48), "", fmt.Sprintf("%f", diAmount)},
-		{fmt.Sprintf("%d", 79), fmt.Sprintf("%f", diAmount), ""},
+		{Account: fmt.Sprintf("%d", officerAccountID), Debit: fmt.Sprintf("%f", amount), Credit: ""},
+		{Account: fmt.Sprintf("%d", 25), Debit: "", Credit: fmt.Sprintf("%f", amount)},
+		{Account: fmt.Sprintf("%d", 46), Debit: "", Credit: fmt.Sprintf("%f", interestAmount)},
+		{Account: fmt.Sprintf("%d", 78), Debit: fmt.Sprintf("%f", interestAmount), Credit: ""},
 	}
 
 	for _, entry := range journalEntries {
