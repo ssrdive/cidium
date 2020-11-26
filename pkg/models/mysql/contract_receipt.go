@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"math"
@@ -63,9 +64,16 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 	err = tx.QueryRow(queries.OFFICER_ACC_NO, userID).Scan(&officerAccountID)
 
 	if lcas17Compliant == 1 {
-		return 0, nil
+		rid, err := issueLKAS17Receipt(tx, userID, cid, amount, notes, dueDate)
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+
+		return rid, nil
 	}
 
+	// Issue receipt to float
 	if contractTotalPayable < amount {
 		frid, err := mysequel.Insert(mysequel.Table{
 			TableName: "contract_receipt_float",
@@ -198,31 +206,11 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 	}
 
 	if balance != 0 {
-		for _, p := range payables {
-			if p.InterestPayable != 0 && balance != 0 {
-				if balance-p.InterestPayable >= 0 {
-					intPayments = append(intPayments, models.ContractPayment{p.InstallmentID, rid, p.InterestPayable})
-					balance = math.Round((balance-p.InterestPayable)*100) / 100
-				} else {
-					intPayments = append(intPayments, models.ContractPayment{p.InstallmentID, rid, balance})
-					balance = 0
-				}
-			}
-		}
+		intPayments = payments("I", rid, &balance, payables, intPayments)
 	}
 
 	if balance != 0 {
-		for _, p := range payables {
-			if p.CapitalPayable != 0 && balance != 0 {
-				if balance-p.CapitalPayable >= 0 {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, p.CapitalPayable})
-					balance = math.Round((balance-p.CapitalPayable)*100) / 100
-				} else {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, balance})
-					balance = 0
-				}
-			}
-		}
+		capPayments = payments("C", rid, &balance, payables, capPayments)
 	}
 
 	if balance != 0 {
@@ -234,24 +222,8 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		}
 
 		for _, p := range upcoming {
-			if p.InterestPayable != 0 && balance != 0 {
-				if balance-p.InterestPayable >= 0 {
-					intPayments = append(intPayments, models.ContractPayment{p.InstallmentID, rid, p.InterestPayable})
-					balance = math.Round((balance-p.InterestPayable)*100) / 100
-				} else {
-					intPayments = append(intPayments, models.ContractPayment{p.InstallmentID, rid, balance})
-					balance = 0
-				}
-			}
-			if p.CapitalPayable != 0 && balance != 0 {
-				if balance-p.CapitalPayable >= 0 {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, p.CapitalPayable})
-					balance = math.Round((balance-p.CapitalPayable)*100) / 100
-				} else {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, balance})
-					balance = 0
-				}
-			}
+			intPayments = payments("I", rid, &balance, []models.ContractPayable{p}, intPayments)
+			capPayments = payments("C", rid, &balance, []models.ContractPayable{p}, capPayments)
 		}
 	}
 
@@ -418,4 +390,195 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 	defer resp.Body.Close()
 
 	return rid, nil
+}
+
+func payments(payablesType string, rid int64, balance *float64, payables []models.ContractPayable, payments []models.ContractPayment) []models.ContractPayment {
+	for _, p := range payables {
+		if payablesType == "I" {
+			if p.InterestPayable != 0 && *balance != 0 {
+				if *balance-p.InterestPayable >= 0 {
+					payments = append(payments, models.ContractPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: p.InterestPayable})
+					*balance = math.Round((*balance-p.InterestPayable)*100) / 100
+				} else {
+					payments = append(payments, models.ContractPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: *balance})
+					*balance = 0
+				}
+			}
+		} else if payablesType == "C" {
+			if *balance-p.CapitalPayable >= 0 {
+				payments = append(payments, models.ContractPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: p.CapitalPayable})
+				*balance = math.Round((*balance-p.CapitalPayable)*100) / 100
+			} else {
+				payments = append(payments, models.ContractPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: *balance})
+				*balance = 0
+			}
+		}
+	}
+	return payments
+}
+
+func issueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount float64, notes, dueDate string) (int64, error) {
+	fBalance := amount
+
+	rid, err := mysequel.Insert(mysequel.Table{
+		TableName: "contract_receipt",
+		Columns:   []string{"lcas_17", "user_id", "contract_id", "datetime", "amount", "notes", "due_date"},
+		Vals:      []interface{}{1, userID, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes, dueDate},
+		Tx:        tx,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	// today := time.Now().Format("2006-01-02")
+	today := "2021-11-01"
+
+	var fArrears []models.ContractPayable
+	err = mysequel.QueryToStructs(&fArrears, tx, queries.FINANCIAL_OVERDUE_INSTALLMENTS_LKAS_17, cid, today)
+	if err != nil {
+		return 0, err
+	}
+
+	var fInts []models.ContractPayment
+	var fCaps []models.ContractPayment
+
+	if fBalance != 0 {
+		fInts = payments("I", rid, &fBalance, fArrears, fInts)
+	}
+
+	if fBalance != 0 {
+		fCaps = payments("C", rid, &fBalance, fArrears, fCaps)
+	}
+
+	if fBalance != 0 {
+		var fUpcoming []models.ContractPayable
+		err = mysequel.QueryToStructs(&fUpcoming, tx, queries.FINANCIAL_UPCOMING_INSTALLMENTS_LKAS_17, cid, today)
+		if err != nil {
+			return 0, err
+		}
+
+		for _, p := range fUpcoming {
+			fInts = payments("I", rid, &fBalance, []models.ContractPayable{p}, fInts)
+			fCaps = payments("C", rid, &fBalance, []models.ContractPayable{p}, fCaps)
+		}
+	}
+
+	if fBalance != 0 {
+		return 0, errors.New("Error: Payment exceeds payables")
+	}
+
+	financialInterestPaid := float64(0)
+	for _, intPayment := range fInts {
+		financialInterestPaid = financialInterestPaid + intPayment.Amount
+		_, err := mysequel.Insert(mysequel.Table{
+			TableName: "contract_financial_payment",
+			Columns:   []string{"contract_payment_type_id", "contract_schedule_id", "contract_receipt_id", "amount"},
+			Vals:      []interface{}{2, intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
+			Tx:        tx,
+		})
+		if err != nil {
+			return 0, err
+		}
+
+		_, err = tx.Exec("UPDATE contract_schedule SET interest_paid = interest_paid + ? WHERE id = ?", intPayment.Amount, intPayment.ContractInstallmentID)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	financialCapitalPaid := float64(0)
+	for _, capPayment := range fCaps {
+		financialCapitalPaid = financialCapitalPaid + capPayment.Amount
+		_, err := mysequel.Insert(mysequel.Table{
+			TableName: "contract_financial_payment",
+			Columns:   []string{"contract_payment_type_id", "contract_schedule_id", "contract_receipt_id", "amount"},
+			Vals:      []interface{}{1, capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
+			Tx:        tx,
+		})
+		if err != nil {
+			return 0, err
+		}
+
+		_, err = tx.Exec("UPDATE contract_schedule SET capital_paid = capital_paid + ? WHERE id = ?", capPayment.Amount, capPayment.ContractInstallmentID)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	mBalance := amount
+
+	var mArrears []models.ContractPayable
+	err = mysequel.QueryToStructs(&mArrears, tx, queries.MARKETED_OVERDUE_INSTALLMENTS_LKAS_17, cid, today)
+	if err != nil {
+		return 0, err
+	}
+
+	var mInts []models.ContractPayment
+	var mCaps []models.ContractPayment
+
+	if mBalance != 0 {
+		mInts = payments("I", rid, &mBalance, mArrears, mInts)
+	}
+
+	if mBalance != 0 {
+		mCaps = payments("C", rid, &mBalance, mArrears, mCaps)
+	}
+
+	if mBalance != 0 {
+		var mUpcoming []models.ContractPayable
+		err = mysequel.QueryToStructs(&mUpcoming, tx, queries.MARKETED_UPCOMING_INSTALLMENTS_LKAS_17, cid, today)
+		if err != nil {
+			return 0, err
+		}
+
+		for _, p := range mUpcoming {
+			mInts = payments("I", rid, &mBalance, []models.ContractPayable{p}, mInts)
+			mCaps = payments("C", rid, &mBalance, []models.ContractPayable{p}, mCaps)
+		}
+	}
+
+	if mBalance != 0 {
+		return 0, errors.New("Error: Payment exceeds payables")
+	}
+
+	for _, intPayment := range mInts {
+		_, err := mysequel.Insert(mysequel.Table{
+			TableName: "contract_marketed_payment",
+			Columns:   []string{"contract_payment_type_id", "contract_schedule_id", "contract_receipt_id", "amount"},
+			Vals:      []interface{}{2, intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
+			Tx:        tx,
+		})
+		if err != nil {
+			return 0, err
+		}
+
+		_, err = tx.Exec("UPDATE contract_schedule SET marketed_interest_paid = marketed_interest_paid + ? WHERE id = ?", intPayment.Amount, intPayment.ContractInstallmentID)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	for _, capPayment := range mCaps {
+		_, err := mysequel.Insert(mysequel.Table{
+			TableName: "contract_marketed_payment",
+			Columns:   []string{"contract_payment_type_id", "contract_schedule_id", "contract_receipt_id", "amount"},
+			Vals:      []interface{}{1, capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
+			Tx:        tx,
+		})
+		if err != nil {
+			return 0, err
+		}
+
+		_, err = tx.Exec("UPDATE contract_schedule SET marketed_capital_paid = marketed_capital_paid + ? WHERE id = ?", capPayment.Amount, capPayment.ContractInstallmentID)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	_, err = tx.Exec("UPDATE contract_financial SET capital_paid = capital_paid + ?, interest_paid = interest_paid + ?, capital_arrears = capital_arrears - ?, interest_arrears = interest_arrears - ?", financialCapitalPaid, financialInterestPaid, financialCapitalPaid, financialInterestPaid)
+	if err != nil {
+		return 0, err
+	}
+
+	return rid, err
 }

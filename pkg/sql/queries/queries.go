@@ -160,6 +160,20 @@ const OVERDUE_INSTALLMENTS = `
 	ORDER BY CI.due_date ASC
 	`
 
+const FINANCIAL_OVERDUE_INSTALLMENTS_LKAS_17 = `
+	SELECT CS.id AS installment_id, CS.contract_id, COALESCE(CS.capital-CS.capital_paid, 0) AS capital_payable, COALESCE(CS.interest-CS.interest_paid, 0) AS interest_payable, '0' AS default_interest
+	FROM contract_schedule CS
+	WHERE CS.contract_id = ? AND CS.contract_installment_type_id = 1 AND CS.monthly_date <= ?
+	ORDER BY CS.monthly_date ASC
+	`
+
+const MARKETED_OVERDUE_INSTALLMENTS_LKAS_17 = `
+	SELECT CS.id AS installment_id, CS.contract_id, COALESCE(CS.marketed_capital-CS.marketed_capital_paid, 0) AS capital_payable, COALESCE(CS.marketed_interest-CS.marketed_interest_paid, 0) AS interest_payable, '0' AS default_interest
+	FROM contract_schedule CS
+	WHERE CS.contract_id = ? AND CS.contract_installment_type_id = 1 AND CS.marketed_installment = 1 AND CS.monthly_date <= ?
+	ORDER BY CS.monthly_date ASC
+	`
+
 const UPCOMING_INSTALLMENTS = `
 	SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
 	FROM contract_installment CI
@@ -177,6 +191,20 @@ const UPCOMING_INSTALLMENTS = `
 	WHERE CI.contract_id = ? AND CIT.di_chargable = 1 AND CI.due_date >= ?
 	GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
 	ORDER BY CI.due_date ASC
+	`
+
+const FINANCIAL_UPCOMING_INSTALLMENTS_LKAS_17 = `
+	SELECT CS.id AS installment_id, CS.contract_id, COALESCE(CS.capital-CS.capital_paid, 0) AS capital_payable, COALESCE(CS.interest-CS.interest_paid, 0) AS interest_payable, '0' AS default_interest
+	FROM contract_schedule CS
+	WHERE CS.contract_id = ? AND CS.contract_installment_type_id = 1 AND CS.monthly_date > ?
+	ORDER BY CS.monthly_date ASC
+`
+
+const MARKETED_UPCOMING_INSTALLMENTS_LKAS_17 = `
+	SELECT CS.id AS installment_id, CS.contract_id, COALESCE(CS.marketed_capital-CS.marketed_capital_paid, 0) AS capital_payable, COALESCE(CS.marketed_interest-CS.marketed_interest_paid, 0) AS interest_payable, '0' AS default_interest
+	FROM contract_schedule CS
+	WHERE CS.contract_id = ? AND CS.contract_installment_type_id = 1 AND CS.marketed_installment = 1 AND CS.monthly_date > ?
+	ORDER BY CS.monthly_date ASC
 	`
 
 const LEGACY_PAYMENTS = `

@@ -674,8 +674,8 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 
 	_, err = mysequel.Insert(mysequel.Table{
 		TableName: "contract_financial",
-		Columns:   []string{"contract_id", "payment", "agreed_capital", "agreed_interest", "agreed_amount", "financial_schedule_start_date", "financial_schedule_end_date", "marketed_schedule_start_date", "marketed_schedule_end_date", "payment_interval", "payments"},
-		Vals:      []interface{}{cid, financialSchedule[0].Capital + financialSchedule[0].Interest, capitalAmount, interestAmount, fullRecievables, financialSchedule[0].MonthlyDate, financialSchedule[len(financialSchedule)-1].MonthlyDate, marketedSchedule[0].DueDate, marketedSchedule[len(marketedSchedule)-1].DueDate, installmentInterval, installments},
+		Columns:   []string{"contract_id", "payment", "agreed_capital", "agreed_interest", "financial_schedule_start_date", "financial_schedule_end_date", "marketed_schedule_start_date", "marketed_schedule_end_date", "payment_interval", "payments"},
+		Vals:      []interface{}{cid, financialSchedule[0].Capital + financialSchedule[0].Interest, capitalAmount, interestAmount, financialSchedule[0].MonthlyDate, financialSchedule[len(financialSchedule)-1].MonthlyDate, marketedSchedule[0].DueDate, marketedSchedule[len(marketedSchedule)-1].DueDate, installmentInterval, installments},
 		Tx:        tx,
 	})
 	if err != nil {
