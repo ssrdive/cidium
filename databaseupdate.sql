@@ -20,10 +20,18 @@ CREATE TABLE contract_schedule(
 	FOREIGN KEY (contract_installment_type_id) REFERENCES contract_installment_type(id)
 );
 
-ALTER TABLE contract
-ADD lcas_17_compliant BOOLEAN NOT NULL DEFAULT 1 AFTER id;
+CREATE TABLE contract_schedule_charges_debits_details(
+	contract_schedule_id INT NOT NULL,
+	user_id INT NOT NULL,
+	notes VARCHAR(2048),
+	FOREIGN KEY (contract_schedule_id) REFERENCES contract_schedule(id),
+	FOREIGN KEY (user_id) REFERENCES user(id)
+);
 
-UPDATE contract SET lcas_17_compliant = 0;
+ALTER TABLE contract
+ADD lkas_17_compliant BOOLEAN NOT NULL DEFAULT 1 AFTER id;
+
+UPDATE contract SET lkas_17_compliant = 0;
 
 CREATE TABLE recovery_status(
 	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -37,15 +45,17 @@ CREATE TABLE contract_financial(
 	contract_id INT NOT NULL,
 	active BOOLEAN NOT NULL DEFAULT 1,
 	recovery_status_id INT NOT NULL DEFAULT 1,
+	doubtful BOOLEAN NOT NULL DEFAULT 0,
 	payment DECIMAL(13, 2) NOT NULL DEFAULT 0,
 	agreed_capital DECIMAL(13, 2) NOT NULL DEFAULT 0,
 	agreed_interest DECIMAL(13, 2) NOT NULL DEFAULT 0,
 	capital_paid DECIMAL(13, 2) NOT NULL DEFAULT 0,
 	interest_paid DECIMAL(13, 2) NOT NULL DEFAULT 0,
+	charges_debits_paid DECIMAL(13, 2) NOT NULL DEFAULT 0,
 	capital_arrears DECIMAL(13, 2) NOT NULL DEFAULT 0,
 	interest_arrears DECIMAL(13, 2) NOT NULL DEFAULT 0,
+	charges_debits_arrears DECIMAL(13, 2) NOT NULL DEFAULT 0,
 	capital_provisioned DECIMAL(13, 2) NOT NULL DEFAULT 0,
-	capital_provisioned_bdp DECIMAL(13, 2) NOT NULL DEFAULT 0,
 	financial_schedule_start_date DATE,
 	financial_schedule_end_date DATE,
 	marketed_schedule_start_date DATE,
@@ -57,9 +67,9 @@ CREATE TABLE contract_financial(
 );
 
 ALTER TABLE contract_receipt
-ADD lcas_17 BOOLEAN NOT NULL DEFAULT 0 AFTER id;
+ADD lkas_17 BOOLEAN NOT NULL DEFAULT 0 AFTER id;
 
-/* Should update the new contracts' lcas_17
+/* Should update the new contracts' lkas_17_compliant
    column to reflect they are compliant
    before initiating */
 
@@ -76,7 +86,9 @@ CREATE TABLE contract_financial_payment(
 	contract_schedule_id INT NOT NULL,
 	contract_receipt_id INT NOT NULL,
 	amount DECIMAL(13, 2) NOT NULL DEFAULT 0,
-	FOREIGN KEY (contract_payment_type_id) REFERENCES contract_payment_type(id)
+	FOREIGN KEY (contract_payment_type_id) REFERENCES contract_payment_type(id),
+	FOREIGN KEY (contract_schedule_id) REFERENCES contract_schedule(id),
+	FOREIGN KEY (contract_receipt_id) REFERENCES contract_receipt(id)
 );
 
 CREATE TABLE contract_marketed_payment(
@@ -87,3 +99,9 @@ CREATE TABLE contract_marketed_payment(
 	amount DECIMAL(13, 2) NOT NULL DEFAULT 0,
 	FOREIGN KEY (contract_payment_type_id) REFERENCES contract_payment_type(id)
 );
+
+ALTER TABLE contract_installment_type
+ADD expense_account_id INT,
+ADD receivable_account_id INT,
+ADD FOREIGN KEY (expense_account_id) REFERENCES account(id),
+ADD FOREIGN KEY (receivable_account_id) REFERENCES account(id)

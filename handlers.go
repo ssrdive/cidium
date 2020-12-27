@@ -650,6 +650,25 @@ func (app *application) contractDocumentDownload(w http.ResponseWriter, r *http.
 	http.ServeContent(w, r, source, time.Now(), reader)
 }
 
+func (app *application) contractDetailFinancial(w http.ResponseWriter, r *http.Request) {
+	// ContractDetailFinancial
+	vars := mux.Vars(r)
+	cid, err := strconv.Atoi(vars["cid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	cdfs, err := app.contract.DetailFinancial(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(cdfs)
+}
+
 func (app *application) contractDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	cid, err := strconv.Atoi(vars["cid"])
