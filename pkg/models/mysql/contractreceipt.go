@@ -612,7 +612,7 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 
 	if nAge <= 0 && cF.Doubtful == 1 {
 		fmt.Println("nAge <= 0 && cF.Doubtful == 1")
-		receiptJEs, err = addBadDebtJEsUpdateStatus(tx, int64(tid), tid, cF.InterestArrears, cF.CapitalProvisioned, receiptJEs, `UPDATE contract_financial SET recovery_status_id = ?, doubtful = ? WHERE contract_id = ?`, RecoveryStatusActive, 0, cid)
+		receiptJEs, err = addBadDebtJEsUpdateStatus(tx, int64(cid), tid, cF.InterestArrears, cF.CapitalProvisioned, receiptJEs, `UPDATE contract_financial SET recovery_status_id = ?, doubtful = ? WHERE contract_id = ?`, RecoveryStatusActive, 0, cid)
 		if err != nil {
 			return 0, err
 		}
