@@ -609,7 +609,6 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 
 	arrears := cF.CapitalArrears + cF.InterestArrears
 	nAge := (arrears - (amount - debitsPaid)) / cF.Payment
-	fmt.Println(nAge)
 
 	if nAge <= 0 && cF.Doubtful == 1 {
 		fmt.Println("nAge <= 0 && cF.Doubtful == 1")

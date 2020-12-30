@@ -28,6 +28,9 @@ type InstallmentSchedule struct {
 // Create creates marketed and financial rental schedule
 func Create(capital, rate float64, installments, installmentInterval int, initiationDate, method string) ([]Installment, []InstallmentSchedule, error) {
 	initDate, err := time.Parse("2006-01-02 15:04:05", fmt.Sprintf("%s 00:00:00", initiationDate))
+	if initDate.Day() > 28 {
+		initDate = initDate.AddDate(0, 0, -(initDate.Day() - 28))
+	}
 	if err != nil {
 		return nil, nil, err
 	}
@@ -93,6 +96,9 @@ func Create(capital, rate float64, installments, installmentInterval int, initia
 		marketedSchedule[installments-1].Capital = math.Round((marketedSchedule[installments-1].Capital+capitalDiff)*100) / 100
 
 		initDate, err = time.Parse("2006-01-02 15:04:05", fmt.Sprintf("%s 00:00:00", initiationDate))
+		if initDate.Day() > 28 {
+			initDate = initDate.AddDate(0, 0, -(initDate.Day() - 28))
+		}
 		capitalTotal = float64(0)
 		for i := 1; i <= n; i++ {
 			initDate = initDate.AddDate(0, 1, 0)

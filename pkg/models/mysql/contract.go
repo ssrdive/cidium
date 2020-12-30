@@ -842,12 +842,11 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 				return err
 			}
 		}
-	} else {
-		err = sprinter.Run(time.Now().Format("2006-01-02"), fmt.Sprintf("%d", cid), true, tx)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
+	}
+	err = sprinter.Run(time.Now().Format("2006-01-02"), fmt.Sprintf("%d", cid), true, tx)
+	if err != nil {
+		tx.Rollback()
+		return err
 	}
 
 	return nil
