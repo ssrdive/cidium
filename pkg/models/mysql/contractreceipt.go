@@ -391,6 +391,7 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 	if err != nil {
 		return 0, err
 	}
+	m.ReceiptLogger.Printf("RID %d", rid)
 
 	var debits []models.DebitPayableLKAS17
 	err = mysequel.QueryToStructs(&debits, tx, queries.DEBITS_LKAS_17, cid)
@@ -583,6 +584,7 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 	if err != nil {
 		return 0, err
 	}
+	m.ReceiptLogger.Printf("RID %d \t %v", rid, cF)
 
 	_, err = tx.Exec("UPDATE contract_financial SET capital_paid = capital_paid + ?, interest_paid = interest_paid + ?, charges_debits_paid = charges_debits_paid + ?, capital_arrears = capital_arrears - ?, interest_arrears = interest_arrears - ?, charges_debits_arrears = charges_debits_arrears - ? WHERE contract_id = ?", fCapPaid, fIntPaid, debitsPaid, fCapPaid, fIntPaid, debitsPaid, cid)
 	if err != nil {
@@ -611,28 +613,28 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 	nAge := (arrears - (amount - debitsPaid)) / cF.Payment
 
 	if nAge <= 0 && cF.Doubtful == 1 {
-		fmt.Println("nAge <= 0 && cF.Doubtful == 1")
+		m.ReceiptLogger.Printf("RID %d \t %s", rid, "nAge <= 0 && cF.Doubtful == 1")
 		receiptJEs, err = addBadDebtJEsUpdateStatus(tx, int64(cid), tid, cF.InterestArrears, cF.CapitalProvisioned, receiptJEs, `UPDATE contract_financial SET recovery_status_id = ?, doubtful = ? WHERE contract_id = ?`, RecoveryStatusActive, 0, cid)
 		if err != nil {
 			return 0, err
 		}
 	} else if (cF.RecoveryStatus == RecoveryStatusArrears && nAge > 0 && cF.Doubtful == 1) || (cF.RecoveryStatus == RecoveryStatusNPL && nAge < 6) ||
 		(cF.RecoveryStatus == RecoveryStatusBDP && nAge < 6) {
-		fmt.Println(`(cF.RecoveryStatus == RecoveryStatusArrears && nAge > 0 && cF.Doubtful == 1) || (cF.RecoveryStatus == RecoveryStatusNPL && nAge < 6) ||
+		m.ReceiptLogger.Printf("RID %d \t %s", rid, `(cF.RecoveryStatus == RecoveryStatusArrears && nAge > 0 && cF.Doubtful == 1) || (cF.RecoveryStatus == RecoveryStatusNPL && nAge < 6) ||
 		(cF.RecoveryStatus == RecoveryStatusBDP && nAge < 6)`)
 		receiptJEs, err = addBadDebtJEsUpdateStatus(tx, int64(cid), tid, fIntPaid, cF.CapitalProvisioned, receiptJEs, `UPDATE contract_financial SET recovery_status_id = ? WHERE contract_id = ?`, RecoveryStatusArrears, cid)
 		if err != nil {
 			return 0, err
 		}
 	} else if (cF.RecoveryStatus == RecoveryStatusNPL && nAge >= 6) || (cF.RecoveryStatus == RecoveryStatusBDP && nAge >= 12) {
-		fmt.Println("nAge >= 6 || nAge >= 12")
+		m.ReceiptLogger.Printf("RID %d \t %s", rid, "nAge >= 6 || nAge >= 12")
 		bdJEs, err := badDebtReceiptJEProvision(tx, int64(cid), tid, fIntPaid, fCapPaid)
 		if err != nil {
 			return 0, err
 		}
 		receiptJEs = append(receiptJEs, bdJEs...)
 	} else if cF.RecoveryStatus == RecoveryStatusBDP && nAge < 12 {
-		fmt.Println("cF.RecoveryStatus == RecoveryStatusBDP && nAge < 12")
+		m.ReceiptLogger.Printf("RID %d \t %s", rid, "cF.RecoveryStatus == RecoveryStatusBDP && nAge < 12")
 		var capitalProvision float64
 		err = tx.QueryRow(queries.NplCapitalProvision, cid).Scan(&capitalProvision)
 		if err != nil {
@@ -651,6 +653,7 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 		return 0, err
 	}
 
+	m.ReceiptLogger.Printf("RID %d \t %s", rid, "LKAS 17 function complete")
 	return rid, err
 }
 

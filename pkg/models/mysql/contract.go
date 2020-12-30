@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -19,7 +20,8 @@ import (
 
 // ContractModel struct holds database instance
 type ContractModel struct {
-	DB *sql.DB
+	DB            *sql.DB
+	ReceiptLogger *log.Logger
 }
 
 // Insert creates a new contract
