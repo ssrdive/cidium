@@ -1631,7 +1631,7 @@ func (m *ContractModel) SearchV2(search, state, officer, batch, npl, startOd, en
 	}
 
 	var res []models.SearchResultV2
-	err = mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_V2, k, k, s, s, o, o, b, b, n, n, sod, eod, sod, eod, rd)
+	err = mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_V2, k, k, s, s, o, o, b, b, n, n, sod, eod, sod, eod, rd, k, k, s, s, o, o, b, b, n, n, sod, eod, sod, eod, rd)
 	if err != nil {
 		return nil, err
 	}
