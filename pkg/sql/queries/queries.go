@@ -288,7 +288,7 @@ const CONTRACT_DETAILS_LKAS_17 = `
 	GROUP BY C.id, total_payable, total_paid`
 
 const CONTRACT_DETAILS_FINANCIAL = `
-	SELECT active, RS.name as recovery_status, doubtful, payment, capital_arrears+interest_arrears AS contract_arrears, charges_debits_arrears, COALESCE(TRUNCATE((capital_arrears+interest_arrears+charges_debits_arrears)/payment, 2), 0) AS overdue_index, capital_provisioned
+	SELECT active, RS.name as recovery_status, doubtful, payment, capital_arrears+interest_arrears AS contract_arrears, charges_debits_arrears, COALESCE(TRUNCATE((capital_arrears+interest_arrears)/payment, 2), 0) AS overdue_index, capital_provisioned
 	FROM contract_financial CFL
 	LEFT JOIN recovery_status RS ON RS.id = CFL.recovery_status_id
 	WHERE CFL.contract_id = ?
