@@ -584,7 +584,7 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 	if err != nil {
 		return 0, err
 	}
-	m.ReceiptLogger.Printf("RID %d \t %v", rid, cF)
+	m.ReceiptLogger.Printf("RID %d \t %+v", rid, cF)
 
 	_, err = tx.Exec("UPDATE contract_financial SET capital_paid = capital_paid + ?, interest_paid = interest_paid + ?, charges_debits_paid = charges_debits_paid + ?, capital_arrears = capital_arrears - ?, interest_arrears = interest_arrears - ?, charges_debits_arrears = charges_debits_arrears - ? WHERE contract_id = ?", fCapPaid, fIntPaid, debitsPaid, fCapPaid, fIntPaid, debitsPaid, cid)
 	if err != nil {
