@@ -790,7 +790,7 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 	tid, err := mysequel.Insert(mysequel.Table{
 		TableName: "transaction",
 		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
-		Vals:      []interface{}{user, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("CONTRACT INITIATION %d", cid)},
+		Vals:      []interface{}{user, time.Now().Format("2006-01-02 15:04:05"), details["Initiation Date"], cid, fmt.Sprintf("CONTRACT INITIATION %d", cid)},
 		Tx:        tx,
 	})
 	if err != nil {
