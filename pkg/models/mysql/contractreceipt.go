@@ -614,7 +614,13 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 	arrears := cF.CapitalArrears + cF.InterestArrears
 	nAge := (arrears - (amount - debitsPaid)) / cF.Payment
 
-	if nAge <= 0 && cF.Doubtful == 1 {
+	if nAge <= 0 && cF.Doubtful == 0 {
+		m.ReceiptLogger.Printf("RID %d \t %s", rid, "nAge <= 0 && cF.Doubtful == 0")
+		receiptJEs, err = addBadDebtJEsUpdateStatus(tx, int64(cid), tid, 0, cF.CapitalProvisioned, receiptJEs, `UPDATE contract_financial SET recovery_status_id = ?, doubtful = ? WHERE contract_id = ?`, RecoveryStatusActive, 0, cid)
+		if err != nil {
+			return 0, err
+		}
+	} else if nAge <= 0 && cF.Doubtful == 1 {
 		m.ReceiptLogger.Printf("RID %d \t %s", rid, "nAge <= 0 && cF.Doubtful == 1")
 		receiptJEs, err = addBadDebtJEsUpdateStatus(tx, int64(cid), tid, cF.InterestArrears, cF.CapitalProvisioned, receiptJEs, `UPDATE contract_financial SET recovery_status_id = ?, doubtful = ? WHERE contract_id = ?`, RecoveryStatusActive, 0, cid)
 		if err != nil {
