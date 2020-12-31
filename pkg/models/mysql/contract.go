@@ -4,21 +4,24 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
-	"github.com/dustin/go-humanize"
+	"github.com/ssrdive/cidium/pkg/loan"
 	"github.com/ssrdive/cidium/pkg/models"
 	"github.com/ssrdive/cidium/pkg/sql/queries"
 	"github.com/ssrdive/mysequel"
+	"github.com/ssrdive/sprinter"
 )
 
 // ContractModel struct holds database instance
 type ContractModel struct {
-	DB *sql.DB
+	DB            *sql.DB
+	ReceiptLogger *log.Logger
 }
 
 // Insert creates a new contract
@@ -43,6 +46,17 @@ func (m *ContractModel) Insert(initialState string, rparams, oparams []string, f
 		Tx:        tx,
 	})
 	if err != nil {
+		return 0, err
+	}
+
+	_, err = mysequel.Insert(mysequel.Table{
+		TableName: "contract_financial",
+		Columns:   []string{"contract_id"},
+		Vals:      []interface{}{cid},
+		Tx:        tx,
+	})
+	if err != nil {
+		tx.Rollback()
 		return 0, err
 	}
 
@@ -111,7 +125,7 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 		return err
 	}
 
-	schedule, err := models.Create(capital, rate, installments, installmentInterval, initiationDate, method)
+	marketedSchedule, _, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate, method)
 	if err != nil {
 		return err
 	}
@@ -125,7 +139,7 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 
 	capitalAmount := 0.0
 	interestAmount := 0.0
-	for _, inst := range schedule {
+	for _, inst := range marketedSchedule {
 		capitalAmount += inst.Capital
 		interestAmount += inst.Interest
 		_, err = mysequel.Insert(mysequel.Table{
@@ -299,10 +313,70 @@ func (m *ContractModel) StateDocument(rparams, oparams []string, form url.Values
 	return cid, nil
 }
 
+// DetailFinancial returns contract details
+func (m *ContractModel) DetailFinancial(cid int) (models.ContractDetailFinancial, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return models.ContractDetailFinancial{}, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	var lkas17Compliant int
+	err = tx.QueryRow(queries.LKAS_17_COMPLIANT, cid).Scan(&lkas17Compliant)
+	if err != nil {
+		tx.Rollback()
+		return models.ContractDetailFinancial{}, err
+	}
+
+	if lkas17Compliant == 1 {
+		var detailFinancial models.ContractDetailFinancial
+		detailFinancial.LKAS17 = true
+		err = tx.QueryRow(queries.CONTRACT_DETAILS_FINANCIAL, cid).Scan(&detailFinancial.Active, &detailFinancial.RecoveryStatus, &detailFinancial.Doubtful, &detailFinancial.Payment, &detailFinancial.ContractArrears, &detailFinancial.ChargesDebitsArrears, &detailFinancial.OverdueIndex, &detailFinancial.CapitalProvisioned)
+		if err != nil {
+			return models.ContractDetailFinancial{}, err
+		}
+
+		return detailFinancial, nil
+	}
+	return models.ContractDetailFinancial{LKAS17: false}, nil
+}
+
 // Detail returns contract details
 func (m *ContractModel) Detail(cid int) (models.ContractDetail, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return models.ContractDetail{}, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	var lkas17Compliant int
+	err = tx.QueryRow(queries.LKAS_17_COMPLIANT, cid).Scan(&lkas17Compliant)
+	if err != nil {
+		tx.Rollback()
+		return models.ContractDetail{}, err
+	}
+
+	var detailsQuery string
+	if lkas17Compliant == 1 {
+		detailsQuery = queries.CONTRACT_DETAILS_LKAS_17
+	} else {
+		detailsQuery = queries.CONTRACT_DETAILS
+	}
+
 	var detail models.ContractDetail
-	err := m.DB.QueryRow(queries.CONTRACT_DETAILS, cid).Scan(&detail.ID, &detail.ContractState, &detail.ContractBatch, &detail.ModelName, &detail.ChassisNumber, &detail.CustomerName, &detail.CustomerNic, &detail.CustomerAddress, &detail.CustomerContact, &detail.LiaisonName, &detail.LiaisonContact, &detail.Price, &detail.Downpayment, &detail.RecoveryOfficer, &detail.AmountPending, &detail.TotalPayable, &detail.TotalPaid, &detail.LastPaymentDate, &detail.OverdueIndex)
+	err = tx.QueryRow(detailsQuery, cid).Scan(&detail.ID, &detail.ContractState, &detail.ContractBatch, &detail.ModelName, &detail.ChassisNumber, &detail.CustomerName, &detail.CustomerNic, &detail.CustomerAddress, &detail.CustomerContact, &detail.LiaisonName, &detail.LiaisonContact, &detail.Price, &detail.Downpayment, &detail.RecoveryOfficer, &detail.AmountPending, &detail.TotalPayable, &detail.TotalPaid, &detail.LastPaymentDate, &detail.OverdueIndex)
 	if err != nil {
 		return models.ContractDetail{}, err
 	}
@@ -312,8 +386,34 @@ func (m *ContractModel) Detail(cid int) (models.ContractDetail, error) {
 
 // Installment returns installments
 func (m *ContractModel) Installment(cid int) ([]models.ActiveInstallment, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	var lkas17Compliant int
+	err = tx.QueryRow(queries.LKAS_17_COMPLIANT, cid).Scan(&lkas17Compliant)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
 	var res []models.ActiveInstallment
-	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_INSTALLMENTS, cid, cid, cid)
+	if lkas17Compliant == 1 {
+		err := mysequel.QueryToStructs(&res, tx, queries.CONTRACT_INSTALLMENTS_LKAS_17, cid)
+		if err != nil {
+			return nil, err
+		}
+		return res, err
+	}
+	err = mysequel.QueryToStructs(&res, tx, queries.CONTRACT_INSTALLMENTS, cid, cid, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -635,7 +735,7 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 		return err
 	}
 
-	schedule, err := models.Create(capital, rate, installments, installmentInterval, initiationDate.Format("2006-01-02"), method)
+	marketedSchedule, financialSchedule, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate.Format("2006-01-02"), method)
 	if err != nil {
 		return err
 	}
@@ -656,13 +756,13 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 
 	capitalAmount := 0.0
 	interestAmount := 0.0
-	for _, inst := range schedule {
+	for _, inst := range financialSchedule {
 		capitalAmount += inst.Capital
 		interestAmount += inst.Interest
 		_, err = mysequel.Insert(mysequel.Table{
-			TableName: "contract_installment",
-			Columns:   []string{"contract_id", "contract_installment_type_id", "capital", "interest", "default_interest", "due_date"},
-			Vals:      []interface{}{cid, citid, inst.Capital, inst.Interest, inst.DefaultInterest, inst.DueDate},
+			TableName: "contract_schedule",
+			Columns:   []string{"contract_id", "contract_installment_type_id", "capital", "interest", "installment", "monthly_date", "marketed_installment", "marketed_capital", "marketed_interest", "marketed_due_date"},
+			Vals:      []interface{}{cid, citid, inst.Capital, inst.Interest, inst.Capital + inst.Interest, inst.MonthlyDate, inst.MarketedInstallment, inst.MarketedCapital, inst.MarketedInterest, inst.MarketedDueDate},
 			Tx:        tx,
 		})
 		if err != nil {
@@ -672,10 +772,25 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 	}
 	fullRecievables := capitalAmount + interestAmount
 
+	_, err = mysequel.Update(mysequel.UpdateTable{
+		Table: mysequel.Table{
+			TableName: "contract_financial",
+			Columns:   []string{"payment", "agreed_capital", "agreed_interest", "financial_schedule_start_date", "financial_schedule_end_date", "marketed_schedule_start_date", "marketed_schedule_end_date", "payment_interval", "payments"},
+			Vals:      []interface{}{financialSchedule[0].Capital + financialSchedule[0].Interest, capitalAmount, interestAmount, financialSchedule[0].MonthlyDate, financialSchedule[len(financialSchedule)-1].MonthlyDate, marketedSchedule[0].DueDate, marketedSchedule[len(marketedSchedule)-1].DueDate, installmentInterval, installments},
+			Tx:        tx,
+		},
+		WColumns: []string{"contract_id"},
+		WVals:    []string{strconv.FormatInt(int64(cid), 10)},
+	})
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	tid, err := mysequel.Insert(mysequel.Table{
 		TableName: "transaction",
 		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
-		Vals:      []interface{}{user, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("CONTRACT INITIATION %d", cid)},
+		Vals:      []interface{}{user, time.Now().Format("2006-01-02 15:04:05"), details["Initiation Date"], cid, fmt.Sprintf("CONTRACT INITIATION %d", cid)},
 		Tx:        tx,
 	})
 	if err != nil {
@@ -683,48 +798,40 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 		return err
 	}
 
+	receivableAccount := 185
+	unearnedInterestAccount := 188
+	payableAccount := 189
+
 	journalEntries := []models.JournalEntry{
-		{fmt.Sprintf("%d", 95), "", fmt.Sprintf("%f", capital)},
-		{fmt.Sprintf("%d", 78), "", fmt.Sprintf("%f", interestAmount)},
-		{fmt.Sprintf("%d", 25), fmt.Sprintf("%f", fullRecievables), ""},
+		{fmt.Sprintf("%d", receivableAccount), fmt.Sprintf("%f", fullRecievables), ""},
+		{fmt.Sprintf("%d", payableAccount), "", fmt.Sprintf("%f", capital)},
+		{fmt.Sprintf("%d", unearnedInterestAccount), "", fmt.Sprintf("%f", interestAmount)},
 	}
 
-	for _, entry := range journalEntries {
-		if len(entry.Debit) != 0 {
-			_, err := mysequel.Insert(mysequel.Table{
-				TableName: "account_transaction",
-				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
-				Tx:        tx,
-			})
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
-		}
-		if len(entry.Credit) != 0 {
-			_, err := mysequel.Insert(mysequel.Table{
-				TableName: "account_transaction",
-				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
-				Tx:        tx,
-			})
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
-		}
+	err = IssueJournalEntries(tx, tid, journalEntries)
+	if err != nil {
+		tx.Rollback()
+		return err
 	}
 
 	var floatReceipts []models.FloatReceipts
 	mysequel.QueryToStructs(&floatReceipts, tx, queries.FLOAT_RECEIPTS, cid)
 
 	// Issue receipts in float
-	for _, r := range floatReceipts {
-		_, err := m.ReceiptV2(r.ID, r.UserID, cid, r.Amount, "", "", r.Date, r.Datetime, tx)
-		fmt.Println(err)
-		if err == nil {
-			_, err := mysequel.Update(mysequel.UpdateTable{
+	if len(floatReceipts) > 0 {
+		for _, r := range floatReceipts {
+			err = sprinter.Run(r.Date, fmt.Sprintf("%d", cid), true, tx)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			_, err := m.IssueLKAS17Receipt(tx, r.UserID, cid, r.Amount, "", "", "FLOAT", r.Datetime)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+
+			_, err = mysequel.Update(mysequel.UpdateTable{
 				Table: mysequel.Table{TableName: "contract_receipt_float",
 					Columns: []string{"cleared"},
 					Vals:    []interface{}{1},
@@ -732,8 +839,16 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 				WColumns: []string{"id"},
 				WVals:    []string{strconv.FormatInt(int64(r.ID), 10)},
 			})
-			fmt.Println(err)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
 		}
+	}
+	err = sprinter.Run(time.Now().Format("2006-01-02"), fmt.Sprintf("%d", cid), true, tx)
+	if err != nil {
+		tx.Rollback()
+		return err
 	}
 
 	return nil
@@ -922,6 +1037,76 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 		_ = tx.Commit()
 	}()
 
+	var lkas17Compliant int
+	err = tx.QueryRow(queries.LKAS_17_COMPLIANT, form.Get("contract_id")).Scan(&lkas17Compliant)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	if lkas17Compliant == 1 {
+		dnid, err := mysequel.Insert(mysequel.Table{
+			TableName: "contract_schedule",
+			Columns:   []string{"contract_id", "contract_installment_type_id", "capital", "installment", "monthly_date", "daily_entry_issued", "marketed_installment", "marketed_capital", "marketed_due_date"},
+			Vals:      []interface{}{form.Get("contract_id"), form.Get("contract_installment_type_id"), form.Get("capital"), form.Get("capital"), time.Now().Format("2006-01-02"), 1, 1, form.Get("capital"), time.Now().Format("2006-01-02")},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+
+		form.Set("contract_schedule_id", fmt.Sprintf("%d", dnid))
+		_, err = mysequel.Insert(mysequel.FormTable{
+			TableName: "contract_schedule_charges_debits_details",
+			RCols:     []string{"contract_schedule_id", "user_id", "notes"},
+			OCols:     []string{},
+			Form:      form,
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+
+		_, err = tx.Exec("UPDATE contract_financial SET charges_debits_arrears = charges_debits_arrears + ? WHERE contract_id = ?", form.Get("capital"), form.Get("contract_id"))
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+
+		tid, err := mysequel.Insert(mysequel.Table{
+			TableName: "transaction",
+			Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
+			Vals:      []interface{}{form.Get("user_id"), time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), form.Get("contract_id"), fmt.Sprintf("DEBIT NOTE %d [%s]", dnid, form.Get("contract_id"))},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+
+		var expenseAccount, receivableAccount int
+		err = tx.QueryRow(queries.GET_DEBIT_TYPE_EXPENSE_RECEIVABLE_ACCOUNT, form.Get("contract_installment_type_id")).Scan(&expenseAccount, &receivableAccount)
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+
+		journalEntries := []models.JournalEntry{
+			{Account: fmt.Sprintf("%d", expenseAccount), Debit: form.Get("capital"), Credit: ""},
+			{Account: fmt.Sprintf("%d", receivableAccount), Debit: "", Credit: form.Get("capital")},
+		}
+
+		err = IssueJournalEntries(tx, tid, journalEntries)
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+
+		return dnid, nil
+	}
+
 	dnid, err := mysequel.Insert(mysequel.FormTable{
 		TableName: "contract_installment",
 		RCols:     rparams,
@@ -962,35 +1147,14 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 	}
 
 	journalEntries := []models.JournalEntry{
-		{fmt.Sprintf("%d", 25), form.Get("capital"), ""},
-		{fmt.Sprintf("%d", unearnedAccountID), "", form.Get("capital")},
+		{Account: fmt.Sprintf("%d", 25), Debit: form.Get("capital"), Credit: ""},
+		{Account: fmt.Sprintf("%d", unearnedAccountID), Debit: "", Credit: form.Get("capital")},
 	}
 
-	for _, entry := range journalEntries {
-		if val, _ := strconv.ParseFloat(entry.Debit, 64); len(entry.Debit) != 0 && val != 0 {
-			_, err := mysequel.Insert(mysequel.Table{
-				TableName: "account_transaction",
-				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
-				Tx:        tx,
-			})
-			if err != nil {
-				tx.Rollback()
-				return 0, err
-			}
-		}
-		if val, _ := strconv.ParseFloat(entry.Credit, 64); len(entry.Credit) != 0 && val != 0 {
-			_, err := mysequel.Insert(mysequel.Table{
-				TableName: "account_transaction",
-				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
-				Tx:        tx,
-			})
-			if err != nil {
-				tx.Rollback()
-				return 0, err
-			}
-		}
+	err = IssueJournalEntries(tx, tid, journalEntries)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
 	}
 
 	return dnid, nil
@@ -1123,7 +1287,7 @@ func (m *ContractModel) LegacyRebate(userID, cid int, amount float64) (int64, er
 // Hence it will be used to issue receipts that was stored before a contract was initiated.
 func (m *ContractModel) ReceiptV2(fid, userID, cid int, amount float64, notes, dueDate, date string, datetime time.Time, tx *sql.Tx) (int64, error) {
 
-	var debits []models.DebitsPayable
+	var debits []models.DebitPayable
 	err := mysequel.QueryToStructs(&debits, tx, queries.DEBITS, cid)
 	if err != nil {
 		tx.Rollback()
@@ -1410,406 +1574,6 @@ func (m *ContractModel) ReceiptV2(fid, userID, cid int, amount float64, notes, d
 	return rid, nil
 }
 
-// Receipt issues a receipt
-func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate, rAPIKey, aAPIKey, runtimeEnv string) (int64, error) {
-	tx, err := m.DB.Begin()
-	if err != nil {
-		return 0, err
-	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-			return
-		}
-		_ = tx.Commit()
-	}()
-
-	var managedByAgrivest int
-	var telephone string
-	err = tx.QueryRow(queries.MANAGED_BY_AGRIVEST, cid).Scan(&managedByAgrivest, &telephone)
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	apiKey := ""
-	if managedByAgrivest == 0 {
-		apiKey = rAPIKey
-	} else {
-		apiKey = aAPIKey
-	}
-	message := fmt.Sprintf("Hithawath paribhogikaya, obage giwisum anka %d wetha gewu mudala Rs. %s. Sthuthiyi.", cid, humanize.Comma(int64(amount)))
-	if runtimeEnv == "dev" {
-		telephone = fmt.Sprintf("%s", "768237192")
-	} else {
-		telephone = fmt.Sprintf("%s,%s,%s,%s,%s,%s", telephone, "768237192", "703524330", "703524420", "775607777", "703524278")
-	}
-	requestURL := fmt.Sprintf("https://cpsolutions.dialog.lk/index.php/cbs/sms/send?destination=%s&q=%s&message=%s", telephone, apiKey, url.QueryEscape(message))
-
-	var contractTotalPayable float64
-	err = tx.QueryRow(queries.CONTRACT_PAYABLE, cid).Scan(&contractTotalPayable)
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	var officerAccountID int
-	err = tx.QueryRow(queries.OFFICER_ACC_NO, userID).Scan(&officerAccountID)
-
-	if contractTotalPayable < amount {
-		frid, err := mysequel.Insert(mysequel.Table{
-			TableName: "contract_receipt_float",
-			Columns:   []string{"user_id", "contract_id", "datetime", "amount"},
-			Vals:      []interface{}{userID, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes, dueDate},
-			Tx:        tx,
-		})
-
-		resp, err := http.Get(requestURL)
-		if err != nil {
-			return frid, nil
-		}
-
-		defer resp.Body.Close()
-
-		tid, err := mysequel.Insert(mysequel.Table{
-			TableName: "transaction",
-			Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
-			Vals:      []interface{}{userID, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("FLOAT RECEIPT %d", frid)},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-
-		journalEntries := []models.JournalEntry{
-			{fmt.Sprintf("%d", officerAccountID), fmt.Sprintf("%f", amount), ""},
-			{fmt.Sprintf("%d", 144), "", fmt.Sprintf("%f", amount)},
-		}
-
-		for _, entry := range journalEntries {
-			if val, _ := strconv.ParseFloat(entry.Debit, 64); len(entry.Debit) != 0 && val != 0 {
-				_, err := mysequel.Insert(mysequel.Table{
-					TableName: "account_transaction",
-					Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-					Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
-					Tx:        tx,
-				})
-				if err != nil {
-					tx.Rollback()
-					return 0, err
-				}
-			}
-			if val, _ := strconv.ParseFloat(entry.Credit, 64); len(entry.Credit) != 0 && val != 0 {
-				_, err := mysequel.Insert(mysequel.Table{
-					TableName: "account_transaction",
-					Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-					Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
-					Tx:        tx,
-				})
-				if err != nil {
-					tx.Rollback()
-					return 0, err
-				}
-			}
-		}
-
-		return frid, err
-	}
-
-	var debits []models.DebitsPayable
-	err = mysequel.QueryToStructs(&debits, tx, queries.DEBITS, cid)
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	var diUpdates []models.ContractDefaultInterestUpdate
-	var diLogs []models.ContractDefaultInterestChangeHistory
-	var diPayments []models.ContractPayment
-	var intPayments []models.ContractPayment
-	var capPayments []models.ContractPayment
-	var debitPayments []models.DebitPayment
-
-	balance := amount
-
-	rid, err := mysequel.Insert(mysequel.Table{
-		TableName: "contract_receipt",
-		Columns:   []string{"user_id", "contract_id", "datetime", "amount", "notes", "due_date"},
-		Vals:      []interface{}{userID, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes, dueDate},
-		Tx:        tx,
-	})
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	if balance != 0 {
-		for _, p := range debits {
-			if p.CapitalPayable != 0 && balance != 0 {
-				if balance-p.CapitalPayable >= 0 {
-					debitPayments = append(debitPayments, models.DebitPayment{p.InstallmentID, rid, p.CapitalPayable, p.UnearnedAccountID, p.IncomeAccountID})
-					balance = math.Round((balance-p.CapitalPayable)*100) / 100
-				} else {
-					debitPayments = append(debitPayments, models.DebitPayment{p.InstallmentID, rid, balance, p.UnearnedAccountID, p.IncomeAccountID})
-					balance = 0
-				}
-			}
-		}
-	}
-
-	var payables []models.ContractPayable
-	err = mysequel.QueryToStructs(&payables, tx, queries.OVERDUE_INSTALLMENTS, cid, time.Now().Format("2006-01-02"))
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	diAmount := 0.0
-
-	if balance != 0 {
-		for _, p := range payables {
-			if p.DefaultInterest != 0 && balance != 0 {
-				if balance-p.DefaultInterest >= 0 {
-					diAmount += p.DefaultInterest
-					diUpdates = append(diUpdates, models.ContractDefaultInterestUpdate{p.InstallmentID, float64(0)})
-					diLogs = append(diLogs, models.ContractDefaultInterestChangeHistory{p.InstallmentID, rid, p.DefaultInterest})
-					diPayments = append(diPayments, models.ContractPayment{p.InstallmentID, rid, p.DefaultInterest})
-					balance = math.Round((balance-p.DefaultInterest)*100) / 100
-				} else {
-					diAmount += math.Round((p.DefaultInterest-balance)*100) / 100
-					diUpdates = append(diUpdates, models.ContractDefaultInterestUpdate{p.InstallmentID, math.Round((p.DefaultInterest-balance)*100) / 100})
-					diLogs = append(diLogs, models.ContractDefaultInterestChangeHistory{p.InstallmentID, rid, p.DefaultInterest})
-					diPayments = append(diPayments, models.ContractPayment{p.InstallmentID, rid, balance})
-					balance = 0
-				}
-			}
-		}
-	}
-
-	if balance != 0 {
-		for _, p := range payables {
-			if p.InterestPayable != 0 && balance != 0 {
-				if balance-p.InterestPayable >= 0 {
-					intPayments = append(intPayments, models.ContractPayment{p.InstallmentID, rid, p.InterestPayable})
-					balance = math.Round((balance-p.InterestPayable)*100) / 100
-				} else {
-					intPayments = append(intPayments, models.ContractPayment{p.InstallmentID, rid, balance})
-					balance = 0
-				}
-			}
-		}
-	}
-
-	if balance != 0 {
-		for _, p := range payables {
-			if p.CapitalPayable != 0 && balance != 0 {
-				if balance-p.CapitalPayable >= 0 {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, p.CapitalPayable})
-					balance = math.Round((balance-p.CapitalPayable)*100) / 100
-				} else {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, balance})
-					balance = 0
-				}
-			}
-		}
-	}
-
-	if balance != 0 {
-		var upcoming []models.ContractPayable
-		err = mysequel.QueryToStructs(&upcoming, tx, queries.UPCOMING_INSTALLMENTS, cid, time.Now().Format("2006-01-02"))
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-
-		for _, p := range upcoming {
-			if p.InterestPayable != 0 && balance != 0 {
-				if balance-p.InterestPayable >= 0 {
-					intPayments = append(intPayments, models.ContractPayment{p.InstallmentID, rid, p.InterestPayable})
-					balance = math.Round((balance-p.InterestPayable)*100) / 100
-				} else {
-					intPayments = append(intPayments, models.ContractPayment{p.InstallmentID, rid, balance})
-					balance = 0
-				}
-			}
-			if p.CapitalPayable != 0 && balance != 0 {
-				if balance-p.CapitalPayable >= 0 {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, p.CapitalPayable})
-					balance = math.Round((balance-p.CapitalPayable)*100) / 100
-				} else {
-					capPayments = append(capPayments, models.ContractPayment{p.InstallmentID, rid, balance})
-					balance = 0
-				}
-			}
-		}
-	}
-
-	if balance != 0 {
-		tx.Rollback()
-		return 0, errors.New("Error: Payment exceeds payables")
-	}
-
-	for _, diUpdate := range diUpdates {
-		_, err = mysequel.Update(mysequel.UpdateTable{
-			Table: mysequel.Table{TableName: "contract_installment",
-				Columns: []string{"default_interest"},
-				Vals:    []interface{}{diUpdate.DefaultInterest},
-				Tx:      tx},
-			WColumns: []string{"id"},
-			WVals:    []string{fmt.Sprintf("%d", diUpdate.ContractInstallmentID)},
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-	}
-
-	for _, diLog := range diLogs {
-		_, err := mysequel.Insert(mysequel.Table{
-			TableName: "contract_default_interest_change_history",
-			Columns:   []string{"contract_installment_id", "contract_receipt_id", "default_interest"},
-			Vals:      []interface{}{diLog.ContractInstallmentID, diLog.ContractReceiptID, diLog.DefaultInterest},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-	}
-
-	for _, intPayment := range diPayments {
-		_, err := mysequel.Insert(mysequel.Table{
-			TableName: "contract_default_interest_payment",
-			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-			Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-	}
-
-	interestAmount := 0.0
-
-	for _, intPayment := range intPayments {
-		interestAmount += intPayment.Amount
-		_, err := mysequel.Insert(mysequel.Table{
-			TableName: "contract_interest_payment",
-			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-			Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-	}
-
-	for _, capPayment := range capPayments {
-		_, err := mysequel.Insert(mysequel.Table{
-			TableName: "contract_capital_payment",
-			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-			Vals:      []interface{}{capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-	}
-
-	tid, err := mysequel.Insert(mysequel.Table{
-		TableName: "transaction",
-		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
-		Vals:      []interface{}{userID, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("RECEIPT %d", rid)},
-		Tx:        tx,
-	})
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	for _, capPayment := range debitPayments {
-		_, err := mysequel.Insert(mysequel.Table{
-			TableName: "account_transaction",
-			Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-			Vals:      []interface{}{tid, capPayment.UnearnedAccountID, "DR", capPayment.Amount},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-		_, err = mysequel.Insert(mysequel.Table{
-			TableName: "account_transaction",
-			Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-			Vals:      []interface{}{tid, capPayment.IncomeAccountID, "CR", capPayment.Amount},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-		_, err = mysequel.Insert(mysequel.Table{
-			TableName: "contract_capital_payment",
-			Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-			Vals:      []interface{}{capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-	}
-
-	journalEntries := []models.JournalEntry{
-		{fmt.Sprintf("%d", officerAccountID), fmt.Sprintf("%f", amount), ""},
-		{fmt.Sprintf("%d", 25), "", fmt.Sprintf("%f", amount)},
-		{fmt.Sprintf("%d", 46), "", fmt.Sprintf("%f", interestAmount)},
-		{fmt.Sprintf("%d", 78), fmt.Sprintf("%f", interestAmount), ""},
-		{fmt.Sprintf("%d", 48), "", fmt.Sprintf("%f", diAmount)},
-		{fmt.Sprintf("%d", 79), fmt.Sprintf("%f", diAmount), ""},
-	}
-
-	for _, entry := range journalEntries {
-		if val, _ := strconv.ParseFloat(entry.Debit, 64); len(entry.Debit) != 0 && val != 0 {
-			_, err := mysequel.Insert(mysequel.Table{
-				TableName: "account_transaction",
-				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
-				Tx:        tx,
-			})
-			if err != nil {
-				tx.Rollback()
-				return 0, err
-			}
-		}
-		if val, _ := strconv.ParseFloat(entry.Credit, 64); len(entry.Credit) != 0 && val != 0 {
-			_, err := mysequel.Insert(mysequel.Table{
-				TableName: "account_transaction",
-				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
-				Tx:        tx,
-			})
-			if err != nil {
-				tx.Rollback()
-				return 0, err
-			}
-		}
-	}
-
-	resp, err := http.Get(requestURL)
-	if err != nil {
-		return rid, nil
-	}
-
-	defer resp.Body.Close()
-
-	return rid, nil
-}
-
 // PerformanceReview returns contract performance review
 func (m *ContractModel) PerformanceReview(startDate, endDate, state, officer, batch, npl string) ([]models.PerformanceReview, error) {
 	s := mysequel.NewNullString(state)
@@ -1869,7 +1633,7 @@ func (m *ContractModel) SearchV2(search, state, officer, batch, npl, startOd, en
 	}
 
 	var res []models.SearchResultV2
-	err = mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_V2, k, k, s, s, o, o, b, b, n, n, sod, eod, sod, eod, rd)
+	err = mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_V2, k, k, s, s, o, o, b, b, n, n, sod, eod, sod, eod, rd, k, k, s, s, o, o, b, b, n, n, sod, eod, sod, eod, rd)
 	if err != nil {
 		return nil, err
 	}

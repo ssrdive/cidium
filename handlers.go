@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
+	"github.com/ssrdive/cidium/pkg/loan"
 	"github.com/ssrdive/cidium/pkg/models"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -649,6 +650,25 @@ func (app *application) contractDocumentDownload(w http.ResponseWriter, r *http.
 	http.ServeContent(w, r, source, time.Now(), reader)
 }
 
+func (app *application) contractDetailFinancial(w http.ResponseWriter, r *http.Request) {
+	// ContractDetailFinancial
+	vars := mux.Vars(r)
+	cid, err := strconv.Atoi(vars["cid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	cdfs, err := app.contract.DetailFinancial(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(cdfs)
+}
+
 func (app *application) contractDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	cid, err := strconv.Atoi(vars["cid"])
@@ -1034,14 +1054,14 @@ func (app *application) contractCalculation(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	schedule, err := models.Create(capital, rate, installments, installmentInterval, initiationDate, method)
+	marketedSchedule, _, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate, method)
 	if err != nil {
 		app.serverError(w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(schedule)
+	json.NewEncoder(w).Encode(marketedSchedule)
 }
 
 func (app *application) contractLegacyRebate(w http.ResponseWriter, r *http.Request) {

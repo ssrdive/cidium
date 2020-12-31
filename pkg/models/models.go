@@ -93,6 +93,18 @@ type ContractRequestable struct {
 	RejectedRequests      []RejectedRequest `json:"rejected_requests"`
 }
 
+type ContractDetailFinancial struct {
+	LKAS17               bool    `json:"lkas_17"`
+	Active               int     `json:"active"`
+	RecoveryStatus       string  `json:"recovery_status"`
+	Doubtful             int     `json:"doubtful"`
+	Payment              float64 `json:"payment"`
+	ContractArrears      float64 `json:"contract_arrears"`
+	ChargesDebitsArrears float64 `json:"charges_debits_arrears"`
+	OverdueIndex         float64 `json:"overdue_index"`
+	CapitalProvisioned   float64 `json:"capital_provisioned"`
+}
+
 type ID struct {
 	ID int `json:"id"`
 }
@@ -129,7 +141,7 @@ type ContractPayable struct {
 	DefaultInterest float64
 }
 
-type DebitsPayable struct {
+type DebitPayable struct {
 	InstallmentID     int
 	ContractID        int
 	CapitalPayable    float64
@@ -137,6 +149,16 @@ type DebitsPayable struct {
 	DefaultInterest   float64
 	UnearnedAccountID int
 	IncomeAccountID   int
+}
+
+type DebitPayableLKAS17 struct {
+	InstallmentID       int
+	ContractID          int
+	CapitalPayable      float64
+	InterestPayable     float64
+	DefaultInterest     float64
+	ExpenseAccountID    int
+	ReceivableAccountID int
 }
 
 type ContractDefaultInterestChangeHistory struct {
@@ -162,6 +184,14 @@ type DebitPayment struct {
 	Amount                float64
 	UnearnedAccountID     int
 	IncomeAccountID       int
+}
+
+type DebitPaymentLKAS17 struct {
+	ContractInstallmentID int
+	ContractReceiptID     int64
+	Amount                float64
+	ExpenseAccountID      int
+	ReceivableAccountID   int
 }
 
 type SearchResultOld struct {

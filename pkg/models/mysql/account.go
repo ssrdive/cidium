@@ -16,6 +16,35 @@ type AccountModel struct {
 	DB *sql.DB
 }
 
+// IssueJournalEntries issues journal entries
+func IssueJournalEntries(tx *sql.Tx, tid int64, journalEntries []models.JournalEntry) error {
+	for _, entry := range journalEntries {
+		if len(entry.Debit) != 0 {
+			_, err := mysequel.Insert(mysequel.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
+				Tx:        tx,
+			})
+			if err != nil {
+				return err
+			}
+		}
+		if len(entry.Credit) != 0 {
+			_, err := mysequel.Insert(mysequel.Table{
+				TableName: "account_transaction",
+				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
+				Tx:        tx,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // CreateAccount creats an account
 func (m *AccountModel) CreateAccount(rparams, oparams []string, form url.Values) (int64, error) {
 	tx, err := m.DB.Begin()

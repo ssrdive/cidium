@@ -141,6 +141,14 @@ const DEBITS = `
 	ORDER BY CI.due_date ASC
 	`
 
+const DEBITS_LKAS_17 = `
+	SELECT CS.id AS installment_id, CS.contract_id, COALESCE(CS.capital-CS.capital_paid, 0) AS capital_payable, COALESCE(CS.interest-CS.interest_paid, 0) AS interest_payable, '0' AS default_interest, CIT.expense_account_id AS expense_account, CIT.receivable_account_id AS receivable_account
+	FROM contract_schedule CS
+	LEFT JOIN contract_installment_type CIT ON CIT.id = CS.contract_installment_type_id
+	WHERE CS.contract_id = ? AND CS.contract_installment_type_id <> 1 AND CS.capital-CS.capital_paid > 0
+	ORDER BY CS.monthly_date ASC
+`
+
 const OVERDUE_INSTALLMENTS = `
 	SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
 	FROM contract_installment CI
@@ -160,6 +168,20 @@ const OVERDUE_INSTALLMENTS = `
 	ORDER BY CI.due_date ASC
 	`
 
+const FINANCIAL_OVERDUE_INSTALLMENTS_LKAS_17 = `
+	SELECT CS.id AS installment_id, CS.contract_id, COALESCE(CS.capital-CS.capital_paid, 0) AS capital_payable, COALESCE(CS.interest-CS.interest_paid, 0) AS interest_payable, '0' AS default_interest
+	FROM contract_schedule CS
+	WHERE CS.contract_id = ? AND CS.contract_installment_type_id = 1 AND CS.daily_entry_issued = 1
+	ORDER BY CS.monthly_date ASC
+	`
+
+const MARKETED_OVERDUE_INSTALLMENTS_LKAS_17 = `
+	SELECT CS.id AS installment_id, CS.contract_id, COALESCE(CS.marketed_capital-CS.marketed_capital_paid, 0) AS capital_payable, COALESCE(CS.marketed_interest-CS.marketed_interest_paid, 0) AS interest_payable, '0' AS default_interest
+	FROM contract_schedule CS
+	WHERE CS.contract_id = ? AND CS.contract_installment_type_id = 1 AND CS.marketed_installment = 1 AND CS.daily_entry_issued = 1
+	ORDER BY CS.monthly_date ASC
+	`
+
 const UPCOMING_INSTALLMENTS = `
 	SELECT CI.id as installment_id, CI.contract_id, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, CI.default_interest
 	FROM contract_installment CI
@@ -177,6 +199,20 @@ const UPCOMING_INSTALLMENTS = `
 	WHERE CI.contract_id = ? AND CIT.di_chargable = 1 AND CI.due_date >= ?
 	GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
 	ORDER BY CI.due_date ASC
+	`
+
+const FINANCIAL_UPCOMING_INSTALLMENTS_LKAS_17 = `
+	SELECT CS.id AS installment_id, CS.contract_id, COALESCE(CS.capital-CS.capital_paid, 0) AS capital_payable, COALESCE(CS.interest-CS.interest_paid, 0) AS interest_payable, '0' AS default_interest
+	FROM contract_schedule CS
+	WHERE CS.contract_id = ? AND CS.contract_installment_type_id = 1 AND CS.daily_entry_issued = 0
+	ORDER BY CS.monthly_date ASC
+`
+
+const MARKETED_UPCOMING_INSTALLMENTS_LKAS_17 = `
+	SELECT CS.id AS installment_id, CS.contract_id, COALESCE(CS.marketed_capital-CS.marketed_capital_paid, 0) AS capital_payable, COALESCE(CS.marketed_interest-CS.marketed_interest_paid, 0) AS interest_payable, '0' AS default_interest
+	FROM contract_schedule CS
+	WHERE CS.contract_id = ? AND CS.contract_installment_type_id = 1 AND CS.marketed_installment = 1 AND CS.daily_entry_issued = 0
+	ORDER BY CS.monthly_date ASC
 	`
 
 const LEGACY_PAYMENTS = `
@@ -236,6 +272,28 @@ const CONTRACT_DETAILS = `
 	WHERE C.id = ?
 	GROUP BY C.id`
 
+const CONTRACT_DETAILS_LKAS_17 = `
+	SELECT C.id, S.name AS state, CB.name AS contract_batch, M.name AS model, C.chassis_number, C.customer_name, C.customer_nic, C.customer_address, C.customer_contact, C.liaison_name, C.liaison_contact, C.price, C.downpayment, U.name AS recovery_officer, COALESCE(SUM((CSH.marketed_capital+CSH.marketed_interest)-(CSH.marketed_capital_paid+CSH.marketed_interest_paid)), 0) AS amount_pending, (CFL.agreed_capital-CFL.capital_paid)+(CFL.agreed_interest-CFL.interest_paid)+charges_debits_arrears AS total_payable, CFL.capital_paid+CFL.interest_paid+CFL.charges_debits_paid AS total_paid, ( CASE WHEN (MAX(DATE(CR.datetime)) IS NULL AND MAX(DATE(CRL.legacy_payment_date)) IS NULL) THEN 'N/A' ELSE GREATEST(COALESCE(MAX(DATE(CR.datetime)), '1900-01-01'), COALESCE(MAX(DATE(CRL.legacy_payment_date)), '1900-01-01')) END ) as last_payment_date, COALESCE(TRUNCATE(SUM(((CSH.marketed_capital+CSH.marketed_interest)-(CSH.marketed_capital_paid+CSH.marketed_interest_paid))/CFL.payment), 2), 0) AS overdue_index
+	FROM contract C
+	LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
+	LEFT JOIN state S ON S.id = CS.state_id
+	LEFT JOIN contract_batch CB ON CB.id = C.contract_batch_id
+	LEFT JOIN model M ON C.model_id = M.id
+	LEFT JOIN user U ON U.id = C.recovery_officer_id
+	LEFT JOIN (SELECT CR.contract_id, MAX(CR.datetime) AS datetime FROM contract_receipt CR WHERE CR.legacy_payment_date IS NULL GROUP BY CR.contract_id) CR ON CR.contract_id = C.id
+	LEFT JOIN (SELECT CRL.contract_id, MAX(CRL.legacy_payment_date) as legacy_payment_date FROM contract_receipt CRL GROUP BY CRL.contract_id) CRL ON CRL.contract_id = C.id
+	LEFT JOIN contract_financial CFL ON CFL.contract_id = C.id
+	LEFT JOIN contract_schedule CSH ON CSH.contract_id = C.id AND CSH.marketed_installment = 1 AND CSH.daily_entry_issued = 1
+	WHERE C.id = ?
+	GROUP BY C.id, total_payable, total_paid`
+
+const CONTRACT_DETAILS_FINANCIAL = `
+	SELECT active, RS.name as recovery_status, doubtful, payment, capital_arrears+interest_arrears AS contract_arrears, charges_debits_arrears, COALESCE(TRUNCATE((capital_arrears+interest_arrears)/payment, 2), 0) AS overdue_index, capital_provisioned
+	FROM contract_financial CFL
+	LEFT JOIN recovery_status RS ON RS.id = CFL.recovery_status_id
+	WHERE CFL.contract_id = ?
+`
+
 const CONTRACT_INSTALLMENTS = `
 	SELECT CI.id, CIT.name AS installment_type, CI.capital+CI.interest+CI.default_interest AS installment,SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, CI.due_date, DATEDIFF(CI.due_date, NOW()) AS due_in
 	FROM contract_installment CI
@@ -257,6 +315,14 @@ const CONTRACT_INSTALLMENTS = `
 	WHERE CI.contract_id = ?
 	GROUP BY CI.id
 	ORDER BY due_date ASC`
+
+const CONTRACT_INSTALLMENTS_LKAS_17 = `
+	SELECT CSH.id, CIT.name AS installment_type, CSH.marketed_capital+CSH.marketed_interest AS installment, CSH.marketed_capital_paid+CSH.marketed_interest_paid AS installment_paid, CSH.marketed_due_date, DATEDIFF(CSH.marketed_due_date, NOW()) AS due_in
+	FROM contract_schedule CSH
+	LEFT JOIN contract_installment_type CIT ON CIT.id = CSH.contract_installment_type_id
+	WHERE CSH.contract_id = ? AND CSH.marketed_installment = 1
+	ORDER BY CSH.marketed_due_date ASC
+`
 
 const CONTRACT_RECEIPTS = `
 	SELECT CR.id, CR.datetime, CR.amount, CR.notes
@@ -366,40 +432,59 @@ const SEARCH = `
 	GROUP BY C.id`
 
 const SEARCH_V2 = `
-	SELECT SR.*
-	FROM (SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, DATEDIFF(NOW(), CST.transition_date) as in_state_for, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable,  COALESCE(SUM(CI.agreed_installment), 0) AS total_agreement, COALESCE(SUM(CI.installment_paid), 0) AS total_paid, COALESCE(SUM(CI.defalut_interest_paid), 0) AS total_di_paid, ( CASE WHEN (MAX(DATE(CR.datetime)) IS NULL AND MAX(DATE(CRL.legacy_payment_date)) IS NULL) THEN 'N/A' ELSE GREATEST(COALESCE(MAX(DATE(CR.datetime)), '1900-01-01'), COALESCE(MAX(DATE(CRL.legacy_payment_date)), '1900-01-01')) END ) as last_payment_date, COALESCE(ROUND((SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END))/(ROUND((COALESCE(SUM(CI.agreed_installment), 0))/(TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MAX(CI.due_date))+TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MIN(CI2.due_date))), 2)), 2), 'N/A') AS overdue_index
-		FROM contract C
-		LEFT JOIN user U ON U.id = C.recovery_officer_id
-		LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
-		LEFT JOIN contract_batch CB ON CB.id = C.contract_batch_id
-		LEFT JOIN state S ON S.id = CS.state_id
-		LEFT JOIN model M ON C.model_id = M.id
-		LEFT JOIN contract_state_transition CST ON CST.to_contract_state_id = C.contract_state_id
-		LEFT JOIN (SELECT CR.contract_id, MAX(CR.datetime) AS datetime FROM contract_receipt CR WHERE CR.legacy_payment_date IS NULL AND CR.is_customer_payment = 1 GROUP BY CR.contract_id) CR ON CR.contract_id = C.id
-		LEFT JOIN (SELECT CRL.contract_id, MAX(CRL.legacy_payment_date) as legacy_payment_date FROM contract_receipt CRL WHERE CRL.is_customer_payment = 1 GROUP BY CRL.contract_id) CRL ON CRL.contract_id = C.id
-		LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment, CI.capital+CI.interest AS agreed_installment, SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, COALESCE(SUM(CDIP.amount), 0) as defalut_interest_paid, CI.due_date
-		FROM contract_installment CI
-		LEFT JOIN (
-			SELECT CDIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
-			FROM contract_default_interest_payment CDIP
-			GROUP BY CDIP.contract_installment_id
-		) CDIP ON CDIP.contract_installment_id = CI.id
-		LEFT JOIN (
-			SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
-			FROM contract_interest_payment CIP
-			GROUP BY CIP.contract_installment_id
-		) CIP ON CIP.contract_installment_id = CI.id
-		LEFT JOIN (
-			SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
-			FROM contract_capital_payment CCP
-			GROUP BY CCP.contract_installment_id
-		) CCP ON CCP.contract_installment_id = CI.id
-		GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
-		ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
-		LEFT JOIN (SELECT CI.contract_id, MIN(CI.due_date) AS due_date FROM contract_installment CI WHERE CI.due_date > (SELECT MIN(CI2.due_date) FROM contract_installment CI2 WHERE CI.contract_id = CI2.contract_id) GROUP BY CI.contract_id) CI2 ON CI2.contract_id = C.id
-		WHERE (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND (? IS NULL OR C.non_performing = ?)
-		GROUP BY C.id, in_state_for) SR
-		WHERE ((? IS NULL OR ? IS NULL) OR SR.overdue_index BETWEEN ? AND ?) AND (? = 0 OR SR.state NOT IN ('Deleted', 'Settled'))
+SELECT SR.*
+FROM (SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, DATEDIFF(NOW(), CST.transition_date) as in_state_for, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable,  COALESCE(SUM(CI.agreed_installment), 0) AS total_agreement, COALESCE(SUM(CI.installment_paid), 0) AS total_paid, COALESCE(SUM(CI.defalut_interest_paid), 0) AS total_di_paid, ( CASE WHEN (MAX(DATE(CR.datetime)) IS NULL AND MAX(DATE(CRL.legacy_payment_date)) IS NULL) THEN 'N/A' ELSE GREATEST(COALESCE(MAX(DATE(CR.datetime)), '1900-01-01'), COALESCE(MAX(DATE(CRL.legacy_payment_date)), '1900-01-01')) END ) as last_payment_date, COALESCE(ROUND((SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END))/(ROUND((COALESCE(SUM(CI.agreed_installment), 0))/(TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MAX(CI.due_date))+TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MIN(CI2.due_date))), 2)), 2), 'N/A') AS overdue_index
+	FROM contract C
+	LEFT JOIN user U ON U.id = C.recovery_officer_id
+	LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
+	LEFT JOIN contract_batch CB ON CB.id = C.contract_batch_id
+	LEFT JOIN state S ON S.id = CS.state_id
+	LEFT JOIN model M ON C.model_id = M.id
+	LEFT JOIN contract_state_transition CST ON CST.to_contract_state_id = C.contract_state_id
+	LEFT JOIN (SELECT CR.contract_id, MAX(CR.datetime) AS datetime FROM contract_receipt CR WHERE CR.legacy_payment_date IS NULL AND CR.is_customer_payment = 1 GROUP BY CR.contract_id) CR ON CR.contract_id = C.id
+	LEFT JOIN (SELECT CRL.contract_id, MAX(CRL.legacy_payment_date) as legacy_payment_date FROM contract_receipt CRL WHERE CRL.is_customer_payment = 1 GROUP BY CRL.contract_id) CRL ON CRL.contract_id = C.id
+	LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment, CI.capital+CI.interest AS agreed_installment, SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, COALESCE(SUM(CDIP.amount), 0) as defalut_interest_paid, CI.due_date
+	FROM contract_installment CI
+	LEFT JOIN (
+		SELECT CDIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+		FROM contract_default_interest_payment CDIP
+		GROUP BY CDIP.contract_installment_id
+	) CDIP ON CDIP.contract_installment_id = CI.id
+	LEFT JOIN (
+		SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+		FROM contract_interest_payment CIP
+		GROUP BY CIP.contract_installment_id
+	) CIP ON CIP.contract_installment_id = CI.id
+	LEFT JOIN (
+		SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+		FROM contract_capital_payment CCP
+		GROUP BY CCP.contract_installment_id
+	) CCP ON CCP.contract_installment_id = CI.id
+	GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
+	ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
+	LEFT JOIN (SELECT CI.contract_id, MIN(CI.due_date) AS due_date FROM contract_installment CI WHERE CI.due_date > (SELECT MIN(CI2.due_date) FROM contract_installment CI2 WHERE CI.contract_id = CI2.contract_id) GROUP BY CI.contract_id) CI2 ON CI2.contract_id = C.id
+	WHERE C.lkas_17_compliant = 0 AND (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND (? IS NULL OR C.non_performing = ?)
+	GROUP BY C.id, in_state_for) SR
+	WHERE ((? IS NULL OR ? IS NULL) OR SR.overdue_index BETWEEN ? AND ?) AND (? = 0 OR SR.state NOT IN ('Deleted', 'Settled'))
+UNION	
+
+SELECT SR2.*		
+FROM (SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, DATEDIFF(NOW(), CST.transition_date) as in_state_for, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, COALESCE(SUM((CSH.marketed_capital+CSH.marketed_interest)-(CSH.marketed_capital_paid+CSH.marketed_interest_paid)), 0) AS amount_pending, COALESCE((agreed_capital-CF.capital_paid)+(agreed_interest-CF.interest_paid), 0) AS total_payable, COALESCE(agreed_capital+agreed_interest, 0) AS total_agreement, COALESCE(CF.capital_paid+CF.interest_paid+CF.charges_debits_paid, 0) AS total_paid, 0 AS total_di_paid, 'N/A' AS last_payment_date, COALESCE(TRUNCATE((COALESCE(SUM((CSH.marketed_capital+CSH.marketed_interest)-(CSH.marketed_capital_paid+CSH.marketed_interest_paid)), 0)/CF.payment), 2), 'N/A') AS overdue_index
+FROM contract C
+	LEFT JOIN user U ON U.id = C.recovery_officer_id
+	LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
+	LEFT JOIN contract_batch CB ON CB.id = C.contract_batch_id
+	LEFT JOIN state S ON S.id = CS.state_id
+	LEFT JOIN model M ON C.model_id = M.id
+	LEFT JOIN contract_state_transition CST ON CST.to_contract_state_id = C.contract_state_id
+	LEFT JOIN contract_financial CF ON CF.contract_id = C.id
+	LEFT JOIN contract_schedule CSH ON CSH.contract_id = C.id AND CSH.marketed_installment = 1 AND CSH.daily_entry_issued = 1
+	LEFT JOIN (SELECT CR.contract_id, MAX(CR.datetime) AS datetime FROM contract_receipt CR WHERE CR.legacy_payment_date IS NULL AND CR.is_customer_payment = 1 GROUP BY CR.contract_id) CR ON CR.contract_id = C.id
+	LEFT JOIN (SELECT CRL.contract_id, MAX(CRL.legacy_payment_date) as legacy_payment_date FROM contract_receipt CRL WHERE CRL.is_customer_payment = 1 GROUP BY CRL.contract_id) CRL ON CRL.contract_id = C.id
+	WHERE C.lkas_17_compliant = 1 AND (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND (? IS NULL OR C.non_performing = ?)
+	GROUP BY C.id, C.agrivest, recovery_officer, state, in_state_for, model, batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, CF.agreed_capital, CF.capital_paid, CF.agreed_interest, CF.interest_paid, CF.charges_debits_paid, CF.capital_arrears, CF.interest_arrears, CF.payment
+	) SR2
+WHERE ((? IS NULL OR ? IS NULL) OR SR2.overdue_index BETWEEN ? AND ?) AND (? = 0 OR SR2.state NOT IN ('Deleted', 'Settled'))
 `
 
 func PERFORMANCE_REVIEW(startDate, endDate string) string {
@@ -498,9 +583,18 @@ const CHART_OF_ACCOUNTS = `
 	RIGHT JOIN sub_account SA ON SA.id = AC.sub_account_id
 	RIGHT JOIN main_account MA ON MA.id = SA.main_account_id
 `
-const MANAGED_BY_AGRIVEST = `
-	SELECT C.agrivest, C.customer_contact FROM contract C WHERE C.id = ?
+const MANAGED_BY_AGRIVEST_LKAS17_COMPLIANT = `
+	SELECT C.lkas_17_compliant, C.agrivest, C.customer_contact FROM contract C WHERE C.id = ?
 `
+
+const LKAS_17_COMPLIANT = `
+	SELECT C.lkas_17_compliant FROM contract C WHERE C.id = ?
+`
+
+const GET_DEBIT_TYPE_EXPENSE_RECEIVABLE_ACCOUNT = `
+	SELECT expense_account_id, receivable_account_id FROM contract_installment_type WHERE id = ?
+`
+
 const ACCOUNT_LEDGER = `
 	SELECT A.name, AT.transaction_id, DATE_FORMAT(T.posting_date, '%Y-%m-%d') as posting_date, AT.amount, AT.type, T.remark
 	FROM account_transaction AT
@@ -601,6 +695,12 @@ const CONTRACT_PAYABLE = `
 	GROUP BY C.id
 `
 
+const CONTRACT_PAYABLE_LKAS_17 = `
+	SELECT (CFL.agreed_capital-CFL.capital_paid)+(CFL.agreed_interest-CFL.interest_paid)+CFL.charges_debits_arrears AS total_payable
+	FROM contract_financial CFL
+	WHERE CFL.contract_id = ?
+`
+
 const FLOAT_RECEIPTS = `
 	SELECT CRF.id, CRF.user_id, CRF.amount, DATE(CRF.datetime) AS date, CRF.datetime
 	FROM contract_receipt_float CRF
@@ -664,3 +764,18 @@ const RECEIPT_SEARCH = `
 		WHERE CRF.cleared = 0 AND (? IS NULL OR C.recovery_officer_id = ?) AND DATE(CRF.datetime) BETWEEN ? AND ?)) R
 	ORDER BY R.datetime ASC
 `
+
+const (
+	ContractFinancial = `
+		SELECT CF.active, CF.recovery_status_id, CF.doubtful, CF.payment, CF.capital_arrears, CF.interest_arrears, CF.capital_provisioned, COALESCE(CF.financial_schedule_end_date, '') AS financial_schedule_end_date
+		FROM contract_financial CF
+		WHERE CF.contract_id = ?
+	`
+
+	NplCapitalProvision = `
+		SELECT ROUND(SUM(CS.capital-CS.capital_paid)/2, 2) AS capital_provision
+		FROM contract_schedule CS
+		WHERE CS.contract_id = ? AND CS.contract_installment_type_id = 1
+		GROUP BY CS.contract_id
+	`
+)
