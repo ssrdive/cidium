@@ -160,12 +160,12 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 
 	var rid int64
 	if lkas17Compliant == 1 {
-		id, err := m.IssueLKAS17Receipt(tx, userID, cid, amount, notes, dueDate, "REGULAR", time.Now())
+		lkas17Rid, err := m.IssueLKAS17Receipt(tx, userID, cid, amount, notes, dueDate, "REGULAR", time.Now())
 		if err != nil {
 			tx.Rollback()
 			return 0, err
 		}
-		rid = id
+		rid = lkas17Rid
 	} else {
 		var debits []models.DebitPayable
 		err = mysequel.QueryToStructs(&debits, tx, queries.DEBITS, cid)
@@ -180,7 +180,7 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 
 		balance := amount
 
-		id, err := mysequel.Insert(mysequel.Table{
+		legacyRid, err := mysequel.Insert(mysequel.Table{
 			TableName: "contract_receipt",
 			Columns:   []string{"user_id", "contract_id", "datetime", "amount", "notes", "due_date"},
 			Vals:      []interface{}{userID, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes, dueDate},
@@ -195,10 +195,10 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 			for _, p := range debits {
 				if p.CapitalPayable != 0 && balance != 0 {
 					if balance-p.CapitalPayable >= 0 {
-						debitPayments = append(debitPayments, models.DebitPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: p.CapitalPayable, UnearnedAccountID: p.UnearnedAccountID, IncomeAccountID: p.IncomeAccountID})
+						debitPayments = append(debitPayments, models.DebitPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: legacyRid, Amount: p.CapitalPayable, UnearnedAccountID: p.UnearnedAccountID, IncomeAccountID: p.IncomeAccountID})
 						balance = math.Round((balance-p.CapitalPayable)*100) / 100
 					} else {
-						debitPayments = append(debitPayments, models.DebitPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: balance, UnearnedAccountID: p.UnearnedAccountID, IncomeAccountID: p.IncomeAccountID})
+						debitPayments = append(debitPayments, models.DebitPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: legacyRid, Amount: balance, UnearnedAccountID: p.UnearnedAccountID, IncomeAccountID: p.IncomeAccountID})
 						balance = 0
 					}
 				}
@@ -213,11 +213,11 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		}
 
 		if balance != 0 {
-			intPayments = payments("I", rid, &balance, payables, intPayments)
+			intPayments = payments("I", legacyRid, &balance, payables, intPayments)
 		}
 
 		if balance != 0 {
-			capPayments = payments("C", rid, &balance, payables, capPayments)
+			capPayments = payments("C", legacyRid, &balance, payables, capPayments)
 		}
 
 		if balance != 0 {
@@ -229,8 +229,8 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 			}
 
 			for _, p := range upcoming {
-				intPayments = payments("I", rid, &balance, []models.ContractPayable{p}, intPayments)
-				capPayments = payments("C", rid, &balance, []models.ContractPayable{p}, capPayments)
+				intPayments = payments("I", legacyRid, &balance, []models.ContractPayable{p}, intPayments)
+				capPayments = payments("C", legacyRid, &balance, []models.ContractPayable{p}, capPayments)
 			}
 		}
 
@@ -271,7 +271,7 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		tid, err := mysequel.Insert(mysequel.Table{
 			TableName: "transaction",
 			Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
-			Vals:      []interface{}{userID, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("RECEIPT %d", rid)},
+			Vals:      []interface{}{userID, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("RECEIPT %d", legacyRid)},
 			Tx:        tx,
 		})
 		if err != nil {
@@ -321,7 +321,7 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 
 		err = IssueJournalEntries(tx, tid, journalEntries)
 
-		rid = id
+		rid = legacyRid
 	}
 
 	if err != nil {
