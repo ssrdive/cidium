@@ -596,7 +596,7 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 	tid, err := mysequel.Insert(mysequel.Table{
 		TableName: "transaction",
 		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
-		Vals:      []interface{}{userID, time.Now().Format("2006-01-02 15:04:05"), date.Format("2006-01-02"), cid, fmt.Sprintf("RECEIPT %d [%d]", rid, cid)},
+		Vals:      []interface{}{userID, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("RECEIPT %d [%d]", rid, cid)},
 		Tx:        tx,
 	})
 	if err != nil {
