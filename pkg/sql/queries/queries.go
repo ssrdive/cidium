@@ -463,7 +463,7 @@ FROM (SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, DATE
 	GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
 	ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
 	LEFT JOIN (SELECT CI.contract_id, MIN(CI.due_date) AS due_date FROM contract_installment CI WHERE CI.due_date > (SELECT MIN(CI2.due_date) FROM contract_installment CI2 WHERE CI.contract_id = CI2.contract_id) GROUP BY CI.contract_id) CI2 ON CI2.contract_id = C.id
-	WHERE C.lkas_17_compliant = 0 AND (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND (? IS NULL OR C.non_performing = ?)
+	WHERE C.lkas_17_compliant = 0 AND (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND (? IS NULL OR C.non_performing = ?) AND (? IS NULL OR C.lkas_17_compliant = ?)
 	GROUP BY C.id, in_state_for) SR
 	WHERE ((? IS NULL OR ? IS NULL) OR SR.overdue_index BETWEEN ? AND ?) AND (? = 0 OR SR.state NOT IN ('Deleted', 'Settled'))
 UNION	
@@ -481,7 +481,7 @@ FROM contract C
 	LEFT JOIN contract_schedule CSH ON CSH.contract_id = C.id AND CSH.marketed_installment = 1 AND CSH.daily_entry_issued = 1
 	LEFT JOIN (SELECT CR.contract_id, MAX(CR.datetime) AS datetime FROM contract_receipt CR WHERE CR.legacy_payment_date IS NULL AND CR.is_customer_payment = 1 GROUP BY CR.contract_id) CR ON CR.contract_id = C.id
 	LEFT JOIN (SELECT CRL.contract_id, MAX(CRL.legacy_payment_date) as legacy_payment_date FROM contract_receipt CRL WHERE CRL.is_customer_payment = 1 GROUP BY CRL.contract_id) CRL ON CRL.contract_id = C.id
-	WHERE C.lkas_17_compliant = 1 AND (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND (? IS NULL OR C.non_performing = ?)
+	WHERE C.lkas_17_compliant = 1 AND (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND (? IS NULL OR C.non_performing = ?) AND (? IS NULL OR C.lkas_17_compliant = ?)
 	GROUP BY C.id, C.agrivest, recovery_officer, state, in_state_for, model, batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, CF.agreed_capital, CF.capital_paid, CF.agreed_interest, CF.interest_paid, CF.charges_debits_paid, CF.capital_arrears, CF.interest_arrears, CF.payment
 	) SR2
 WHERE ((? IS NULL OR ? IS NULL) OR SR2.overdue_index BETWEEN ? AND ?) AND (? = 0 OR SR2.state NOT IN ('Deleted', 'Settled'))
