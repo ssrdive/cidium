@@ -124,37 +124,62 @@ func Create(capital, rate float64, installments, installmentInterval int, initia
 		financialSchedule[n-1].Capital = math.Round((financialSchedule[n-1].Capital+capitalDiff)*100) / 100
 	} else if method == "IRR" {
 		P := capital
-		r := rate / float64(12/installmentInterval) / 100
-		n := installments
+		r := rate / float64(12) / 100
+		n := installmentInterval * installments
 
 		payment := math.Round((P*r*(math.Pow(1+r, float64(n))/(math.Pow(1+r, float64(n))-1)))*100) / 100
+		fmt.Println(payment)
 
 		capitalTotal := float64(0)
-		for i := 1; i <= n; i++ {
+		for i := 1; i <= installments; i++ {
+			instInterest := float64(0)
+			instCapital := float64(0)
+			for j := (i-1)*installmentInterval + 1; j <= i*installmentInterval; j++ {
+				rentalInterest := math.Round((((P*r)-payment)*math.Pow((r+1), (float64(j)-1))+payment)*100) / 100
+				rentalCapital := math.Round((payment-rentalInterest)*100) / 100
+				instInterest = instInterest + rentalInterest
+				instCapital = instCapital + rentalCapital
+			}
+
 			initDate = initDate.AddDate(0, installmentInterval, 0)
-			rentalInterest := math.Round((((P*r)-payment)*math.Pow((r+1), (float64(i)-1))+payment)*100) / 100
-			rentalCapital := math.Round((payment-rentalInterest)*100) / 100
-			capitalTotal = capitalTotal + rentalCapital
 			marketedSchedule[i-1] = Installment{
-				Capital:         rentalCapital,
-				Interest:        rentalInterest,
+				Capital:         instCapital,
+				Interest:        math.Round(instInterest*100) / 100,
 				DefaultInterest: 0,
 				DueDate:         initDate.Format("2006-01-02"),
 			}
+			capitalTotal = capitalTotal + instCapital
+		}
+		capitalDiff := math.Round((capital-capitalTotal)*100) / 100
+		marketedSchedule[installments-1].Capital = math.Round((marketedSchedule[installments-1].Capital+capitalDiff)*100) / 100
+
+		initDate, err = time.Parse("2006-01-02 15:04:05", fmt.Sprintf("%s 00:00:00", initiationDate))
+		if initDate.Day() > 28 {
+			initDate = initDate.AddDate(0, 0, -(initDate.Day() - 28))
+		}
+		capitalTotal = float64(0)
+		for i := 1; i <= n; i++ {
+			initDate = initDate.AddDate(0, 1, 0)
+			rentalInterest := math.Round((((P*r)-payment)*math.Pow((r+1), (float64(i)-1))+payment)*100) / 100
+			rentalCapital := math.Round((payment-rentalInterest)*100) / 100
+			capitalTotal = capitalTotal + rentalCapital
 			financialSchedule[i-1] = InstallmentSchedule{
-				Capital:             rentalCapital,
-				Interest:            rentalInterest,
-				MonthlyDate:         initDate.Format("2006-01-02"),
-				MarketedInstallment: 1,
-				MarketedCapital:     rentalCapital,
-				MarketedInterest:    rentalInterest,
-				MarketedDueDate:     initDate.Format("2006-01-02"),
+				Capital:     rentalCapital,
+				Interest:    rentalInterest,
+				MonthlyDate: initDate.Format("2006-01-02"),
+			}
+
+			if i%installmentInterval == 0 {
+				financialSchedule[i-1].MarketedInstallment = 1
+				financialSchedule[i-1].MarketedCapital = marketedSchedule[i/installmentInterval-1].Capital
+				financialSchedule[i-1].MarketedInterest = marketedSchedule[i/installmentInterval-1].Interest
+				financialSchedule[i-1].MarketedDueDate = marketedSchedule[i/installmentInterval-1].DueDate
+			} else {
+				financialSchedule[i-1].MarketedDueDate = marketedSchedule[i/installmentInterval].DueDate
 			}
 		}
-		capitalDiff := math.Round((P-capitalTotal)*100) / 100
-		marketedSchedule[installments-1].Capital = math.Round((marketedSchedule[installments-1].Capital+capitalDiff)*100) / 100
-		financialSchedule[installments-1].Capital = math.Round((financialSchedule[installments-1].Capital+capitalDiff)*100) / 100
-		financialSchedule[installments-1].MarketedCapital = math.Round((financialSchedule[installments-1].MarketedCapital+capitalDiff)*100) / 100
+		capitalDiff = math.Round((P-capitalTotal)*100) / 100
+		financialSchedule[n-1].Capital = math.Round((financialSchedule[n-1].Capital+capitalDiff)*100) / 100
 	}
 
 	return marketedSchedule, financialSchedule, nil
