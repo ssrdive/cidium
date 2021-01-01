@@ -311,11 +311,12 @@ func (app *application) searchContractV2(w http.ResponseWriter, r *http.Request)
 	officer := r.URL.Query().Get("officer")
 	batch := r.URL.Query().Get("batch")
 	npl := r.URL.Query().Get("npl")
+	lkas17 := r.URL.Query().Get("lkas17")
 	startOd := r.URL.Query().Get("startod")
 	endOd := r.URL.Query().Get("endod")
 	removeDeleted := r.URL.Query().Get("removedeleted")
 
-	results, err := app.contract.SearchV2(search, state, officer, batch, npl, startOd, endOd, removeDeleted)
+	results, err := app.contract.SearchV2(search, state, officer, batch, npl, lkas17, startOd, endOd, removeDeleted)
 	if err != nil {
 		app.serverError(w, err)
 		return
