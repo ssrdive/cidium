@@ -726,12 +726,20 @@ const SENDER_MOBILE = `
 `
 
 const SEASONAL_INCENTIVE = `
+	SELECT SUM(seasonal_incentive) AS seasonal_incentive
+	FROM (SELECT ROUND(SUM(CIP.amount)*(1.6/100), 2) as seasonal_incentive
+		FROM contract_interest_payment CIP
+		WHERE CIP.contract_receipt_id IN (SELECT CR.id
+		FROM contract_receipt CR 
+		LEFT JOIN contract C ON C.id = CR.contract_id
+		WHERE CR.contract_receipt_type_id = 1  AND C.recovery_officer_id = ? AND DATE(CR.datetime) BETWEEN '2020-07-01' AND '2020-12-31')
+	UNION
 	SELECT ROUND(SUM(CIP.amount)*(1.6/100), 2) as seasonal_incentive
-	FROM contract_interest_payment CIP
-	WHERE CIP.contract_receipt_id IN (SELECT CR.id
-	FROM contract_receipt CR 
-	LEFT JOIN contract C ON C.id = CR.contract_id
-	WHERE CR.contract_receipt_type_id = 1  AND C.recovery_officer_id = ? AND DATE(CR.datetime) BETWEEN '2020-07-01' AND '2020-12-31')
+		FROM contract_financial_payment CIP
+		WHERE CIP.contract_payment_type_id = 2 AND CIP.contract_receipt_id IN (SELECT CR.id
+		FROM contract_receipt CR 
+		LEFT JOIN contract C ON C.id = CR.contract_id
+		WHERE CR.contract_receipt_type_id = 1  AND C.recovery_officer_id = ? AND DATE(CR.datetime) BETWEEN '2020-07-01' AND '2020-12-31')) SI
 `
 
 const ACHIEVEMENT_SUMMARY = `
