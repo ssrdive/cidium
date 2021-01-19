@@ -118,7 +118,7 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 	}
 
 	// Issue receipt to float
-	if contractTotalPayable < amount {
+	if contractTotalPayable < (float64(int(amount*100)) / 100) {
 		frid, err := mysequel.Insert(mysequel.Table{
 			TableName: "contract_receipt_float",
 			Columns:   []string{"user_id", "contract_id", "datetime", "amount"},
