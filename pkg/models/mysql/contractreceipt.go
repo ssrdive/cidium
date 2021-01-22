@@ -92,11 +92,15 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 	}
 	message := fmt.Sprintf("Hithawath paribhogikaya, obage giwisum anka %d wetha gewu mudala Rs. %s. Sthuthiyi.", cid, humanize.Comma(int64(amount)))
 	if runtimeEnv == "dev" {
-		telephone = fmt.Sprintf("%s", "768237192")
+		telephone = "768237192"
 	} else {
-		telephone = fmt.Sprintf("%s,%s,%s,%s,%s,%s", telephone, "768237192", "703524330", "703524420", "775607777", "703524278")
+		if len(telephone) == 9 {
+			telephone = fmt.Sprintf("%s,768237192,703524330,703524420,775607777,703524278", telephone)
+		} else {
+			telephone = "768237192,703524330,703524420,775607777,703524278"
+		}
 	}
-	requestURL := fmt.Sprintf("https://cpsolutions.dialog.lk/index.php/cbs/sms/send?destination=%s&q=%s&message=%s", telephone, apiKey, url.QueryEscape(message))
+	requestURL := fmt.Sprintf("https://richcommunication.dialog.lk/api/sms/inline/send.php?destination=%s&q=%s&message=%s", telephone, apiKey, url.QueryEscape(message))
 
 	var contractTotalPayable float64
 	if lkas17Compliant == 1 {
