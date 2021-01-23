@@ -786,4 +786,9 @@ const (
 		WHERE CS.contract_id = ? AND CS.contract_installment_type_id = 1
 		GROUP BY CS.contract_id
 	`
+
+	ContractFinancialRaw = `
+		SELECT id, contract_id, active, recovery_status_id, doubtful, payment, agreed_capital, agreed_interest, capital_paid, interest_paid, charges_debits_paid, capital_arrears, interest_arrears, charges_debits_arrears, capital_provisioned, financial_schedule_start_date, financial_schedule_end_date, marketed_schedule_start_date, marketed_schedule_end_date, payment_interval, payments
+		FROM contract_financial WHERE contract_id = ?
+	`
 )

@@ -347,6 +347,39 @@ func (m *ContractModel) DetailFinancial(cid int) (models.ContractDetailFinancial
 	return models.ContractDetailFinancial{LKAS17: false}, nil
 }
 
+// DetailFinancial returns contract details
+func (m *ContractModel) DetailFinancialRaw(cid int) (models.ContractDetailFinancialRaw, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return models.ContractDetailFinancialRaw{}, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	var lkas17Compliant int
+	err = tx.QueryRow(queries.LKAS_17_COMPLIANT, cid).Scan(&lkas17Compliant)
+	if err != nil {
+		tx.Rollback()
+		return models.ContractDetailFinancialRaw{}, err
+	}
+
+	if lkas17Compliant == 1 {
+		var detailFinancial models.ContractDetailFinancialRaw
+		err = tx.QueryRow(queries.ContractFinancialRaw, cid).Scan(&detailFinancial.ID, &detailFinancial.ContractID, &detailFinancial.Active, &detailFinancial.RecoveryStatusID, &detailFinancial.Doubtful, &detailFinancial.Payment, &detailFinancial.AgreedCapital, &detailFinancial.AgreedInterest, &detailFinancial.CapitalPaid, &detailFinancial.InterestPaid, &detailFinancial.ChargesDebitsPaid, &detailFinancial.CapitalArrears, &detailFinancial.InterestArrears, &detailFinancial.ChargesDebitsArrears, &detailFinancial.CapitalProvisioned, &detailFinancial.FinancialScheduleStartDate, &detailFinancial.FinancialScheduleEndDate, &detailFinancial.MarketedScheduleStartDate, &detailFinancial.MarketedScheduleEndDate, &detailFinancial.PaymentInterval, &detailFinancial.Payments)
+		if err != nil {
+			return models.ContractDetailFinancialRaw{}, err
+		}
+
+		return detailFinancial, nil
+	}
+	return models.ContractDetailFinancialRaw{}, nil
+}
+
 // Detail returns contract details
 func (m *ContractModel) Detail(cid int) (models.ContractDetail, error) {
 	tx, err := m.DB.Begin()
