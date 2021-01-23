@@ -455,3 +455,27 @@ type ReceiptSearchItem struct {
 	Amount     float64        `json:"amount"`
 	Notes      sql.NullString `json:"notes"`
 }
+
+type ContractDetailFinancialRaw struct {
+	ID                         int     `json:"id"`
+	ContractID                 int     `json:"contract_id"`
+	Active                     int     `json:"active"`
+	RecoveryStatusID           int     `json:"recovery_status_id"`
+	Doubtful                   int     `json:"doubtful"`
+	Payment                    float64 `json:"payment"`
+	AgreedCapital              float64 `json:"agreed_capital"`
+	AgreedInterest             float64 `json:"agreed_interest"`
+	CapitalPaid                float64 `json:"capital_paid"`
+	InterestPaid               float64 `json:"interest_paid"`
+	ChargesDebitsPaid          float64 `json:"charges_debits_paid"`
+	CapitalArrears             float64 `json:"capital_arrears"`
+	InterestArrears            float64 `json:"interest_arrears"`
+	ChargesDebitsArrears       float64 `json:"charges_debits_arrears"`
+	CapitalProvisioned         float64 `json:"capital_provisioned"`
+	FinancialScheduleStartDate string  `json:"financial_schedule_start_date"`
+	FinancialScheduleEndDate   string  `json:"financial_schedule_end_date"`
+	MarketedScheduleStartDate  string  `json:"marketed_schedule_start_date"`
+	MarketedScheduleEndDate    string  `json:"marketed_schedule_end_date"`
+	PaymentInterval            float64 `json:"payment_interval"`
+	Payments                   float64 `json:"payments"`
+}
