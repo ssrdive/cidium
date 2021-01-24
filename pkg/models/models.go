@@ -479,3 +479,16 @@ type ContractDetailFinancialRaw struct {
 	PaymentInterval            float64 `json:"payment_interval"`
 	Payments                   float64 `json:"payments"`
 }
+
+type ContractLegacyFinancial struct {
+	InstallmentID   int     `json:"installment_id"`
+	InstallmentType string  `json:"installment_type"`
+	Capital         float64 `json:"capital"`
+	Interest        float64 `json:"interest"`
+	CapitalPaid     float64 `json:"capital_paid"`
+	InterestPaid    float64 `json:"interest_paid"`
+	CapitalPayable  float64 `json:"capital_payable"`
+	InterestPayable float64 `json:"interest_payable"`
+	DueDate         string  `json:"due_date"`
+	DueIn           string  `json:"due_in"`
+}

@@ -791,4 +791,23 @@ const (
 		SELECT id, contract_id, active, recovery_status_id, doubtful, payment, agreed_capital, agreed_interest, capital_paid, interest_paid, charges_debits_paid, capital_arrears, interest_arrears, charges_debits_arrears, capital_provisioned, financial_schedule_start_date, financial_schedule_end_date, marketed_schedule_start_date, marketed_schedule_end_date, payment_interval, payments
 		FROM contract_financial WHERE contract_id = ?
 	`
+
+	ContractLegacyFinancials = `
+		SELECT CI.id AS installment_id, CIT.name AS installment_type, CI.capital, CI.interest, COALESCE(SUM(CCP.amount), 0) AS capital_paid, COALESCE(SUM(CIP.amount), 0) AS interest_paid, COALESCE(CI.capital-COALESCE(SUM(CCP.amount), 0)) as capital_payable, COALESCE(CI.interest-COALESCE(SUM(CIP.amount), 0)) as interest_payable, DATE(CI.due_date) AS due_date, DATEDIFF(CI.due_date, NOW()) AS due_in
+		FROM contract_installment CI
+		LEFT JOIN (
+			SELECT CIP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+			FROM contract_interest_payment CIP
+			GROUP BY CIP.contract_installment_id
+		) CIP ON CIP.contract_installment_id = CI.id
+		LEFT JOIN (
+			SELECT CCP.contract_installment_id, COALESCE(SUM(amount), 0) as amount
+			FROM contract_capital_payment CCP
+			GROUP BY CCP.contract_installment_id
+		) CCP ON CCP.contract_installment_id = CI.id
+		LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
+		WHERE CI.contract_id = ?
+		GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
+		ORDER BY CI.due_date ASC
+	`
 )

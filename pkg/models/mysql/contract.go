@@ -347,7 +347,7 @@ func (m *ContractModel) DetailFinancial(cid int) (models.ContractDetailFinancial
 	return models.ContractDetailFinancial{LKAS17: false}, nil
 }
 
-// DetailFinancial returns contract details
+// DetailFinancialRaw returns contract details raw
 func (m *ContractModel) DetailFinancialRaw(cid int) (models.ContractDetailFinancialRaw, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
@@ -378,6 +378,41 @@ func (m *ContractModel) DetailFinancialRaw(cid int) (models.ContractDetailFinanc
 		return detailFinancial, nil
 	}
 	return models.ContractDetailFinancialRaw{}, nil
+}
+
+func (m *ContractModel) DetailLegacyFinancialRaw(cid int) ([]models.ContractLegacyFinancial, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	var lkas17Compliant int
+	err = tx.QueryRow(queries.LKAS_17_COMPLIANT, cid).Scan(&lkas17Compliant)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if lkas17Compliant == 0 {
+		var detailFinancial []models.ContractLegacyFinancial
+		err := mysequel.QueryToStructs(&detailFinancial, tx, queries.ContractLegacyFinancials, cid)
+		if err != nil {
+			return nil, err
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		return detailFinancial, nil
+	}
+	return nil, nil
 }
 
 // Detail returns contract details
