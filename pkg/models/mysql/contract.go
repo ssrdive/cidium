@@ -1658,7 +1658,7 @@ func (m *ContractModel) PerformanceReview(startDate, endDate, state, officer, ba
 	n := mysequel.NewNullString(npl)
 
 	var res []models.PerformanceReview
-	err := mysequel.QueryToStructs(&res, m.DB, queries.PERFORMANCE_REVIEW(startDate, endDate), s, s, o, o, b, b, n, n)
+	err := mysequel.QueryToStructs(&res, m.DB, queries.PERFORMANCE_REVIEW(startDate, endDate), s, s, o, o, b, b, n, n, s, s, o, o, b, b, n, n)
 	if err != nil {
 		return nil, err
 	}
