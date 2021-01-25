@@ -489,7 +489,7 @@ WHERE ((? IS NULL OR ? IS NULL) OR SR2.overdue_index BETWEEN ? AND ?) AND (? = 0
 
 func PERFORMANCE_REVIEW(startDate, endDate string) string {
 	return fmt.Sprintf(`
-	SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, SUM(CASE WHEN (CI.due_date <= NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, SUM(CASE WHEN (DATE(CI.due_date) <= '%s' AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END) as start_amount_pending, SUM(CASE WHEN (DATE(CI.due_date) <= '%s' AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END) as end_amount_pending, SUM(CASE WHEN (DATE(CI.due_date) BETWEEN '%s' AND '%s' AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END) as start_between_amount_pending, SUM(CASE WHEN (DATE(CI.due_date) BETWEEN '%s' AND '%s' AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END) as end_between_amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable,  COALESCE(SUM(CI.agreed_installment), 0) AS total_agreement, COALESCE(SUM(CI.installment_paid), 0) AS total_paid, COALESCE(SUM(CI.defalut_interest_paid), 0) AS total_di_paid, ( CASE WHEN (MAX(DATE(CR.datetime)) IS NULL AND MAX(DATE(CRL.legacy_payment_date)) IS NULL) THEN 'N/A' ELSE GREATEST(COALESCE(MAX(DATE(CR.datetime)), '1900-01-01'), COALESCE(MAX(DATE(CRL.legacy_payment_date)), '1900-01-01')) END ) as last_payment_date, 
+	(SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, SUM(CASE WHEN (CI.due_date <= NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, SUM(CASE WHEN (DATE(CI.due_date) <= '%s' AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END) as start_amount_pending, SUM(CASE WHEN (DATE(CI.due_date) <= '%s' AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END) as end_amount_pending, SUM(CASE WHEN (DATE(CI.due_date) BETWEEN '%s' AND '%s' AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END) as start_between_amount_pending, SUM(CASE WHEN (DATE(CI.due_date) BETWEEN '%s' AND '%s' AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END) as end_between_amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable,  COALESCE(SUM(CI.agreed_installment), 0) AS total_agreement, COALESCE(SUM(CI.installment_paid), 0) AS total_paid, 0 AS total_di_paid, ( CASE WHEN (MAX(DATE(CR.datetime)) IS NULL AND MAX(DATE(CRL.legacy_payment_date)) IS NULL) THEN 'N/A' ELSE GREATEST(COALESCE(MAX(DATE(CR.datetime)), '1900-01-01'), COALESCE(MAX(DATE(CRL.legacy_payment_date)), '1900-01-01')) END ) as last_payment_date, 
 	COALESCE(ROUND((SUM(CASE WHEN (CI.due_date <= DATE('%s') AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END))/(ROUND((COALESCE(SUM(CI.agreed_installment), 0))/(TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MAX(CI.due_date))+TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MIN(CI2.due_date))), 2)), 2), 'N/A') AS start_overdue_index,
 	COALESCE(ROUND((SUM(CASE WHEN (CI.due_date <= DATE('%s') AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END))/(ROUND((COALESCE(SUM(CI.agreed_installment), 0))/(TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MAX(CI.due_date))+TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MIN(CI2.due_date))), 2)), 2), 'N/A') AS end_overdue_index
 		FROM contract C
@@ -500,30 +500,8 @@ func PERFORMANCE_REVIEW(startDate, endDate string) string {
 		LEFT JOIN model M ON C.model_id = M.id
 		LEFT JOIN (SELECT CR.contract_id, MAX(CR.datetime) AS datetime FROM contract_receipt CR WHERE CR.legacy_payment_date IS NULL AND CR.is_customer_payment = 1 GROUP BY CR.contract_id) CR ON CR.contract_id = C.id
 		LEFT JOIN (SELECT CRL.contract_id, MAX(CRL.legacy_payment_date) as legacy_payment_date FROM contract_receipt CRL WHERE CRL.is_customer_payment = 1 GROUP BY CRL.contract_id) CRL ON CRL.contract_id = C.id
-		LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment, CI.capital+CI.interest AS agreed_installment, SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, SUM(COALESCE(CCP_SD.sd_amount, 0)+COALESCE(CIP_SD.sd_amount, 0)) AS sd_installment_paid, SUM(COALESCE(CCP_ED.ed_amount, 0)+COALESCE(CIP_ED.ed_amount, 0)) AS ed_installment_paid, COALESCE(SUM(CDIP.amount), 0) as defalut_interest_paid, CI.due_date
+		LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment, CI.capital+CI.interest AS agreed_installment, SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, SUM(COALESCE(CCP_SD.sd_amount, 0)+COALESCE(CIP_SD.sd_amount, 0)) AS sd_installment_paid, SUM(COALESCE(CCP_ED.ed_amount, 0)+COALESCE(CIP_ED.ed_amount, 0)) AS ed_installment_paid, CI.due_date
 		FROM contract_installment CI
-		
-		/* Default payments */
-		
-		LEFT JOIN (
-			SELECT CDIP.contract_installment_id, COALESCE(SUM(CDIP.amount), 0) as amount
-			FROM contract_default_interest_payment CDIP
-			GROUP BY CDIP.contract_installment_id
-		) CDIP ON CDIP.contract_installment_id = CI.id
-		LEFT JOIN (
-			SELECT CDIP.contract_installment_id, COALESCE(SUM(CDIP.amount), 0) as sd_amount
-			FROM contract_default_interest_payment CDIP
-			LEFT JOIN contract_receipt CR ON CR.id = CDIP.contract_receipt_id
-			WHERE DATE(CR.datetime) <= '%s'
-			GROUP BY CDIP.contract_installment_id
-		) CDIP_SD ON CDIP_SD.contract_installment_id = CI.id
-		LEFT JOIN (
-			SELECT CDIP.contract_installment_id, COALESCE(SUM(CDIP.amount), 0) as ed_amount
-			FROM contract_default_interest_payment CDIP
-			LEFT JOIN contract_receipt CR ON CR.id = CDIP.contract_receipt_id
-			WHERE DATE(CR.datetime) <= '%s'
-			GROUP BY CDIP.contract_installment_id
-		) CDIP_ED ON CDIP_ED.contract_installment_id = CI.id
 		
 		/* Interest payments */
 			
@@ -571,9 +549,62 @@ func PERFORMANCE_REVIEW(startDate, endDate string) string {
 		GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
 		ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
 		LEFT JOIN (SELECT CI.contract_id, MIN(CI.due_date) AS due_date FROM contract_installment CI WHERE CI.due_date > (SELECT MIN(CI2.due_date) FROM contract_installment CI2 WHERE CI.contract_id = CI2.contract_id) GROUP BY CI.contract_id) CI2 ON CI2.contract_id = C.id
-		WHERE (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND (? IS NULL OR C.non_performing = ?)
-		GROUP BY C.id
-	`, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate)
+		WHERE (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND (? IS NULL OR C.non_performing = ?) AND C.lkas_17_compliant = 0
+		GROUP BY C.id)
+		UNION
+	(SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, SUM(CASE WHEN (CI.due_date <= NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, SUM(CASE WHEN (DATE(CI.due_date) <= '%s' AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END) as start_amount_pending, SUM(CASE WHEN (DATE(CI.due_date) <= '%s' AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END) as end_amount_pending, SUM(CASE WHEN (DATE(CI.due_date) BETWEEN '%s' AND '%s' AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END) as start_between_amount_pending, SUM(CASE WHEN (DATE(CI.due_date) BETWEEN '%s' AND '%s' AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END) as end_between_amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable, COALESCE(SUM(CI.agreed_installment), 0) AS total_agreement, COALESCE(SUM(CI.installment_paid), 0) AS total_paid, 0 AS total_di_paid, ( CASE WHEN (MAX(DATE(CR.datetime)) IS NULL AND MAX(DATE(CRL.legacy_payment_date)) IS NULL) THEN 'N/A' ELSE GREATEST(COALESCE(MAX(DATE(CR.datetime)), '1900-01-01'), COALESCE(MAX(DATE(CRL.legacy_payment_date)), '1900-01-01')) END ) as last_payment_date, COALESCE(ROUND((SUM(CASE WHEN (CI.due_date <= DATE('%s') AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END))/(ROUND((COALESCE(SUM(CI.agreed_installment), 0))/(TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MAX(CI.due_date))+TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MIN(CI2.due_date))), 2)), 2), 'N/A') AS start_overdue_index, COALESCE(ROUND((SUM(CASE WHEN (CI.due_date <= DATE('%s') AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END))/(ROUND((COALESCE(SUM(CI.agreed_installment), 0))/(TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MAX(CI.due_date))+TIMESTAMPDIFF(MONTH, MIN(CI.due_date), MIN(CI2.due_date))), 2)), 2), 'N/A') AS end_overdue_index
+		FROM contract C
+		LEFT JOIN user U ON U.id = C.recovery_officer_id
+		LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
+		LEFT JOIN contract_batch CB ON CB.id = C.contract_batch_id
+		LEFT JOIN state S ON S.id = CS.state_id
+		LEFT JOIN model M ON C.model_id = M.id
+		LEFT JOIN (SELECT CR.contract_id, MAX(CR.datetime) AS datetime FROM contract_receipt CR WHERE CR.legacy_payment_date IS NULL AND CR.is_customer_payment = 1 GROUP BY CR.contract_id) CR ON CR.contract_id = C.id
+		LEFT JOIN (SELECT CRL.contract_id, MAX(CRL.legacy_payment_date) as legacy_payment_date FROM contract_receipt CRL WHERE CRL.is_customer_payment = 1 GROUP BY CRL.contract_id) CRL ON CRL.contract_id = C.id
+		LEFT JOIN (SELECT CI.id, CI.contract_id, CI.marketed_capital+CI.marketed_interest AS installment, CI.marketed_capital+CI.marketed_interest AS agreed_installment, CI.marketed_capital_paid+CI.marketed_interest_paid AS installment_paid, SUM(COALESCE(CCP_SD.sd_amount, 0)+COALESCE(CIP_SD.sd_amount, 0)) AS sd_installment_paid, SUM(COALESCE(CCP_ED.ed_amount, 0)+COALESCE(CIP_ED.ed_amount, 0)) AS ed_installment_paid, CI.marketed_due_date AS due_date
+		FROM contract_schedule CI
+
+		/* Interest payments */
+
+		LEFT JOIN (
+				SELECT CIP.contract_schedule_id AS contract_installment_id, COALESCE(SUM(CIP.amount), 0) as sd_amount
+				FROM contract_marketed_payment CIP
+				LEFT JOIN contract_receipt CR ON CR.id = CIP.contract_receipt_id
+				WHERE DATE(CR.datetime) <= '%s' AND CIP.contract_payment_type_id = 2
+				GROUP BY CIP.contract_schedule_id
+		) CIP_SD ON CIP_SD.contract_installment_id = CI.id
+		
+		LEFT JOIN (
+				SELECT CIP.contract_schedule_id AS contract_installment_id, COALESCE(SUM(CIP.amount), 0) as ed_amount
+				FROM contract_marketed_payment CIP
+				LEFT JOIN contract_receipt CR ON CR.id = CIP.contract_receipt_id
+				WHERE DATE(CR.datetime) <= '%s' AND CIP.contract_payment_type_id = 2
+				GROUP BY CIP.contract_schedule_id
+		) CIP_ED ON CIP_ED.contract_installment_id = CI.id
+
+		/* Capital payments */
+
+		LEFT JOIN (
+				SELECT CCP.contract_schedule_id AS contract_installment_id, COALESCE(SUM(CCP.amount), 0) as sd_amount
+				FROM contract_marketed_payment CCP
+				LEFT JOIN contract_receipt CR ON CR.id = CCP.contract_receipt_id
+				WHERE DATE(CR.datetime) <= '%s' AND CCP.contract_payment_type_id <> 2
+				GROUP BY CCP.contract_schedule_id
+		) CCP_SD ON CCP_SD.contract_installment_id = CI.id
+		LEFT JOIN (
+				SELECT CCP.contract_schedule_id AS contract_installment_id, COALESCE(SUM(CCP.amount), 0) as ed_amount
+				FROM contract_marketed_payment CCP
+				LEFT JOIN contract_receipt CR ON CR.id = CCP.contract_receipt_id
+				WHERE DATE(CR.datetime) <= '%s' AND CCP.contract_payment_type_id <> 2
+				GROUP BY CCP.contract_schedule_id
+		) CCP_ED ON CCP_ED.contract_installment_id = CI.id
+		WHERE CI.marketed_installment = 1
+		GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.marketed_due_date
+		ORDER BY CI.marketed_due_date ASC) CI ON CI.contract_id = C.id
+		LEFT JOIN (SELECT CI.contract_id, MIN(CI.marketed_due_date) AS due_date FROM contract_schedule CI WHERE CI.marketed_due_date > (SELECT MIN(CI2.marketed_due_date) FROM contract_schedule CI2 WHERE CI.contract_id = CI2.contract_id AND CI.marketed_installment = 1) AND CI.marketed_installment = 1 GROUP BY CI.contract_id) CI2 ON CI2.contract_id = C.id
+		WHERE (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND (? IS NULL OR C.non_performing = ?) AND C.lkas_17_compliant = 1
+		GROUP BY C.id)
+	`, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate)
 }
 
 const CHART_OF_ACCOUNTS = `
