@@ -1762,7 +1762,7 @@ func (m *ContractModel) Search(search, state, officer, batch string) ([]models.S
 	b := mysequel.NewNullString(batch)
 
 	var res []models.SearchResult
-	err := mysequel.QueryToStructs(&res, m.DB, queries.SEARCH, k, k, s, s, o, o, b, b)
+	err := mysequel.QueryToStructs(&res, m.DB, queries.SEARCH, k, k, s, s, o, o, b, b, k, k, s, s, o, o, b, b)
 	if err != nil {
 		return nil, err
 	}
