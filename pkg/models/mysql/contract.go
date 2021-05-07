@@ -748,9 +748,9 @@ func (m *ContractModel) CreditWorthinessApproved(user, request int, aAPIKey stri
 	message := fmt.Sprintf("Customer %s bearing contract number %d has obtained credit worthiness approval.", customerName, cid)
 	var telephone string
 	if liaisonContact.Int32 > 100000000 && liaisonContact.Int32 < 999999999 {
-		telephone = fmt.Sprintf("%d,768237192,703524330,703524420,775607777,703524300", liaisonContact.Int32)
+		telephone = fmt.Sprintf("%d,768237192,703524330,703524420,775607777,703524300,703524333,703524408", liaisonContact.Int32)
 	} else {
-		telephone = "768237192,703524330,703524420,775607777,703524300"
+		telephone = "768237192,703524330,703524420,775607777,703524300,703524333,703524408"
 	}
 	requestURL := fmt.Sprintf("https://richcommunication.dialog.lk/api/sms/inline/send.php?destination=%s&q=%s&message=%s", telephone, aAPIKey, url.QueryEscape(message))
 	resp, err := http.Get(requestURL)
