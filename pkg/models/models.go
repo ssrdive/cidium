@@ -78,6 +78,7 @@ type ContractDetail struct {
 	LiaisonContact  sql.NullInt32  `json:"liaison_contact"`
 	Price           int            `json:"price"`
 	Downpayment     sql.NullInt32  `json:"downpayment"`
+	CreditOfficer   string         `json:"credit_officer"`
 	RecoveryOfficer string         `json:"recovery_officer"`
 	AmountPending   float64        `json:"amount_pending"`
 	TotalPayable    float64        `json:"total_payable"`
