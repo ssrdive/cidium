@@ -56,7 +56,7 @@ func (app *application) routes() http.Handler {
 	r.Handle("/contract/requests/{uid}", app.validateToken(http.HandlerFunc(app.contractRequests))).Methods("GET")
 	r.Handle("/seasonalincentive/{uid}", app.validateToken(http.HandlerFunc(app.contractSeasonalIncentive))).Methods("GET")
 	r.Handle("/contract/request/action", app.validateToken(http.HandlerFunc(app.contractRequestAction))).Methods("POST")
-	r.Handle("/contract/calculation/{capital}/{rate}/{installments}/{installmentInterval}/{initiationDate}/{method}", app.validateToken(http.HandlerFunc(app.contractCalculation))).Methods("GET")
+	r.Handle("/contract/calculation/{capital}/{rate}/{installments}/{installmentInterval}/{initiationDate}/{method}/{structuredMonthlyRental}", app.validateToken(http.HandlerFunc(app.contractCalculation))).Methods("GET")
 	r.Handle("/contract/receipt", app.validateToken(http.HandlerFunc(app.contractReceipt))).Methods("POST")
 	r.Handle("/contract/legacyrebate", app.validateToken(http.HandlerFunc(app.contractLegacyRebate))).Methods("POST")
 	r.Handle("/contract/debitnote", app.validateToken(http.HandlerFunc(app.contractDebitNote))).Methods("POST")

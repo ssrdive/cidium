@@ -1087,13 +1087,14 @@ func (app *application) contractCalculation(w http.ResponseWriter, r *http.Reque
 	installments, err := strconv.Atoi(vars["installments"])
 	installmentInterval, err := strconv.Atoi(vars["installmentInterval"])
 	initiationDate := vars["initiationDate"]
+	structuredMonthlyRental, err := strconv.Atoi(vars["structuredMonthlyRental"])
 	method := vars["method"]
 	if err != nil {
 		app.clientError(w, http.StatusBadRequest)
 		return
 	}
 
-	marketedSchedule, _, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate, method)
+	marketedSchedule, _, err := loan.Create(capital, rate, installments, installmentInterval, structuredMonthlyRental, initiationDate, method)
 	if err != nil {
 		app.serverError(w, err)
 		return

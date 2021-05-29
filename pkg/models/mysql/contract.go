@@ -125,7 +125,7 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 		return err
 	}
 
-	marketedSchedule, _, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate, method)
+	marketedSchedule, _, err := loan.Create(capital, rate, installments, installmentInterval, 0, initiationDate, method)
 	if err != nil {
 		return err
 	}
@@ -807,11 +807,12 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 	installmentInterval, err := strconv.Atoi(details["Installment Interval"])
 	method := details["Interest Method"]
 	initiationDate, err := time.Parse("2006-01-02", details["Initiation Date"])
+	structuredMonthlyRental, err := strconv.Atoi(details["Structured Monthly Rental"])
 	if err != nil {
 		return err
 	}
 
-	marketedSchedule, financialSchedule, err := loan.Create(capital, rate, installments, installmentInterval, initiationDate.Format("2006-01-02"), method)
+	marketedSchedule, financialSchedule, err := loan.Create(capital, rate, installments, installmentInterval, structuredMonthlyRental, initiationDate.Format("2006-01-02"), method)
 	if err != nil {
 		return err
 	}
