@@ -92,6 +92,19 @@ func (app *application) dropdownHandler(w http.ResponseWriter, r *http.Request) 
 
 }
 
+func (app *application) arrearsAnalysis(w http.ResponseWriter, r *http.Request) {
+	startDate := r.URL.Query().Get("startdate")
+	endDate := r.URL.Query().Get("enddate")
+	items, err := app.reporting.ArrearsAnalysis(startDate, endDate)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items)
+}
+
 func (app *application) achievementSummary(w http.ResponseWriter, r *http.Request) {
 	items, err := app.reporting.AchievementSummary()
 	if err != nil {

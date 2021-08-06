@@ -13,6 +13,17 @@ type ReportingModel struct {
 	DB *sql.DB
 }
 
+// ArrearsAnalysis returns achievement summary
+func (m *ReportingModel) ArrearsAnalysis(startDate, endDate string) ([]models.ArrearsAnalysisItem, error) {
+	var res []models.ArrearsAnalysisItem
+	err := mysequel.QueryToStructs(&res, m.DB, queries.ARREARS_ANALYSIS(startDate, endDate))
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
 // AchievementSummary returns achievement summary
 func (m *ReportingModel) AchievementSummary() ([]models.AchievementSummaryItem, error) {
 	var res []models.AchievementSummaryItem

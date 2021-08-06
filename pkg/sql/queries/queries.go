@@ -806,6 +806,128 @@ const ACHIEVEMENT_SUMMARY = `
 	ORDER BY month ASC
 `
 
+func ARREARS_ANALYSIS(startDate, endDate string) string {
+	return fmt.Sprintf(`
+	SELECT AA.recovery_officer, 
+	SUM(start_date_arrears) AS start_date_arrears, 
+	SUM(start_date_arrears_at_end_date) AS start_date_arrears_at_end_date, 
+	SUM(start_date_arrears)-SUM(start_date_arrears_at_end_date) AS arrears_collection_amount_from_start_date,
+	SUM(end_date_arrears) AS end_date_arrears,
+	SUM(start_date_due_for_period) AS start_date_due_for_period,
+	SUM(end_date_due_for_period) AS end_date_due_for_period,
+	SUM(current_arrears) AS current_arrears
+	FROM ((SELECT C.id, U.name as recovery_officer, 
+	SUM(CASE WHEN (DATE(CI.due_date) <= '%s' AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END) as start_date_arrears, 
+	SUM(CASE WHEN (DATE(CI.due_date) <= '%s' AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END) as start_date_arrears_at_end_date,
+	SUM(CASE WHEN (DATE(CI.due_date) <= '%s' AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END) as end_date_arrears,
+	SUM(CASE WHEN (DATE(CI.due_date) BETWEEN '%s' AND '%s' AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END) as start_date_due_for_period, 
+	SUM(CASE WHEN (DATE(CI.due_date) BETWEEN '%s' AND '%s' AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END) as end_date_due_for_period,
+	SUM(CASE WHEN (CI.due_date <= NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as current_arrears
+			FROM contract C
+			LEFT JOIN user U ON U.id = C.recovery_officer_id
+			LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment, CI.capital+CI.interest AS agreed_installment, SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, SUM(COALESCE(CCP_SD.sd_amount, 0)+COALESCE(CIP_SD.sd_amount, 0)) AS sd_installment_paid, SUM(COALESCE(CCP_ED.ed_amount, 0)+COALESCE(CIP_ED.ed_amount, 0)) AS ed_installment_paid, CI.due_date
+			FROM contract_installment CI
+			
+			/* Interest payments */
+				
+			LEFT JOIN (
+				SELECT CIP.contract_installment_id, COALESCE(SUM(CIP.amount), 0) as amount
+				FROM contract_interest_payment CIP
+				GROUP BY CIP.contract_installment_id
+			) CIP ON CIP.contract_installment_id = CI.id
+			LEFT JOIN (
+				SELECT CIP.contract_installment_id, COALESCE(SUM(CIP.amount), 0) as sd_amount
+				FROM contract_interest_payment CIP
+				LEFT JOIN contract_receipt CR ON CR.id = CIP.contract_receipt_id
+				WHERE DATE(CR.datetime) <= '%s'
+				GROUP BY CIP.contract_installment_id
+			) CIP_SD ON CIP_SD.contract_installment_id = CI.id
+			LEFT JOIN (
+				SELECT CIP.contract_installment_id, COALESCE(SUM(CIP.amount), 0) as ed_amount
+				FROM contract_interest_payment CIP
+				LEFT JOIN contract_receipt CR ON CR.id = CIP.contract_receipt_id
+				WHERE DATE(CR.datetime) <= '%s'
+				GROUP BY CIP.contract_installment_id
+			) CIP_ED ON CIP_ED.contract_installment_id = CI.id
+			
+			/* Capital payments */
+			
+			LEFT JOIN (
+				SELECT CCP.contract_installment_id, COALESCE(SUM(CCP.amount), 0) as amount
+				FROM contract_capital_payment CCP
+				GROUP BY CCP.contract_installment_id
+			) CCP ON CCP.contract_installment_id = CI.id
+			LEFT JOIN (
+				SELECT CCP.contract_installment_id, COALESCE(SUM(CCP.amount), 0) as sd_amount
+				FROM contract_capital_payment CCP
+				LEFT JOIN contract_receipt CR ON CR.id = CCP.contract_receipt_id
+				WHERE DATE(CR.datetime) <= '%s'
+				GROUP BY CCP.contract_installment_id
+			) CCP_SD ON CCP_SD.contract_installment_id = CI.id
+			LEFT JOIN (
+				SELECT CCP.contract_installment_id, COALESCE(SUM(CCP.amount), 0) as ed_amount
+				FROM contract_capital_payment CCP
+				LEFT JOIN contract_receipt CR ON CR.id = CCP.contract_receipt_id
+				WHERE DATE(CR.datetime) <= '%s'
+				GROUP BY CCP.contract_installment_id
+			) CCP_ED ON CCP_ED.contract_installment_id = CI.id
+			GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
+			ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
+			LEFT JOIN (SELECT CI.contract_id, MIN(CI.due_date) AS due_date FROM contract_installment CI WHERE CI.due_date > (SELECT MIN(CI2.due_date) FROM contract_installment CI2 WHERE CI.contract_id = CI2.contract_id) GROUP BY CI.contract_id) CI2 ON CI2.contract_id = C.id
+			WHERE C.lkas_17_compliant = 0 AND C.non_performing = 0
+			GROUP BY C.id)
+	UNION
+	(SELECT C.id, U.name AS recovery_officer,
+	SUM(CASE WHEN (DATE(CI.due_date) <= '%s' AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END) as start_date_arrears, 
+	SUM(CASE WHEN (DATE(CI.due_date) <= '%s' AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END) as start_date_arrears_at_end_date,
+	SUM(CASE WHEN (DATE(CI.due_date) <= '%s' AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END) as end_date_arrears,
+	SUM(CASE WHEN (DATE(CI.due_date) BETWEEN '%s' AND '%s' AND CI.sd_installment_paid < CI.installment) THEN CI.installment - CI.sd_installment_paid ELSE 0 END) as start_date_due_for_period, 
+	SUM(CASE WHEN (DATE(CI.due_date) BETWEEN '%s' AND '%s' AND CI.ed_installment_paid < CI.installment) THEN CI.installment - CI.ed_installment_paid ELSE 0 END) as end_date_due_for_period,
+	SUM(CASE WHEN (CI.due_date <= NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as current_arrears
+			FROM contract C
+			LEFT JOIN user U ON U.id = C.recovery_officer_id
+			LEFT JOIN (SELECT CI.id, CI.contract_id, CI.marketed_capital+CI.marketed_interest AS installment, CI.marketed_capital+CI.marketed_interest AS agreed_installment, CI.marketed_capital_paid+CI.marketed_interest_paid AS installment_paid, SUM(COALESCE(CCP_SD.sd_amount, 0)+COALESCE(CIP_SD.sd_amount, 0)) AS sd_installment_paid, SUM(COALESCE(CCP_ED.ed_amount, 0)+COALESCE(CIP_ED.ed_amount, 0)) AS ed_installment_paid, CI.marketed_due_date AS due_date
+			FROM contract_schedule CI
+			/* Interest payments */
+			LEFT JOIN (
+					SELECT CIP.contract_schedule_id AS contract_installment_id, COALESCE(SUM(CIP.amount), 0) as sd_amount
+					FROM contract_marketed_payment CIP
+					LEFT JOIN contract_receipt CR ON CR.id = CIP.contract_receipt_id
+					WHERE DATE(CR.datetime) <= '%s' AND CIP.contract_payment_type_id = 2
+					GROUP BY CIP.contract_schedule_id
+			) CIP_SD ON CIP_SD.contract_installment_id = CI.id
+			
+			LEFT JOIN (
+					SELECT CIP.contract_schedule_id AS contract_installment_id, COALESCE(SUM(CIP.amount), 0) as ed_amount
+					FROM contract_marketed_payment CIP
+					LEFT JOIN contract_receipt CR ON CR.id = CIP.contract_receipt_id
+					WHERE DATE(CR.datetime) <= '%s' AND CIP.contract_payment_type_id = 2
+					GROUP BY CIP.contract_schedule_id
+			) CIP_ED ON CIP_ED.contract_installment_id = CI.id
+			/* Capital payments */
+			LEFT JOIN (
+					SELECT CCP.contract_schedule_id AS contract_installment_id, COALESCE(SUM(CCP.amount), 0) as sd_amount
+					FROM contract_marketed_payment CCP
+					LEFT JOIN contract_receipt CR ON CR.id = CCP.contract_receipt_id
+					WHERE DATE(CR.datetime) <= '%s' AND CCP.contract_payment_type_id <> 2
+					GROUP BY CCP.contract_schedule_id
+			) CCP_SD ON CCP_SD.contract_installment_id = CI.id
+			LEFT JOIN (
+					SELECT CCP.contract_schedule_id AS contract_installment_id, COALESCE(SUM(CCP.amount), 0) as ed_amount
+					FROM contract_marketed_payment CCP
+					LEFT JOIN contract_receipt CR ON CR.id = CCP.contract_receipt_id
+					WHERE DATE(CR.datetime) <= '%s' AND CCP.contract_payment_type_id <> 2
+					GROUP BY CCP.contract_schedule_id
+			) CCP_ED ON CCP_ED.contract_installment_id = CI.id
+			WHERE CI.marketed_installment = 1
+			GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.marketed_due_date
+			ORDER BY CI.marketed_due_date ASC) CI ON CI.contract_id = C.id
+			LEFT JOIN (SELECT CI.contract_id, MIN(CI.marketed_due_date) AS due_date FROM contract_schedule CI WHERE CI.marketed_due_date > (SELECT MIN(CI2.marketed_due_date) FROM contract_schedule CI2 WHERE CI.contract_id = CI2.contract_id AND CI.marketed_installment = 1) AND CI.marketed_installment = 1 GROUP BY CI.contract_id) CI2 ON CI2.contract_id = C.id
+			WHERE C.lkas_17_compliant = 1 AND C.non_performing = 0
+			GROUP BY C.id)) AA GROUP BY recovery_officer
+`, startDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate)
+}
+
 const RECEIPT_SEARCH = `
 	SELECT R.*
 	FROM ((SELECT CR.id, CR.contract_id, U.name AS officer, U2.name AS issuer, CR.datetime, CR.amount, CR.notes

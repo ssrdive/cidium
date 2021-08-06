@@ -447,6 +447,17 @@ type AchievementSummaryItem struct {
 	CollectionPercentage float64 `json:"collection_percentage"`
 }
 
+type ArrearsAnalysisItem struct {
+	Officer                              string  `json:"officer"`
+	StartDateArrears                     float64 `json:"start_date_arrears"`
+	StartDateArrearsAtEndDate            float64 `json:"start_date_arrears_at_end_date"`
+	ArrearsCollectionAmountFromStartDate float64 `json:"arrears_collection_amount_from_start_date"`
+	EndDateArrears                       float64 `json:"end_date_arrears"`
+	StartDateDueForPeriod                float64 `json:"start_date_due_for_period"`
+	EndDateDueForPeriod                  float64 `json:"end_date_due_for_period"`
+	CurrentArrears                       float64 `json:"current_arrears"`
+}
+
 type ReceiptSearchItem struct {
 	ID         int            `json:"id"`
 	ContractID int            `json:"contract_id"`
