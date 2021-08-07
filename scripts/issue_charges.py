@@ -5,7 +5,7 @@ import optparse
 import mysql.connector
 import ConfigParser
 
-API_URL = "https://agrivest.app/api-dev"
+API_URL = "https://agrivest.app/api"
 
 def setup_logger():
     formatter = logging.Formatter("%(asctime)s : %(funcName)s : %(levelname)s : %(message)s")
