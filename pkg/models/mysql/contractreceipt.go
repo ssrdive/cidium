@@ -57,7 +57,7 @@ type ContractFinancial struct {
 }
 
 // Receipt issues a receipt
-func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate, rAPIKey, aAPIKey, runtimeEnv string) (int64, error) {
+func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate, rAPIKey, aAPIKey, runtimeEnv string, checksum string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -75,271 +75,275 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		return 0, err
 	}
 
-	var managedByAgrivest int
-	var lkas17Compliant int
-	var telephone string
-	err = tx.QueryRow(queries.MANAGED_BY_AGRIVEST_LKAS17_COMPLIANT, cid).Scan(&lkas17Compliant, &managedByAgrivest, &telephone)
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	apiKey := ""
-	if managedByAgrivest == 0 {
-		apiKey = rAPIKey
-	} else {
-		apiKey = aAPIKey
-	}
-	message := fmt.Sprintf("Hithawath paribhogikaya, obage giwisum anka %d wetha gewu mudala Rs. %s. Sthuthiyi.", cid, humanize.Comma(int64(amount)))
-	if runtimeEnv == "dev" {
-		telephone = "768237192"
-	} else {
-		if len(telephone) == 9 {
-			telephone = fmt.Sprintf("%s,768237192,703524330,703524420,775607777,703524278,703524333", telephone)
+	exists := isExistsRecord(tx, checksum)
+	if !exists{	
+		var managedByAgrivest int
+		var lkas17Compliant int
+		var telephone string
+		err = tx.QueryRow(queries.MANAGED_BY_AGRIVEST_LKAS17_COMPLIANT, cid).Scan(&lkas17Compliant, &managedByAgrivest, &telephone)
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	
+		apiKey := ""
+		if managedByAgrivest == 0 {
+			apiKey = rAPIKey
 		} else {
-			telephone = "768237192,703524330,703524420,775607777,703524278,703524333"
+			apiKey = aAPIKey
 		}
-	}
-	requestURL := fmt.Sprintf("https://richcommunication.dialog.lk/api/sms/inline/send.php?destination=%s&q=%s&message=%s", telephone, apiKey, url.QueryEscape(message))
-
-	var contractTotalPayable float64
-	if lkas17Compliant == 1 {
-		err = tx.QueryRow(queries.CONTRACT_PAYABLE_LKAS_17, cid).Scan(&contractTotalPayable)
-	} else {
-		err = tx.QueryRow(queries.CONTRACT_PAYABLE, cid).Scan(&contractTotalPayable)
-	}
-	if err != nil {
-		fmt.Println(err)
-		tx.Rollback()
-		return 0, err
-	}
-
-	var officerAccountID int
-	err = tx.QueryRow(queries.OFFICER_ACC_NO, userID).Scan(&officerAccountID)
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	// Issue receipt to float
-	if contractTotalPayable < (float64(int(amount*100)) / 100) {
-		frid, err := mysequel.Insert(mysequel.Table{
-			TableName: "contract_receipt_float",
-			Columns:   []string{"user_id", "contract_id", "datetime", "amount"},
-			Vals:      []interface{}{userID, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes, dueDate},
-			Tx:        tx,
-		})
-
-		resp, err := http.Get(requestURL)
+		message := fmt.Sprintf("Hithawath paribhogikaya, obage giwisum anka %d wetha gewu mudala Rs. %s. Sthuthiyi.", cid, humanize.Comma(int64(amount)))
+		if runtimeEnv == "dev" {
+			telephone = "768237192"
+		} else {
+			if len(telephone) == 9 {
+				telephone = fmt.Sprintf("%s,768237192,703524330,703524420,775607777,703524278,703524333", telephone)
+			} else {
+				telephone = "768237192,703524330,703524420,775607777,703524278,703524333"
+			}
+		}
+		requestURL := fmt.Sprintf("https://richcommunication.dialog.lk/api/sms/inline/send.php?destination=%s&q=%s&message=%s", telephone, apiKey, url.QueryEscape(message))
+	
+		var contractTotalPayable float64
+		if lkas17Compliant == 1 {
+			err = tx.QueryRow(queries.CONTRACT_PAYABLE_LKAS_17, cid).Scan(&contractTotalPayable)
+		} else {
+			err = tx.QueryRow(queries.CONTRACT_PAYABLE, cid).Scan(&contractTotalPayable)
+		}
 		if err != nil {
-			return frid, nil
+			fmt.Println(err)
+			tx.Rollback()
+			return 0, err
 		}
-
-		defer resp.Body.Close()
-
-		tid, err := mysequel.Insert(mysequel.Table{
-			TableName: "transaction",
-			Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
-			Vals:      []interface{}{userID, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("FLOAT RECEIPT %d [%d]", frid, cid)},
-			Tx:        tx,
-		})
+	
+		var officerAccountID int
+		err = tx.QueryRow(queries.OFFICER_ACC_NO, userID).Scan(&officerAccountID)
 		if err != nil {
 			tx.Rollback()
 			return 0, err
 		}
-
-		journalEntries := []models.JournalEntry{
-			{Account: fmt.Sprintf("%d", officerAccountID), Debit: fmt.Sprintf("%f", amount), Credit: ""},
-			{Account: fmt.Sprintf("%d", 144), Debit: "", Credit: fmt.Sprintf("%f", amount)},
+	
+		// Issue receipt to float
+		if contractTotalPayable < (float64(int(amount*100)) / 100) {
+			frid, err := mysequel.Insert(mysequel.Table{
+				TableName: "contract_receipt_float",
+				Columns:   []string{"user_id", "contract_id", "datetime", "amount"},
+				Vals:      []interface{}{userID, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes, dueDate},
+				Tx:        tx,
+			})
+	
+			resp, err := http.Get(requestURL)
+			if err != nil {
+				return frid, nil
+			}
+	
+			defer resp.Body.Close()
+	
+			tid, err := mysequel.Insert(mysequel.Table{
+				TableName: "transaction",
+				Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
+				Vals:      []interface{}{userID, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("FLOAT RECEIPT %d [%d]", frid, cid)},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+	
+			journalEntries := []models.JournalEntry{
+				{Account: fmt.Sprintf("%d", officerAccountID), Debit: fmt.Sprintf("%f", amount), Credit: ""},
+				{Account: fmt.Sprintf("%d", 144), Debit: "", Credit: fmt.Sprintf("%f", amount)},
+			}
+	
+			err = IssueJournalEntries(tx, tid, journalEntries)
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+	
+			return frid, err
 		}
-
-		err = IssueJournalEntries(tx, tid, journalEntries)
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-
-		return frid, err
-	}
-
-	var rid int64
-	if lkas17Compliant == 1 {
-		lkas17Rid, err := m.IssueLKAS17Receipt(tx, userID, cid, amount, notes, dueDate, "REGULAR", time.Now())
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-		rid = lkas17Rid
-	} else {
-		var debits []models.DebitPayable
-		err = mysequel.QueryToStructs(&debits, tx, queries.DEBITS, cid)
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-
-		var intPayments []models.ContractPayment
-		var capPayments []models.ContractPayment
-		var debitPayments []models.DebitPayment
-
-		balance := amount
-
-		legacyRid, err := mysequel.Insert(mysequel.Table{
-			TableName: "contract_receipt",
-			Columns:   []string{"user_id", "contract_id", "datetime", "amount", "notes", "due_date"},
-			Vals:      []interface{}{userID, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes, dueDate},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-
-		if balance != 0 {
-			for _, p := range debits {
-				if p.CapitalPayable != 0 && balance != 0 {
-					if balance-p.CapitalPayable >= 0 {
-						debitPayments = append(debitPayments, models.DebitPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: legacyRid, Amount: p.CapitalPayable, UnearnedAccountID: p.UnearnedAccountID, IncomeAccountID: p.IncomeAccountID})
-						balance = math.Round((balance-p.CapitalPayable)*100) / 100
-					} else {
-						debitPayments = append(debitPayments, models.DebitPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: legacyRid, Amount: balance, UnearnedAccountID: p.UnearnedAccountID, IncomeAccountID: p.IncomeAccountID})
-						balance = 0
+	
+		var rid int64
+		if lkas17Compliant == 1 {
+			lkas17Rid, err := m.IssueLKAS17Receipt(tx, userID, cid, amount, notes, dueDate, "REGULAR", time.Now())
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+			rid = lkas17Rid
+		} else {
+			var debits []models.DebitPayable
+			err = mysequel.QueryToStructs(&debits, tx, queries.DEBITS, cid)
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+	
+			var intPayments []models.ContractPayment
+			var capPayments []models.ContractPayment
+			var debitPayments []models.DebitPayment
+	
+			balance := amount
+	
+			legacyRid, err := mysequel.Insert(mysequel.Table{
+				TableName: "contract_receipt",
+				Columns:   []string{"user_id", "contract_id", "datetime", "amount", "notes", "due_date", "checksum"},
+				Vals:      []interface{}{userID, cid, time.Now().Format("2006-01-02 15:04:05"), amount, notes, dueDate, checksum},
+				Tx:        tx,
+			})
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+	
+			if balance != 0 {
+				for _, p := range debits {
+					if p.CapitalPayable != 0 && balance != 0 {
+						if balance-p.CapitalPayable >= 0 {
+							debitPayments = append(debitPayments, models.DebitPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: legacyRid, Amount: p.CapitalPayable, UnearnedAccountID: p.UnearnedAccountID, IncomeAccountID: p.IncomeAccountID})
+							balance = math.Round((balance-p.CapitalPayable)*100) / 100
+						} else {
+							debitPayments = append(debitPayments, models.DebitPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: legacyRid, Amount: balance, UnearnedAccountID: p.UnearnedAccountID, IncomeAccountID: p.IncomeAccountID})
+							balance = 0
+						}
 					}
 				}
 			}
-		}
-
-		var payables []models.ContractPayable
-		err = mysequel.QueryToStructs(&payables, tx, queries.OVERDUE_INSTALLMENTS, cid, time.Now().Format("2006-01-02"))
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-
-		if balance != 0 {
-			intPayments = payments("I", legacyRid, &balance, payables, intPayments)
-		}
-
-		if balance != 0 {
-			capPayments = payments("C", legacyRid, &balance, payables, capPayments)
-		}
-
-		if balance != 0 {
-			var upcoming []models.ContractPayable
-			err = mysequel.QueryToStructs(&upcoming, tx, queries.UPCOMING_INSTALLMENTS, cid, time.Now().Format("2006-01-02"))
+	
+			var payables []models.ContractPayable
+			err = mysequel.QueryToStructs(&payables, tx, queries.OVERDUE_INSTALLMENTS, cid, time.Now().Format("2006-01-02"))
 			if err != nil {
 				tx.Rollback()
 				return 0, err
 			}
-
-			for _, p := range upcoming {
-				intPayments = payments("I", legacyRid, &balance, []models.ContractPayable{p}, intPayments)
-				capPayments = payments("C", legacyRid, &balance, []models.ContractPayable{p}, capPayments)
+	
+			if balance != 0 {
+				intPayments = payments("I", legacyRid, &balance, payables, intPayments)
 			}
-		}
-
-		if balance != 0 {
-			tx.Rollback()
-			return 0, errors.New("Error: Payment exceeds payables")
-		}
-
-		interestAmount := 0.0
-
-		for _, intPayment := range intPayments {
-			interestAmount += intPayment.Amount
-			_, err := mysequel.Insert(mysequel.Table{
-				TableName: "contract_interest_payment",
-				Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-				Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
+	
+			if balance != 0 {
+				capPayments = payments("C", legacyRid, &balance, payables, capPayments)
+			}
+	
+			if balance != 0 {
+				var upcoming []models.ContractPayable
+				err = mysequel.QueryToStructs(&upcoming, tx, queries.UPCOMING_INSTALLMENTS, cid, time.Now().Format("2006-01-02"))
+				if err != nil {
+					tx.Rollback()
+					return 0, err
+				}
+	
+				for _, p := range upcoming {
+					intPayments = payments("I", legacyRid, &balance, []models.ContractPayable{p}, intPayments)
+					capPayments = payments("C", legacyRid, &balance, []models.ContractPayable{p}, capPayments)
+				}
+			}
+	
+			if balance != 0 {
+				tx.Rollback()
+				return 0, errors.New("Error: Payment exceeds payables")
+			}
+	
+			interestAmount := 0.0
+	
+			for _, intPayment := range intPayments {
+				interestAmount += intPayment.Amount
+				_, err := mysequel.Insert(mysequel.Table{
+					TableName: "contract_interest_payment",
+					Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
+					Vals:      []interface{}{intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
+					Tx:        tx,
+				})
+				if err != nil {
+					tx.Rollback()
+					return 0, err
+				}
+			}
+	
+			for _, capPayment := range capPayments {
+				_, err := mysequel.Insert(mysequel.Table{
+					TableName: "contract_capital_payment",
+					Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
+					Vals:      []interface{}{capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
+					Tx:        tx,
+				})
+				if err != nil {
+					tx.Rollback()
+					return 0, err
+				}
+			}
+	
+			tid, err := mysequel.Insert(mysequel.Table{
+				TableName: "transaction",
+				Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
+				Vals:      []interface{}{userID, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("RECEIPT %d", legacyRid)},
 				Tx:        tx,
 			})
 			if err != nil {
 				tx.Rollback()
 				return 0, err
 			}
-		}
-
-		for _, capPayment := range capPayments {
-			_, err := mysequel.Insert(mysequel.Table{
-				TableName: "contract_capital_payment",
-				Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-				Vals:      []interface{}{capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
-				Tx:        tx,
-			})
+	
+			for _, capPayment := range debitPayments {
+				_, err := mysequel.Insert(mysequel.Table{
+					TableName: "account_transaction",
+					Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+					Vals:      []interface{}{tid, capPayment.UnearnedAccountID, "DR", capPayment.Amount},
+					Tx:        tx,
+				})
+				if err != nil {
+					tx.Rollback()
+					return 0, err
+				}
+				_, err = mysequel.Insert(mysequel.Table{
+					TableName: "account_transaction",
+					Columns:   []string{"transaction_id", "account_id", "type", "amount"},
+					Vals:      []interface{}{tid, capPayment.IncomeAccountID, "CR", capPayment.Amount},
+					Tx:        tx,
+				})
+				if err != nil {
+					tx.Rollback()
+					return 0, err
+				}
+				_, err = mysequel.Insert(mysequel.Table{
+					TableName: "contract_capital_payment",
+					Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
+					Vals:      []interface{}{capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
+					Tx:        tx,
+				})
+				if err != nil {
+					tx.Rollback()
+					return 0, err
+				}
+				}
+		
+				journalEntries := []models.JournalEntry{
+					{Account: fmt.Sprintf("%d", officerAccountID), Debit: fmt.Sprintf("%f", amount), Credit: ""},
+					{Account: fmt.Sprintf("%d", 25), Debit: "", Credit: fmt.Sprintf("%f", amount)},
+					{Account: fmt.Sprintf("%d", 46), Debit: "", Credit: fmt.Sprintf("%f", interestAmount)},
+					{Account: fmt.Sprintf("%d", 78), Debit: fmt.Sprintf("%f", interestAmount), Credit: ""},
+				}
+		
+				err = IssueJournalEntries(tx, tid, journalEntries)
+		
+				rid = legacyRid
+			}
+		
 			if err != nil {
-				tx.Rollback()
 				return 0, err
 			}
-		}
-
-		tid, err := mysequel.Insert(mysequel.Table{
-			TableName: "transaction",
-			Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
-			Vals:      []interface{}{userID, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("RECEIPT %d", legacyRid)},
-			Tx:        tx,
-		})
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-
-		for _, capPayment := range debitPayments {
-			_, err := mysequel.Insert(mysequel.Table{
-				TableName: "account_transaction",
-				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-				Vals:      []interface{}{tid, capPayment.UnearnedAccountID, "DR", capPayment.Amount},
-				Tx:        tx,
-			})
+		
+			resp, err := http.Get(requestURL)
 			if err != nil {
-				tx.Rollback()
-				return 0, err
+				return rid, nil
 			}
-			_, err = mysequel.Insert(mysequel.Table{
-				TableName: "account_transaction",
-				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-				Vals:      []interface{}{tid, capPayment.IncomeAccountID, "CR", capPayment.Amount},
-				Tx:        tx,
-			})
-			if err != nil {
-				tx.Rollback()
-				return 0, err
-			}
-			_, err = mysequel.Insert(mysequel.Table{
-				TableName: "contract_capital_payment",
-				Columns:   []string{"contract_installment_id", "contract_receipt_id", "amount"},
-				Vals:      []interface{}{capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
-				Tx:        tx,
-			})
-			if err != nil {
-				tx.Rollback()
-				return 0, err
-			}
+		
+			defer resp.Body.Close()
+		
+			return rid, nil
 		}
-
-		journalEntries := []models.JournalEntry{
-			{Account: fmt.Sprintf("%d", officerAccountID), Debit: fmt.Sprintf("%f", amount), Credit: ""},
-			{Account: fmt.Sprintf("%d", 25), Debit: "", Credit: fmt.Sprintf("%f", amount)},
-			{Account: fmt.Sprintf("%d", 46), Debit: "", Credit: fmt.Sprintf("%f", interestAmount)},
-			{Account: fmt.Sprintf("%d", 78), Debit: fmt.Sprintf("%f", interestAmount), Credit: ""},
-		}
-
-		err = IssueJournalEntries(tx, tid, journalEntries)
-
-		rid = legacyRid
-	}
-
-	if err != nil {
-		return 0, err
-	}
-
-	resp, err := http.Get(requestURL)
-	if err != nil {
-		return rid, nil
-	}
-
-	defer resp.Body.Close()
-
-	return rid, nil
+	return 0, nil
 }
 
 func payments(payablesType string, rid int64, balance *float64, payables []models.ContractPayable, payments []models.ContractPayment) []models.ContractPayment {
@@ -727,4 +731,16 @@ func cashInHandJE(tx *sql.Tx, userID int64, receiptAmount, arrearsDeduction floa
 	}
 
 	return journalEntries, nil
+}
+
+func isExistsRecord(tx *sql.Tx, checksum string)(bool){
+	var contractReceiptID int
+	err := tx.QueryRow(`
+	SELECT C.id 
+	FROM contract_receipt C 
+	WHERE C.checksum = ?`, checksum).Scan(&contractReceiptID)
+		if err != nil {
+			return false
+		}
+	return true
 }

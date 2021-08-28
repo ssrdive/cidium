@@ -1171,12 +1171,13 @@ func (app *application) contractReceipt(w http.ResponseWriter, r *http.Request) 
 	amount, err := strconv.ParseFloat(r.PostForm.Get("amount"), 32)
 	notes := r.PostForm.Get("notes")
 	due_date := r.PostForm.Get("due_date")
+	checksum := r.PostForm.Get("checksum")
 	if err != nil {
 		app.clientError(w, http.StatusBadRequest)
 		return
 	}
 
-	rid, err := app.contract.Receipt(user_id, cid, amount, notes, due_date, app.rAPIKey, app.aAPIKey, app.runtimeEnv)
+	rid, err := app.contract.Receipt(user_id, cid, amount, notes, due_date, app.rAPIKey, app.aAPIKey, app.runtimeEnv, checksum)
 	if err != nil {
 		app.serverError(w, err)
 		return
