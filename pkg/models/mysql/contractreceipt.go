@@ -57,7 +57,7 @@ type ContractFinancial struct {
 }
 
 // Receipt issues a receipt
-func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate, rAPIKey, aAPIKey, runtimeEnv string) (int64, error) {
+func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate, rAPIKey, aAPIKey, runtimeEnv string, checksum string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -75,6 +75,9 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		return 0, err
 	}
 
+	exists := isExistsRecord(tx, checksum)
+
+	if !exists{
 	var managedByAgrivest int
 	var lkas17Compliant int
 	var telephone string
@@ -340,6 +343,8 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 	defer resp.Body.Close()
 
 	return rid, nil
+}
+	return 0, nil
 }
 
 func payments(payablesType string, rid int64, balance *float64, payables []models.ContractPayable, payments []models.ContractPayment) []models.ContractPayment {
@@ -727,4 +732,16 @@ func cashInHandJE(tx *sql.Tx, userID int64, receiptAmount, arrearsDeduction floa
 	}
 
 	return journalEntries, nil
+}
+
+func isExistsRecord(tx *sql.Tx, checksum string)(bool){
+	var contractReceiptID int
+	err := tx.QueryRow(`
+	SELECT C.id 
+	FROM contract_receipt C 
+	WHERE C.checksum = ?`, checksum).Scan(&contractReceiptID)
+		if err != nil {
+			return false
+		}
+	return true
 }
