@@ -75,9 +75,24 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		return 0, err
 	}
 
-	exists := isExistsRecord(tx, checksum)
+	if receiptChecksumExists(tx, checksum){
+		return 0, nil
+	}
 
-	if !exists{
+	if(checksum != ""){
+		_, err := mysequel.Insert(mysequel.Table{
+			TableName: "contract_receipt_checksum",
+			Columns:   []string{"checksum"},
+			Vals:      []interface{}{checksum},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
+	
+
 	var managedByAgrivest int
 	var lkas17Compliant int
 	var telephone string
@@ -343,8 +358,7 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 	defer resp.Body.Close()
 
 	return rid, nil
-}
-	return 0, nil
+
 }
 
 func payments(payablesType string, rid int64, balance *float64, payables []models.ContractPayable, payments []models.ContractPayment) []models.ContractPayment {
@@ -734,14 +748,11 @@ func cashInHandJE(tx *sql.Tx, userID int64, receiptAmount, arrearsDeduction floa
 	return journalEntries, nil
 }
 
-func isExistsRecord(tx *sql.Tx, checksum string)(bool){
-	var contractReceiptID int
-	err := tx.QueryRow(`
-	SELECT C.id 
-	FROM contract_receipt C 
-	WHERE C.checksum = ?`, checksum).Scan(&contractReceiptID)
-		if err != nil {
-			return false
-		}
+func  receiptChecksumExists(tx *sql.Tx, checksum string)(bool){
+	var checksumID int
+	err := tx.QueryRow(queries.RECEIPT_CHECKSUM_CHECK, checksum).Scan(&checksumID)
+	if err != nil {
+		return false
+	}
 	return true
 }

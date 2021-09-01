@@ -984,3 +984,10 @@ const (
 		ORDER BY CI.due_date ASC
 	`
 )
+
+const RECEIPT_CHECKSUM_CHECK = `
+		SELECT C.id 
+		FROM contract_receipt_checksum C 
+		WHERE C.checksum = ?
+	`
+
