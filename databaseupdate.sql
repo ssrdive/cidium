@@ -102,8 +102,11 @@ CREATE TABLE contract_financial(
 ALTER TABLE contract_receipt
 ADD lkas_17 BOOLEAN NOT NULL DEFAULT 0 AFTER id;
 
-ALTER TABLE `main`.`contract_receipt` 
-ADD COLUMN `checksum` CHAR(65) NULL AFTER `is_customer_payment`;
+CREATE TABLE contract_receipt_checksum(
+	id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	checksum VARCHAR(32)
+);
 
 /* Should update the new contracts' lkas_17_compliant
    column to reflect they are compliant
