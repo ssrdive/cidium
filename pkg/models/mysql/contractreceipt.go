@@ -57,7 +57,7 @@ type ContractFinancial struct {
 }
 
 // Receipt issues a receipt
-func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate, rAPIKey, aAPIKey, runtimeEnv string) (int64, error) {
+func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate, rAPIKey, aAPIKey, runtimeEnv, checksum string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -69,6 +69,23 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		}
 		_ = tx.Commit()
 	}()
+
+	if receiptChecksumExists(tx, checksum) {
+		return 0, nil
+	}
+
+	if checksum != "" {
+		_, err := mysequel.Insert(mysequel.Table{
+			TableName: "contract_receipt_checksum",
+			Columns:   []string{"checksum"},
+			Vals:      []interface{}{checksum},
+			Tx:        tx,
+		})
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
 
 	if amount <= 0 {
 		tx.Rollback()
@@ -727,4 +744,13 @@ func cashInHandJE(tx *sql.Tx, userID int64, receiptAmount, arrearsDeduction floa
 	}
 
 	return journalEntries, nil
+}
+
+func receiptChecksumExists(tx *sql.Tx, checksum string) bool {
+	var checksumID int
+	err := tx.QueryRow(queries.RECEIPT_CHECKSUM_CHECK, checksum).Scan(&checksumID)
+	if err != nil {
+		return false
+	}
+	return true
 }

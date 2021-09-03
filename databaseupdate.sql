@@ -258,3 +258,9 @@ INSERT INTO contract_financial (contract_id) VALUES
 (3095),
 (3099),
 (3101);
+
+CREATE TABLE contract_receipt_checksum(
+	id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	checksum VARCHAR(32)
+);
