@@ -983,4 +983,10 @@ const (
 		GROUP BY CI.contract_id, CI.id, CI.capital, CI.interest, CI.default_interest
 		ORDER BY CI.due_date ASC
 	`
+
+	RECEIPT_CHECKSUM_CHECK = `
+		SELECT C.id 
+		FROM contract_receipt_checksum C 
+		WHERE C.checksum = ?
+	`
 )
