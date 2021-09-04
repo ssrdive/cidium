@@ -897,7 +897,7 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 	// Issue receipts in float
 	if len(floatReceipts) > 0 {
 		for _, r := range floatReceipts {
-			err = sprinter.Run(r.Date, fmt.Sprintf("%d", cid), true, tx)
+			_, _, err = sprinter.Run(r.Date, fmt.Sprintf("%d", cid), true, tx)
 			if err != nil {
 				tx.Rollback()
 				return err
@@ -922,7 +922,7 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 			}
 		}
 	}
-	err = sprinter.Run(time.Now().Format("2006-01-02"), fmt.Sprintf("%d", cid), true, tx)
+	_, _, err = sprinter.Run(time.Now().Format("2006-01-02"), fmt.Sprintf("%d", cid), true, tx)
 	if err != nil {
 		tx.Rollback()
 		return err
