@@ -1670,7 +1670,7 @@ func (m *ContractModel) PerformanceReview(startDate, endDate, state, officer, ba
 // SearchV2 returns V2 search results
 // Multiple search methods are implemented to support
 // different web and mobile versions
-func (m *ContractModel) SearchV2(search, state, officer, batch, npl, lkas17, startOd, endOd, removeDeleted string) ([]models.SearchResultV2, error) {
+func (m *ContractModel) SearchV2(search, state, officer, batch, npl, lkas17, external, startOd, endOd, removeDeleted string) ([]models.SearchResultV2, error) {
 	var k sql.NullString
 	if search == "" {
 		k = sql.NullString{}
@@ -1685,6 +1685,7 @@ func (m *ContractModel) SearchV2(search, state, officer, batch, npl, lkas17, sta
 	b := mysequel.NewNullString(batch)
 	n := mysequel.NewNullString(npl)
 	l := mysequel.NewNullString(lkas17)
+	e := mysequel.NewNullString(external)
 	var sod, eod sql.NullFloat64
 	if startOd == "" {
 		sod = sql.NullFloat64{}
@@ -1711,7 +1712,7 @@ func (m *ContractModel) SearchV2(search, state, officer, batch, npl, lkas17, sta
 	}
 
 	var res []models.SearchResultV2
-	err = mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_V2, k, k, s, s, o, o, b, b, n, n, l, l, sod, eod, sod, eod, rd, k, k, s, s, o, o, b, b, n, n, l, l, sod, eod, sod, eod, rd)
+	err = mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_V2, k, k, s, s, o, o, b, b, n, n, l, l, e, e, sod, eod, sod, eod, rd, k, k, s, s, o, o, b, b, n, n, l, l, e, e, sod, eod, sod, eod, rd)
 	if err != nil {
 		return nil, err
 	}
