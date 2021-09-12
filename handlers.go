@@ -248,7 +248,7 @@ func (app *application) newContract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requiredParams := []string{"user_id", "credit_officer_id", "recovery_officer_id", "contract_type_id", "institute_dealer_id", "contract_batch_id", "model_id", "chassis_number", "customer_nic", "customer_name", "customer_address", "customer_contact", "price"}
+	requiredParams := []string{"external", "user_id", "credit_officer_id", "recovery_officer_id", "contract_type_id", "institute_dealer_id", "contract_batch_id", "model_id", "chassis_number", "customer_nic", "customer_name", "customer_address", "customer_contact", "price"}
 	optionalParams := []string{"institute_id", "liaison_name", "liaison_contact", "liaison_comment", "downpayment"}
 
 	for _, param := range requiredParams {
