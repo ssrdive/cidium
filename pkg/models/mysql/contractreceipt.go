@@ -361,25 +361,20 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 
 func payments(payablesType string, rid int64, balance *float64, payables []models.ContractPayable, payments []models.ContractPayment) []models.ContractPayment {
 	for _, p := range payables {
-		if payablesType == "I" {
-			if p.InterestPayable != 0 && *balance != 0 {
-				if *balance-p.InterestPayable >= 0 {
-					payments = append(payments, models.ContractPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: p.InterestPayable})
-					*balance = math.Round((*balance-p.InterestPayable)*100) / 100
-				} else {
-					payments = append(payments, models.ContractPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: *balance})
-					*balance = 0
-				}
-			}
-		} else if payablesType == "C" {
-			if p.CapitalPayable != 0 && *balance != 0 {
-				if *balance-p.CapitalPayable >= 0 {
-					payments = append(payments, models.ContractPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: p.CapitalPayable})
-					*balance = math.Round((*balance-p.CapitalPayable)*100) / 100
-				} else {
-					payments = append(payments, models.ContractPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: *balance})
-					*balance = 0
-				}
+		var payableValue float64
+		if payablesType == "C" {
+			payableValue = p.CapitalPayable
+		} else {
+			payableValue = p.InterestPayable
+		}
+
+		if payableValue != 0 && *balance != 0 {
+			if *balance-payableValue >= 0 {
+				payments = append(payments, models.ContractPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: payableValue})
+				*balance = math.Round((*balance-payableValue)*100) / 100
+			} else {
+				payments = append(payments, models.ContractPayment{ContractInstallmentID: p.InstallmentID, ContractReceiptID: rid, Amount: *balance})
+				*balance = 0
 			}
 		}
 	}
@@ -416,17 +411,20 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 	}
 	m.ReceiptLogger.Printf("RID %d", rid)
 
+	// Loading debit payables
 	var debits []models.DebitPayableLKAS17
 	err = mysequel.QueryToStructs(&debits, tx, queries.DEBITS_LKAS_17, cid)
 	if err != nil {
 		return 0, err
 	}
 
+	// Calculating debit payments
 	var debitPymnts []models.DebitPaymentLKAS17
 	if len(debits) != 0 {
 		debitPymnts = debitPayments(rid, &fBalance, debits, debitPymnts)
 	}
 
+	// Loading financial arrears payables
 	var fArrears []models.ContractPayable
 	err = mysequel.QueryToStructs(&fArrears, tx, queries.FINANCIAL_OVERDUE_INSTALLMENTS_LKAS_17, cid)
 	if err != nil {
@@ -436,6 +434,7 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 	var fInts []models.ContractPayment
 	var fCaps []models.ContractPayment
 
+	// Calculate financial arrears interest and capital payments
 	if len(fArrears) > 0 {
 		if fBalance != 0 {
 			fInts = payments("I", rid, &fBalance, fArrears, fInts)
@@ -447,12 +446,14 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 	}
 
 	if fBalance != 0 {
+		// Loading financial upcoming payables
 		var fUpcoming []models.ContractPayable
 		err = mysequel.QueryToStructs(&fUpcoming, tx, queries.FINANCIAL_UPCOMING_INSTALLMENTS_LKAS_17, cid)
 		if err != nil {
 			return 0, err
 		}
 
+		// Calculating financial upcoming payments
 		for _, p := range fUpcoming {
 			fInts = payments("I", rid, &fBalance, []models.ContractPayable{p}, fInts)
 			fCaps = payments("C", rid, &fBalance, []models.ContractPayable{p}, fCaps)
@@ -637,12 +638,14 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 
 	if nAge <= 0 && cF.Doubtful == 0 {
 		m.ReceiptLogger.Printf("RID %d \t %s", rid, "nAge <= 0 && cF.Doubtful == 0")
+		// db_txn, txn_id, interest, capital_provisioned
 		receiptJEs, err = addBadDebtJEsUpdateStatus(tx, int64(cid), tid, 0, cF.CapitalProvisioned, receiptJEs, `UPDATE contract_financial SET recovery_status_id = ?, doubtful = ? WHERE contract_id = ?`, RecoveryStatusActive, 0, cid)
 		if err != nil {
 			return 0, err
 		}
 	} else if nAge <= 0 && cF.Doubtful == 1 {
 		m.ReceiptLogger.Printf("RID %d \t %s", rid, "nAge <= 0 && cF.Doubtful == 1")
+		// db_txn, txn_id, interest, capital_provisioned
 		receiptJEs, err = addBadDebtJEsUpdateStatus(tx, int64(cid), tid, cF.InterestArrears, cF.CapitalProvisioned, receiptJEs, `UPDATE contract_financial SET recovery_status_id = ?, doubtful = ? WHERE contract_id = ?`, RecoveryStatusActive, 0, cid)
 		if err != nil {
 			return 0, err
@@ -651,6 +654,7 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 		(cF.RecoveryStatus == RecoveryStatusBDP && nAge < 6) {
 		m.ReceiptLogger.Printf("RID %d \t %s", rid, `(cF.RecoveryStatus == RecoveryStatusArrears && nAge > 0 && cF.Doubtful == 1) || (cF.RecoveryStatus == RecoveryStatusNPL && nAge < 6) ||
 		(cF.RecoveryStatus == RecoveryStatusBDP && nAge < 6)`)
+		// db_txn, txn_id, interest, capital_provisioned
 		receiptJEs, err = addBadDebtJEsUpdateStatus(tx, int64(cid), tid, fIntPaid, cF.CapitalProvisioned, receiptJEs, `UPDATE contract_financial SET recovery_status_id = ? WHERE contract_id = ?`, RecoveryStatusArrears, cid)
 		if err != nil {
 			return 0, err
@@ -671,6 +675,7 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 		}
 		capitalProvisionRemoval := math.Round((cF.CapitalProvisioned-capitalProvision)*100) / 100
 
+		// db_txn, txn_id, interest, capital_provisioned
 		receiptJEs, err = addBadDebtJEsUpdateStatus(tx, int64(cid), tid, fIntPaid, capitalProvisionRemoval, receiptJEs, `UPDATE contract_financial SET recovery_status_id = ? WHERE contract_id = ?`, RecoveryStatusNPL, cid)
 		if err != nil {
 			return 0, err
