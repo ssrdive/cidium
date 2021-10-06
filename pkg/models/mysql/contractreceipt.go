@@ -32,6 +32,8 @@ const (
 	ProvisionForBadDebtAccount = 196
 	// ReceiptsForIncompleteContractsAccount holds account database id
 	ReceiptsForIncompleteContractsAccount = 144
+	// RebateExpenseAccount holds account database id
+	RebateExpenseAccount = 316
 
 	// RecoveryStatusActive holds status database id
 	RecoveryStatusActive = 1
