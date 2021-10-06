@@ -1237,6 +1237,210 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 	return dnid, nil
 }
 
+func (m *ContractModel) LKAS17Rebate(userID, cid int, amount float64) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	fBalance := amount
+
+	rid, err := mysequel.Insert(mysequel.Table{
+		TableName: "contract_receipt",
+		Columns:   []string{"lkas_17", "contract_receipt_type_id", "user_id", "contract_id", "datetime", "amount"},
+		Vals:      []interface{}{1, 3, userID, cid, time.Now().Format("2006-01-02 15:04:05"), amount},
+		Tx:        tx,
+	})
+	if err != nil {
+		return 0, err
+	}
+	m.ReceiptLogger.Printf("REBATE RID %d", rid)
+
+	var fInterestPayables []models.ContractPayable
+	err = mysequel.QueryToStructs(&fInterestPayables, tx, queries.FINANCIAL_INTEREST_PAYABLES_FOR_REBATES, cid)
+	if err != nil {
+		return 0, err
+	}
+
+	var fInts []models.ContractPayment
+
+	if len(fInterestPayables) > 0 && fBalance != 0 {
+		fInts = payments("I", rid, &fBalance, fInterestPayables, fInts)
+	}
+
+	if fBalance != 0 {
+		return 0, errors.New("Error: Payment exceeds payables")
+	}
+
+	fIntPaid := float64(0)
+	for _, intPayment := range fInts {
+		fIntPaid = fIntPaid + intPayment.Amount
+		_, err := mysequel.Insert(mysequel.Table{
+			TableName: "contract_financial_payment",
+			Columns:   []string{"contract_payment_type_id", "contract_schedule_id", "contract_receipt_id", "amount"},
+			Vals:      []interface{}{2, intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
+			Tx:        tx,
+		})
+		if err != nil {
+			return 0, err
+		}
+
+		_, err = tx.Exec("UPDATE contract_schedule SET interest_paid = interest_paid + ?, installment_paid = installment_paid + ? WHERE id = ?", intPayment.Amount, intPayment.Amount, intPayment.ContractInstallmentID)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	mBalance := amount
+
+	var mPayables []models.ContractPayable
+	err = mysequel.QueryToStructs(&mPayables, tx, queries.MARKETED_PAYABLES_FOR_REBATE, cid)
+	if err != nil {
+		return 0, err
+	}
+
+	var mInts []models.ContractPayment
+	var mCaps []models.ContractPayment
+
+	if mBalance != 0 {
+		mInts = payments("I", rid, &mBalance, mPayables, mInts)
+	}
+
+	if mBalance != 0 {
+		mCaps = payments("C", rid, &mBalance, mPayables, mCaps)
+	}
+
+	if mBalance != 0 {
+		return 0, errors.New("Error: Payment exceeds payables")
+	}
+
+	for _, intPayment := range mInts {
+		_, err := mysequel.Insert(mysequel.Table{
+			TableName: "contract_marketed_payment",
+			Columns:   []string{"contract_payment_type_id", "contract_schedule_id", "contract_receipt_id", "amount"},
+			Vals:      []interface{}{2, intPayment.ContractInstallmentID, intPayment.ContractReceiptID, intPayment.Amount},
+			Tx:        tx,
+		})
+		if err != nil {
+			return 0, err
+		}
+
+		_, err = tx.Exec("UPDATE contract_schedule SET marketed_interest_paid = marketed_interest_paid + ? WHERE id = ?", intPayment.Amount, intPayment.ContractInstallmentID)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	for _, capPayment := range mCaps {
+		_, err := mysequel.Insert(mysequel.Table{
+			TableName: "contract_marketed_payment",
+			Columns:   []string{"contract_payment_type_id", "contract_schedule_id", "contract_receipt_id", "amount"},
+			Vals:      []interface{}{1, capPayment.ContractInstallmentID, capPayment.ContractReceiptID, capPayment.Amount},
+			Tx:        tx,
+		})
+		if err != nil {
+			return 0, err
+		}
+
+		_, err = tx.Exec("UPDATE contract_schedule SET marketed_capital_paid = marketed_capital_paid + ? WHERE id = ?", capPayment.Amount, capPayment.ContractInstallmentID)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	// Obtain active / period over, arrears status, last installment date
+	var cF ContractFinancial
+	err = tx.QueryRow(queries.ContractFinancial, cid).Scan(&cF.Active, &cF.RecoveryStatus, &cF.Doubtful, &cF.Payment, &cF.CapitalArrears, &cF.InterestArrears, &cF.CapitalProvisioned, &cF.ScheduleEndDate)
+	if err != nil {
+		return 0, err
+	}
+	m.ReceiptLogger.Printf("REBATE RID %d \t %+v", rid, cF)
+
+	_, err = tx.Exec("UPDATE contract_financial SET interest_paid = interest_paid + ?, interest_arrears = interest_arrears - ? WHERE contract_id = ?", fIntPaid, fIntPaid, cid)
+	if err != nil {
+		return 0, err
+	}
+
+	tid, err := mysequel.Insert(mysequel.Table{
+		TableName: "transaction",
+		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
+		Vals:      []interface{}{userID, time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), cid, fmt.Sprintf("INTEREST REBATE %d [%d]", rid, cid)},
+		Tx:        tx,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	rebateJEs := []models.JournalEntry{
+		{Account: fmt.Sprintf("%d", RebateExpenseAccount), Debit: fmt.Sprintf("%f", amount), Credit: ""},
+		{Account: fmt.Sprintf("%d", ReceivableArrearsAccount), Debit: "", Credit: fmt.Sprintf("%f", amount)},
+	}
+
+	arrears := cF.CapitalArrears + cF.InterestArrears
+	nAge := arrears / cF.Payment
+
+	if nAge <= 0 && cF.Doubtful == 0 {
+		m.ReceiptLogger.Printf("REBATE RID %d \t %s", rid, "nAge <= 0 && cF.Doubtful == 0")
+		// db_txn, txn_id, interest, capital_provisioned
+		rebateJEs, err = addBadDebtJEsUpdateStatus(tx, int64(cid), tid, 0, cF.CapitalProvisioned, rebateJEs, `UPDATE contract_financial SET recovery_status_id = ?, doubtful = ? WHERE contract_id = ?`, RecoveryStatusActive, 0, cid)
+		if err != nil {
+			return 0, err
+		}
+	} else if nAge <= 0 && cF.Doubtful == 1 {
+		m.ReceiptLogger.Printf("REBATE RID %d \t %s", rid, "nAge <= 0 && cF.Doubtful == 1")
+		// db_txn, txn_id, interest, capital_provisioned
+		rebateJEs, err = addBadDebtJEsUpdateStatus(tx, int64(cid), tid, cF.InterestArrears, cF.CapitalProvisioned, rebateJEs, `UPDATE contract_financial SET recovery_status_id = ?, doubtful = ? WHERE contract_id = ?`, RecoveryStatusActive, 0, cid)
+		if err != nil {
+			return 0, err
+		}
+	} else if (cF.RecoveryStatus == RecoveryStatusArrears && nAge > 0 && cF.Doubtful == 1) || (cF.RecoveryStatus == RecoveryStatusNPL && nAge < 6) ||
+		(cF.RecoveryStatus == RecoveryStatusBDP && nAge < 6) {
+		m.ReceiptLogger.Printf("REBATE RID %d \t %s", rid, `(cF.RecoveryStatus == RecoveryStatusArrears && nAge > 0 && cF.Doubtful == 1) || (cF.RecoveryStatus == RecoveryStatusNPL && nAge < 6) ||
+		(cF.RecoveryStatus == RecoveryStatusBDP && nAge < 6)`)
+		// db_txn, txn_id, interest, capital_provisioned
+		rebateJEs, err = addBadDebtJEsUpdateStatus(tx, int64(cid), tid, fIntPaid, cF.CapitalProvisioned, rebateJEs, `UPDATE contract_financial SET recovery_status_id = ? WHERE contract_id = ?`, RecoveryStatusArrears, cid)
+		if err != nil {
+			return 0, err
+		}
+	} else if (cF.RecoveryStatus == RecoveryStatusNPL && nAge >= 6) || (cF.RecoveryStatus == RecoveryStatusBDP && nAge >= 12) {
+		m.ReceiptLogger.Printf("REBATE RID %d \t %s", rid, "nAge >= 6 || nAge >= 12")
+		bdJEs, err := badDebtReceiptJEProvision(tx, int64(cid), tid, fIntPaid, 0)
+		if err != nil {
+			return 0, err
+		}
+		rebateJEs = append(rebateJEs, bdJEs...)
+	} else if cF.RecoveryStatus == RecoveryStatusBDP && nAge < 12 {
+		m.ReceiptLogger.Printf("REBATE RID %d \t %s", rid, "cF.RecoveryStatus == RecoveryStatusBDP && nAge < 12")
+		var capitalProvision float64
+		err = tx.QueryRow(queries.NplCapitalProvision, cid).Scan(&capitalProvision)
+		if err != nil {
+			return 0, err
+		}
+		capitalProvisionRemoval := math.Round((cF.CapitalProvisioned-capitalProvision)*100) / 100
+
+		// db_txn, txn_id, interest, capital_provisioned
+		rebateJEs, err = addBadDebtJEsUpdateStatus(tx, int64(cid), tid, fIntPaid, capitalProvisionRemoval, rebateJEs, `UPDATE contract_financial SET recovery_status_id = ? WHERE contract_id = ?`, RecoveryStatusNPL, cid)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	err = IssueJournalEntries(tx, tid, rebateJEs)
+	if err != nil {
+		return 0, err
+	}
+
+	m.ReceiptLogger.Printf("REBATE RID %d \t %s", rid, "LKAS 17 function complete")
+	return rid, err
+}
+
 // LegacyRebate issues a legacy rebate
 func (m *ContractModel) LegacyRebate(userID, cid int, amount float64) (int64, error) {
 	tx, err := m.DB.Begin()
