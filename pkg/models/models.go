@@ -359,6 +359,7 @@ type Document struct {
 type History struct {
 	FromState      sql.NullString `json:"from_state"`
 	ToState        string         `json:"to_state"`
+	Approver       sql.NullString `json:"approver"`
 	TransitionDate time.Time      `json:"transition_date"`
 }
 

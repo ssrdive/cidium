@@ -36,12 +36,14 @@ const DOCUMENTS = `
 	WHERE CS.contract_id = ? AND deleted = 0`
 
 const HISTORY = `
-	SELECT S.name as from_state, S2.name as to_state, CST.transition_date
+	SELECT S.name as from_state, S2.name as to_state, U.name as approver, CST.transition_date
 	FROM contract_state_transition CST 
 	LEFT JOIN contract_state CS ON CS.id = CST.from_contract_state_id
 	LEFT JOIN contract_state CS2 ON CS2.id = CST.to_contract_state_id
 	LEFT JOIN state S ON S.id = CS.state_id
 	LEFT JOIN state S2 ON S2.id = CS2.state_id
+	LEFT JOIN request R ON R.id = CST.request_id
+	LEFT JOIN user U ON U.id = R.approved_by
 	WHERE CS2.contract_id = ?`
 
 const REJECTED_REQUESTS = `
