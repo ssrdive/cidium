@@ -792,6 +792,12 @@ const SENDER_MOBILE = `
 	WHERE C.id = ?
 `
 
+const CONTRACT_LEAD_TYPE = `
+	SELECT external
+	FROM contract C
+	WHERE C.id = ?
+`
+
 const SEASONAL_INCENTIVE = `
 	SELECT SUM(seasonal_incentive) AS seasonal_incentive
 	FROM (SELECT ROUND(SUM(CIP.amount)*(1.6/100), 2) as seasonal_incentive
@@ -819,6 +825,19 @@ const ACHIEVEMENT_SUMMARY = `
 	FROM target_batch TB
 	WHERE DATE(NOW()) BETWEEN TB.start AND TB.end)
 	GROUP BY T.user_id, U.name, month, T.amount
+	ORDER BY month ASC
+`
+
+const CREDIT_ACHIEVEMENT_SUMMARY = `
+	SELECT T.user_id, U.name AS officer, DATE_FORMAT(T.month, "%Y-%m") AS month, T.amount AS target, COALESCE(SUM(CF.agreed_capital), 0) AS credit_issued, COALESCE(ROUND(SUM(CF.agreed_capital)*100/T.amount, 2), 0) AS credit_percentage
+	FROM target_credit T
+	LEFT JOIN user U ON U.id = T.user_id	
+	LEFT JOIN contract C ON C.recovery_officer_id = T.user_id AND C.external = 1
+	LEFT JOIN contract_financial CF ON CF.contract_id = C.id AND YEAR(DATE_SUB(CF.financial_schedule_start_date, INTERVAL 1 MONTH)) = YEAR(T.month) AND MONTH(DATE_SUB(CF.financial_schedule_start_date, INTERVAL 1 MONTH)) = MONTH(T.month)
+	WHERE T.target_batch_id = (SELECT TB.id
+	FROM target_batch TB
+	WHERE DATE(NOW()) BETWEEN TB.start AND TB.end)	
+	GROUP BY T.user_id, U.name, month, T.amount	
 	ORDER BY month ASC
 `
 

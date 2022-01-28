@@ -35,6 +35,17 @@ func (m *ReportingModel) AchievementSummary() ([]models.AchievementSummaryItem, 
 	return res, nil
 }
 
+// CreditAchievementSummary returns achievement summary
+func (m *ReportingModel) CreditAchievementSummary() ([]models.AchievementSummaryItem, error) {
+	var res []models.AchievementSummaryItem
+	err := mysequel.QueryToStructs(&res, m.DB, queries.CREDIT_ACHIEVEMENT_SUMMARY)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
 // ReceiptSearch returns receipt search
 func (m *ReportingModel) ReceiptSearch(startDate, endDate, officer string) ([]models.ReceiptSearchItem, error) {
 	o := mysequel.NewNullString(officer)

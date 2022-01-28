@@ -879,6 +879,13 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 	unearnedInterestAccount := 188
 	payableAccount := 189
 
+	var external int
+	err = tx.QueryRow(queries.CONTRACT_LEAD_TYPE, cid).Scan(&external)
+
+	if external == 1 {
+		payableAccount = 314
+	}
+
 	journalEntries := []models.JournalEntry{
 		{fmt.Sprintf("%d", receivableAccount), fmt.Sprintf("%f", fullRecievables), ""},
 		{fmt.Sprintf("%d", payableAccount), "", fmt.Sprintf("%f", capital)},
