@@ -42,10 +42,14 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/ssrdive/mysequel v0.0.0-20200607152047-bfb6d81da001 h1:sTdrxSj5xY2tQCibC/PyPSLkE98D/09iWgtfcR4wdJ8=
 github.com/ssrdive/mysequel v0.0.0-20200607152047-bfb6d81da001/go.mod h1:3ZsmS8Ub2gYX5pVV51Y+mRO2Y7gjjlBU/lQn/P0/1YA=
+github.com/ssrdive/mysequel v1.0.0 h1:yJwx1B3Gz5lo5fKiQPjEtcUDkgOoR8qW73mZQHPZqxE=
+github.com/ssrdive/mysequel v1.0.0/go.mod h1:3ZsmS8Ub2gYX5pVV51Y+mRO2Y7gjjlBU/lQn/P0/1YA=
 github.com/ssrdive/sprinter v0.0.0-20210101155910-5159af252574 h1:sH9xfkuRSBCgQu49XzC8MU5qqUvQ8jV3NKGeLZLe5KU=
 github.com/ssrdive/sprinter v0.0.0-20210101155910-5159af252574/go.mod h1:97CNQTK2ynSBcV2If6lnqRPgcsQ3WlSrNMwfXPa2gBY=
 github.com/ssrdive/sprinter v0.0.0-20210103133305-c9b54276eda0 h1:OBF4+mlfz/GSDaGP7mW/L/QvNEbKf2jpbMC7m/qe91g=
 github.com/ssrdive/sprinter v0.0.0-20210103133305-c9b54276eda0/go.mod h1:97CNQTK2ynSBcV2If6lnqRPgcsQ3WlSrNMwfXPa2gBY=
+github.com/ssrdive/sprinter v1.0.0 h1:wpD1QQ1Qy6ABkmguvSesy5M62WQxPq4pKtaPpvbaFdc=
+github.com/ssrdive/sprinter v1.0.0/go.mod h1:97CNQTK2ynSBcV2If6lnqRPgcsQ3WlSrNMwfXPa2gBY=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.2.2 h1:bSDNvY7ZPG5RlJ8otE/7V6gMiyenm9RtJ7IUVIAoJ1w=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
