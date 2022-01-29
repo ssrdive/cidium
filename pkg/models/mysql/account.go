@@ -283,32 +283,13 @@ func (m *AccountModel) JournalEntry(userID, postingDate, remark, entries string)
 		return 0, err
 	}
 
-	for _, entry := range journalEntries {
-		if len(entry.Debit) != 0 {
-			_, err := mysequel.Insert(mysequel.Table{
-				TableName: "account_transaction",
-				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-				Vals:      []interface{}{tid, entry.Account, "DR", entry.Debit},
-				Tx:        tx,
-			})
-			if err != nil {
-				tx.Rollback()
-				return 0, err
-			}
-		}
-		if len(entry.Credit) != 0 {
-			_, err := mysequel.Insert(mysequel.Table{
-				TableName: "account_transaction",
-				Columns:   []string{"transaction_id", "account_id", "type", "amount"},
-				Vals:      []interface{}{tid, entry.Account, "CR", entry.Credit},
-				Tx:        tx,
-			})
-			if err != nil {
-				tx.Rollback()
-				return 0, err
-			}
-		}
+	err = IssueJournalEntries(tx, tid, journalEntries)
+
+	if err != nil {
+		tx.Rollback()
+		return 0, err
 	}
+
 	return tid, nil
 }
 

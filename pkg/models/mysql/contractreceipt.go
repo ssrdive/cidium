@@ -335,6 +335,8 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 			}
 		}
 
+		fmt.Println("In here")
+
 		journalEntries := []models.JournalEntry{
 			{Account: fmt.Sprintf("%d", officerAccountID), Debit: fmt.Sprintf("%f", amount), Credit: ""},
 			{Account: fmt.Sprintf("%d", 25), Debit: "", Credit: fmt.Sprintf("%f", amount)},
