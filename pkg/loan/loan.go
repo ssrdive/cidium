@@ -195,7 +195,6 @@ func Create(capital, rate float64, installments, installmentInterval, structured
 		n := installmentInterval * installments
 
 		payment := math.Round((P*r*(math.Pow(1+r, float64(n))/(math.Pow(1+r, float64(n))-1)))*100) / 100
-		fmt.Println(payment)
 
 		capitalTotal := float64(0)
 		for i := 1; i <= installments; i++ {

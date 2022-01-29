@@ -1473,7 +1473,6 @@ func (m *ContractModel) LegacyRebate(userID, cid int, amount float64) (int64, er
 	}
 
 	for i := len(payables); i > 0; i-- {
-		fmt.Println(payables[i-1].InterestPayable)
 		if payables[i-1].InterestPayable != 0 && balance != 0 {
 			if balance-payables[i-1].InterestPayable >= 0 {
 				intPayments = append(intPayments, models.ContractPayment{payables[i-1].InstallmentID, rid, payables[i-1].InterestPayable})

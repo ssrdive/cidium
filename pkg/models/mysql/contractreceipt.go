@@ -128,7 +128,6 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		err = tx.QueryRow(queries.CONTRACT_PAYABLE, cid).Scan(&contractTotalPayable)
 	}
 	if err != nil {
-		fmt.Println(err)
 		tx.Rollback()
 		return 0, err
 	}
@@ -334,8 +333,6 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 				return 0, err
 			}
 		}
-
-		fmt.Println("In here")
 
 		journalEntries := []models.JournalEntry{
 			{Account: fmt.Sprintf("%d", officerAccountID), Debit: fmt.Sprintf("%f", amount), Credit: ""},
