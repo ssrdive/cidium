@@ -423,7 +423,7 @@ func (m *ContractModel) Detail(cid int) (models.ContractDetail, error) {
 	}
 
 	var detail models.ContractDetail
-	err = tx.QueryRow(detailsQuery, cid).Scan(&detail.ID, &detail.ContractState, &detail.ContractBatch, &detail.ModelName, &detail.ChassisNumber, &detail.CustomerName, &detail.CustomerNic, &detail.CustomerAddress, &detail.CustomerContact, &detail.LiaisonName, &detail.LiaisonContact, &detail.Price, &detail.Downpayment, &detail.CreditOfficer, &detail.RecoveryOfficer, &detail.AmountPending, &detail.TotalPayable, &detail.TotalPaid, &detail.LastPaymentDate, &detail.OverdueIndex)
+	err = tx.QueryRow(detailsQuery, cid).Scan(&detail.ID, &detail.ContractState, &detail.ContractBatch, &detail.ModelName, &detail.ChassisNumber, &detail.CustomerName, &detail.CustomerNic, &detail.CustomerAddress, &detail.CustomerContact, &detail.LiaisonName, &detail.LiaisonContact, &detail.Price, &detail.Downpayment, &detail.IntroducingOfficer, &detail.CreditOfficer, &detail.RecoveryOfficer, &detail.AmountPending, &detail.TotalPayable, &detail.TotalPaid, &detail.LastPaymentDate, &detail.OverdueIndex)
 	if err != nil {
 		return models.ContractDetail{}, err
 	}

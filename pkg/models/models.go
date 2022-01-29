@@ -65,26 +65,27 @@ type WorkQuestion struct {
 }
 
 type ContractDetail struct {
-	ID              int            `json:"id"`
-	ContractState   string         `json:"contract_state"`
-	ContractBatch   string         `json:"contract_batch"`
-	ModelName       string         `json:"model_name"`
-	ChassisNumber   string         `json:"chassis_number"`
-	CustomerName    string         `json:"customer_name"`
-	CustomerNic     string         `json:"customer_nic"`
-	CustomerAddress string         `json:"customer_address"`
-	CustomerContact int            `json:"customer_contact"`
-	LiaisonName     sql.NullString `json:"liaison_name"`
-	LiaisonContact  sql.NullInt32  `json:"liaison_contact"`
-	Price           int            `json:"price"`
-	Downpayment     sql.NullInt32  `json:"downpayment"`
-	CreditOfficer   string         `json:"credit_officer"`
-	RecoveryOfficer string         `json:"recovery_officer"`
-	AmountPending   float64        `json:"amount_pending"`
-	TotalPayable    float64        `json:"total_payable"`
-	TotalPaid       float64        `json:"total_paid"`
-	LastPaymentDate string         `json:"last_payment_date"`
-	OverdueIndex    string         `json:"overdue_index"`
+	ID                 int            `json:"id"`
+	ContractState      string         `json:"contract_state"`
+	ContractBatch      string         `json:"contract_batch"`
+	ModelName          string         `json:"model_name"`
+	ChassisNumber      string         `json:"chassis_number"`
+	CustomerName       string         `json:"customer_name"`
+	CustomerNic        string         `json:"customer_nic"`
+	CustomerAddress    string         `json:"customer_address"`
+	CustomerContact    int            `json:"customer_contact"`
+	LiaisonName        sql.NullString `json:"liaison_name"`
+	LiaisonContact     sql.NullInt32  `json:"liaison_contact"`
+	Price              int            `json:"price"`
+	Downpayment        sql.NullInt32  `json:"downpayment"`
+	IntroducingOfficer string         `json:"introducing_officer"`
+	CreditOfficer      string         `json:"credit_officer"`
+	RecoveryOfficer    string         `json:"recovery_officer"`
+	AmountPending      float64        `json:"amount_pending"`
+	TotalPayable       float64        `json:"total_payable"`
+	TotalPaid          float64        `json:"total_paid"`
+	LastPaymentDate    string         `json:"last_payment_date"`
+	OverdueIndex       string         `json:"overdue_index"`
 }
 
 type ContractRequestable struct {
