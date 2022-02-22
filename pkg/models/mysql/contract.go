@@ -16,6 +16,7 @@ import (
 	"github.com/ssrdive/cidium/pkg/sql/queries"
 	"github.com/ssrdive/mysequel"
 	"github.com/ssrdive/scribe"
+	smodels "github.com/ssrdive/scribe/models"
 	"github.com/ssrdive/sprinter"
 )
 
@@ -167,7 +168,7 @@ func (m *ContractModel) Legacy(cid int, form url.Values) error {
 		return err
 	}
 
-	journalEntries := []models.JournalEntry{
+	journalEntries := []smodels.JournalEntry{
 		{fmt.Sprintf("%d", 95), "", fmt.Sprintf("%f", capital)},
 		{fmt.Sprintf("%d", 78), "", fmt.Sprintf("%f", interestAmount)},
 		{fmt.Sprintf("%d", 25), fmt.Sprintf("%f", fullRecievables), ""},
@@ -866,7 +867,7 @@ func (m *ContractModel) InitiateContract(user, request int) error {
 		payableAccount = 314
 	}
 
-	journalEntries := []models.JournalEntry{
+	journalEntries := []smodels.JournalEntry{
 		{fmt.Sprintf("%d", receivableAccount), fmt.Sprintf("%f", fullRecievables), ""},
 		{fmt.Sprintf("%d", payableAccount), "", fmt.Sprintf("%f", capital)},
 		{fmt.Sprintf("%d", unearnedInterestAccount), "", fmt.Sprintf("%f", interestAmount)},
@@ -1157,7 +1158,7 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 			return 0, err
 		}
 
-		journalEntries := []models.JournalEntry{
+		journalEntries := []smodels.JournalEntry{
 			{Account: fmt.Sprintf("%d", expenseAccount), Debit: form.Get("capital"), Credit: ""},
 			{Account: fmt.Sprintf("%d", receivableAccount), Debit: "", Credit: form.Get("capital")},
 		}
@@ -1210,7 +1211,7 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 		return 0, err
 	}
 
-	journalEntries := []models.JournalEntry{
+	journalEntries := []smodels.JournalEntry{
 		{Account: fmt.Sprintf("%d", 25), Debit: form.Get("capital"), Credit: ""},
 		{Account: fmt.Sprintf("%d", unearnedAccountID), Debit: "", Credit: form.Get("capital")},
 	}
@@ -1365,7 +1366,7 @@ func (m *ContractModel) LKAS17Rebate(userID, cid int, amount float64) (int64, er
 		return 0, err
 	}
 
-	rebateJEs := []models.JournalEntry{
+	rebateJEs := []smodels.JournalEntry{
 		{Account: fmt.Sprintf("%d", RebateExpenseAccount), Debit: fmt.Sprintf("%f", amount), Credit: ""},
 		{Account: fmt.Sprintf("%d", ReceivableArrearsAccount), Debit: "", Credit: fmt.Sprintf("%f", amount)},
 	}
@@ -1514,7 +1515,7 @@ func (m *ContractModel) LegacyRebate(userID, cid int, amount float64) (int64, er
 		return 0, err
 	}
 
-	journalEntries := []models.JournalEntry{
+	journalEntries := []smodels.JournalEntry{
 		{fmt.Sprintf("%d", 78), fmt.Sprintf("%f", amount), ""},
 		{fmt.Sprintf("%d", 25), "", fmt.Sprintf("%f", amount)},
 	}

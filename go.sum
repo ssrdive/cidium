@@ -44,6 +44,8 @@ github.com/ssrdive/mysequel v0.0.0-20200607152047-bfb6d81da001 h1:sTdrxSj5xY2tQC
 github.com/ssrdive/mysequel v0.0.0-20200607152047-bfb6d81da001/go.mod h1:3ZsmS8Ub2gYX5pVV51Y+mRO2Y7gjjlBU/lQn/P0/1YA=
 github.com/ssrdive/mysequel v1.0.0 h1:yJwx1B3Gz5lo5fKiQPjEtcUDkgOoR8qW73mZQHPZqxE=
 github.com/ssrdive/mysequel v1.0.0/go.mod h1:3ZsmS8Ub2gYX5pVV51Y+mRO2Y7gjjlBU/lQn/P0/1YA=
+github.com/ssrdive/scribe v0.0.3 h1:BqKUX5xWlRan/++QCS9tNwY866ddNjW/EVKMDiUkRic=
+github.com/ssrdive/scribe v0.0.3/go.mod h1:1x+voI8glI8eye5Y0pJGZf0qgliwvlRVeLahkqytPPI=
 github.com/ssrdive/sprinter v0.0.0-20210101155910-5159af252574 h1:sH9xfkuRSBCgQu49XzC8MU5qqUvQ8jV3NKGeLZLe5KU=
 github.com/ssrdive/sprinter v0.0.0-20210101155910-5159af252574/go.mod h1:97CNQTK2ynSBcV2If6lnqRPgcsQ3WlSrNMwfXPa2gBY=
 github.com/ssrdive/sprinter v0.0.0-20210103133305-c9b54276eda0 h1:OBF4+mlfz/GSDaGP7mW/L/QvNEbKf2jpbMC7m/qe91g=

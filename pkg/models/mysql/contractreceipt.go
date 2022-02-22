@@ -14,6 +14,7 @@ import (
 	"github.com/ssrdive/cidium/pkg/sql/queries"
 	"github.com/ssrdive/mysequel"
 	"github.com/ssrdive/scribe"
+	smodels "github.com/ssrdive/scribe/models"
 )
 
 const (
@@ -167,7 +168,7 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 			return 0, err
 		}
 
-		journalEntries := []models.JournalEntry{
+		journalEntries := []smodels.JournalEntry{
 			{Account: fmt.Sprintf("%d", officerAccountID), Debit: fmt.Sprintf("%f", amount), Credit: ""},
 			{Account: fmt.Sprintf("%d", 144), Debit: "", Credit: fmt.Sprintf("%f", amount)},
 		}
@@ -335,7 +336,7 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 			}
 		}
 
-		journalEntries := []models.JournalEntry{
+		journalEntries := []smodels.JournalEntry{
 			{Account: fmt.Sprintf("%d", officerAccountID), Debit: fmt.Sprintf("%f", amount), Credit: ""},
 			{Account: fmt.Sprintf("%d", 25), Debit: "", Credit: fmt.Sprintf("%f", amount)},
 			{Account: fmt.Sprintf("%d", 46), Debit: "", Credit: fmt.Sprintf("%f", interestAmount)},
@@ -504,13 +505,13 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 		}
 	}
 
-	debitJEs := []models.JournalEntry{}
+	debitJEs := []smodels.JournalEntry{}
 
 	debitsPaid := float64(0)
 	for _, debPayment := range debitPymnts {
 		debitsPaid = debitsPaid + debPayment.Amount
 
-		debitJEs = append(debitJEs, models.JournalEntry{Account: fmt.Sprintf("%d", debPayment.ExpenseAccountID), Debit: "", Credit: fmt.Sprintf("%f", debPayment.Amount)})
+		debitJEs = append(debitJEs, smodels.JournalEntry{Account: fmt.Sprintf("%d", debPayment.ExpenseAccountID), Debit: "", Credit: fmt.Sprintf("%f", debPayment.Amount)})
 
 		_, err := mysequel.Insert(mysequel.Table{
 			TableName: "contract_financial_payment",
@@ -627,7 +628,7 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 		return 0, err
 	}
 
-	receiptJEs := []models.JournalEntry{}
+	receiptJEs := []smodels.JournalEntry{}
 
 	cashJEs, err := cashInHandJE(tx, int64(userID), amount, amount-debitsPaid, debitJEs, rType)
 	if err != nil {
@@ -693,7 +694,7 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 	return rid, err
 }
 
-func addBadDebtJEsUpdateStatus(tx *sql.Tx, cid, tid int64, interest, capitalProvisioned float64, receiptJEs []models.JournalEntry, query string, queryArgs ...interface{}) ([]models.JournalEntry, error) {
+func addBadDebtJEsUpdateStatus(tx *sql.Tx, cid, tid int64, interest, capitalProvisioned float64, receiptJEs []smodels.JournalEntry, query string, queryArgs ...interface{}) ([]smodels.JournalEntry, error) {
 	bdJEs, err := badDebtReceiptJEProvision(tx, int64(cid), tid, interest, capitalProvisioned)
 	if err != nil {
 		return nil, err
@@ -706,16 +707,16 @@ func addBadDebtJEsUpdateStatus(tx *sql.Tx, cid, tid int64, interest, capitalProv
 	return receiptJEs, nil
 }
 
-func badDebtReceiptJEProvision(tx *sql.Tx, cid, tid int64, interest, capital float64) ([]models.JournalEntry, error) {
-	journalEntries := []models.JournalEntry{}
+func badDebtReceiptJEProvision(tx *sql.Tx, cid, tid int64, interest, capital float64) ([]smodels.JournalEntry, error) {
+	journalEntries := []smodels.JournalEntry{}
 	if interest != 0 {
-		journalEntries = append(journalEntries, models.JournalEntry{Account: fmt.Sprintf("%d", SuspenseInterestAccount), Debit: fmt.Sprintf("%f", interest), Credit: ""},
-			models.JournalEntry{Account: fmt.Sprintf("%d", InterestIncomeAccount), Debit: "", Credit: fmt.Sprintf("%f", interest)})
+		journalEntries = append(journalEntries, smodels.JournalEntry{Account: fmt.Sprintf("%d", SuspenseInterestAccount), Debit: fmt.Sprintf("%f", interest), Credit: ""},
+			smodels.JournalEntry{Account: fmt.Sprintf("%d", InterestIncomeAccount), Debit: "", Credit: fmt.Sprintf("%f", interest)})
 	}
 	if capital != 0 {
 		// Reverse capital provisioned
-		journalEntries = append(journalEntries, models.JournalEntry{Account: fmt.Sprintf("%d", ProvisionForBadDebtAccount), Debit: fmt.Sprintf("%f", capital), Credit: ""},
-			models.JournalEntry{Account: fmt.Sprintf("%d", BadDebtProvisionAccount), Debit: "", Credit: fmt.Sprintf("%f", capital)})
+		journalEntries = append(journalEntries, smodels.JournalEntry{Account: fmt.Sprintf("%d", ProvisionForBadDebtAccount), Debit: fmt.Sprintf("%f", capital), Credit: ""},
+			smodels.JournalEntry{Account: fmt.Sprintf("%d", BadDebtProvisionAccount), Debit: "", Credit: fmt.Sprintf("%f", capital)})
 
 		_, err := tx.Exec(`UPDATE contract_financial SET capital_provisioned = capital_provisioned - ? WHERE contract_id = ?`, capital, cid)
 		if err != nil {
@@ -725,7 +726,7 @@ func badDebtReceiptJEProvision(tx *sql.Tx, cid, tid int64, interest, capital flo
 	return journalEntries, nil
 }
 
-func cashInHandJE(tx *sql.Tx, userID int64, receiptAmount, arrearsDeduction float64, debits []models.JournalEntry, rType string) ([]models.JournalEntry, error) {
+func cashInHandJE(tx *sql.Tx, userID int64, receiptAmount, arrearsDeduction float64, debits []smodels.JournalEntry, rType string) ([]smodels.JournalEntry, error) {
 	var cashAccountID int
 	if rType == "REGULAR" {
 		err := tx.QueryRow(queries.OFFICER_ACC_NO, userID).Scan(&cashAccountID)
@@ -736,7 +737,7 @@ func cashInHandJE(tx *sql.Tx, userID int64, receiptAmount, arrearsDeduction floa
 		cashAccountID = ReceiptsForIncompleteContractsAccount
 	}
 
-	journalEntries := []models.JournalEntry{
+	journalEntries := []smodels.JournalEntry{
 		{Account: fmt.Sprintf("%d", cashAccountID), Debit: fmt.Sprintf("%f", receiptAmount), Credit: ""},
 	}
 
@@ -747,7 +748,7 @@ func cashInHandJE(tx *sql.Tx, userID int64, receiptAmount, arrearsDeduction floa
 	}
 
 	if arrearsDeduction > 0 {
-		journalEntries = append(journalEntries, models.JournalEntry{Account: fmt.Sprintf("%d", ReceivableArrearsAccount), Debit: "", Credit: fmt.Sprintf("%f", arrearsDeduction)})
+		journalEntries = append(journalEntries, smodels.JournalEntry{Account: fmt.Sprintf("%d", ReceivableArrearsAccount), Debit: "", Credit: fmt.Sprintf("%f", arrearsDeduction)})
 	}
 
 	return journalEntries, nil
