@@ -11,6 +11,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/ssrdive/cidium/pkg/models/mysql"
+	"github.com/ssrdive/scribe"
 )
 
 type application struct {
@@ -28,7 +29,7 @@ type application struct {
 	user       *mysql.UserModel
 	dropdown   *mysql.DropdownModel
 	contract   *mysql.ContractModel
-	account    *mysql.AccountModel
+	account    *scribe.AccountModel
 	reporting  *mysql.ReportingModel
 }
 
@@ -80,7 +81,7 @@ func main() {
 		user:       &mysql.UserModel{DB: db},
 		dropdown:   &mysql.DropdownModel{DB: db},
 		contract:   &mysql.ContractModel{DB: db, ReceiptLogger: receiptLog},
-		account:    &mysql.AccountModel{DB: db},
+		account:    &scribe.AccountModel{DB: db},
 		reporting:  &mysql.ReportingModel{DB: db},
 	}
 
