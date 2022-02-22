@@ -13,6 +13,7 @@ import (
 	"github.com/ssrdive/cidium/pkg/models"
 	"github.com/ssrdive/cidium/pkg/sql/queries"
 	"github.com/ssrdive/mysequel"
+	"github.com/ssrdive/scribe"
 )
 
 const (
@@ -171,7 +172,7 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 			{Account: fmt.Sprintf("%d", 144), Debit: "", Credit: fmt.Sprintf("%f", amount)},
 		}
 
-		err = IssueJournalEntries(tx, tid, journalEntries)
+		err = scribe.IssueJournalEntries(tx, tid, journalEntries)
 		if err != nil {
 			tx.Rollback()
 			return 0, err
@@ -341,7 +342,7 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 			{Account: fmt.Sprintf("%d", 78), Debit: fmt.Sprintf("%f", interestAmount), Credit: ""},
 		}
 
-		err = IssueJournalEntries(tx, tid, journalEntries)
+		err = scribe.IssueJournalEntries(tx, tid, journalEntries)
 
 		rid = legacyRid
 	}
@@ -683,7 +684,7 @@ func (m *ContractModel) IssueLKAS17Receipt(tx *sql.Tx, userID, cid int, amount f
 		}
 	}
 
-	err = IssueJournalEntries(tx, tid, receiptJEs)
+	err = scribe.IssueJournalEntries(tx, tid, receiptJEs)
 	if err != nil {
 		return 0, err
 	}

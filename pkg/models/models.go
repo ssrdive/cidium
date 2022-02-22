@@ -314,31 +314,6 @@ type Commitment struct {
 	FulfilledOn sql.NullTime   `json:"fulfilled_on"`
 }
 
-type PaymentVoucherList struct {
-	ID          int       `json:"id"`
-	Datetime    time.Time `json:"date_time"`
-	PostingDate string    `json:"posting_date"`
-	FromAccount string    `json:"from_account"`
-	User        string    `json:"user"`
-}
-
-type PaymentVoucherDetails struct {
-	AccountID   int     `json:"account_id"`
-	AccountName string  `json:"account_name"`
-	Amount      float64 `json:"amount"`
-	PostingDate string  `json:"posting_date"`
-}
-
-type PaymentVoucherSummary struct {
-	DueDate               sql.NullString          `json:"due_date"`
-	CheckNumber           sql.NullString          `json:"check_number"`
-	Payee                 sql.NullString          `json:"payee"`
-	Remark                sql.NullString          `json:"remark"`
-	Account               sql.NullString          `json:"account"`
-	Datetime              sql.NullString          `json:"datetime"`
-	PaymentVoucherDetails []PaymentVoucherDetails `json:"payment_voucher_details"`
-}
-
 type DashboardCommitment struct {
 	ContractID int    `json:"contract_id"`
 	DueIn      int    `json:"due_in"`
@@ -362,55 +337,6 @@ type History struct {
 	ToState        string         `json:"to_state"`
 	Approver       sql.NullString `json:"approver"`
 	TransitionDate time.Time      `json:"transition_date"`
-}
-
-type ChartOfAccount struct {
-	MainAccountID     int            `json:"main_account_id"`
-	MainAccount       string         `json:"main_account"`
-	SubAccountID      int            `json:"sub_account_id"`
-	SubAccount        string         `json:"sub_account"`
-	AccountCategoryID sql.NullInt32  `json:"account_category_id"`
-	AccountCategory   sql.NullString `json:"account_category"`
-	AccountID         sql.NullInt32  `json:"account_id"`
-	AccountName       sql.NullString `json:"account_name"`
-}
-
-type TrialEntry struct {
-	ID          int     `json:"id"`
-	AccountID   int     `json:"account_id"`
-	AccountName string  `json:"account_name"`
-	Debit       float64 `json:"debit"`
-	Credit      float64 `json:"credit"`
-	Balance     float64 `json:"balance"`
-}
-
-type JournalEntry struct {
-	Account string
-	Debit   string
-	Credit  string
-}
-
-type PaymentVoucherEntry struct {
-	Account string
-	Amount  string
-}
-
-type LedgerEntry struct {
-	Name          string  `json:"account_name"`
-	TransactionID int     `json:"transaction_id"`
-	PostingDate   string  `json:"posting_date"`
-	Amount        float64 `json:"amount"`
-	Type          string  `json:"type"`
-	Remark        string  `json:"remark"`
-}
-
-type Transaction struct {
-	TransactionID int     `json:"transaction_id"`
-	AccountID     int     `json:"account_id"`
-	AccountID2    int     `json:"account_id2"`
-	AccountName   string  `json:"account_name"`
-	Type          string  `json:"type"`
-	Amount        float64 `json:"amount"`
 }
 
 type CSQASearchResult struct {
