@@ -329,6 +329,20 @@ func (app *application) searchContractOld(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(results)
 }
 
+func (app *application) journalEntryAudit(w http.ResponseWriter, r *http.Request) {
+	entrydate := r.URL.Query().Get("entrydate")
+	postingdate := r.URL.Query().Get("postingdate")
+
+	results, err := app.account.JournalEntriesForAudit(entrydate, postingdate)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
 func (app *application) searchContractV2(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 	state := r.URL.Query().Get("state")
