@@ -343,6 +343,32 @@ func (app *application) journalEntryAudit(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(results)
 }
 
+func (app *application) balanceSheetSummary(w http.ResponseWriter, r *http.Request) {
+	postingdate := r.URL.Query().Get("postingdate")
+
+	results, err := app.account.BalanceSheetSummary(postingdate)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
+func (app *application) accountBalancesForReporting(w http.ResponseWriter, r *http.Request) {
+	postingdate := r.URL.Query().Get("postingdate")
+
+	results, err := app.account.AccountBalancesForReporting(postingdate)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
 func (app *application) searchContractV2(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 	state := r.URL.Query().Get("state")
