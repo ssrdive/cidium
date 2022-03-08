@@ -343,6 +343,20 @@ func (app *application) journalEntryAudit(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(results)
 }
 
+func (app *application) pnlSummary(w http.ResponseWriter, r *http.Request) {
+	startDate := r.URL.Query().Get("startdate")
+	endDate := r.URL.Query().Get("enddate")
+
+	results, err := app.account.AccountsForPNL(startDate, endDate)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
 func (app *application) balanceSheetSummary(w http.ResponseWriter, r *http.Request) {
 	postingdate := r.URL.Query().Get("postingdate")
 
