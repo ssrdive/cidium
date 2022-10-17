@@ -1369,7 +1369,9 @@ func (app *application) contractCommitments(w http.ResponseWriter, r *http.Reque
 }
 
 func (app *application) accountTrialBalance(w http.ResponseWriter, r *http.Request) {
-	accounts, err := app.account.TrialBalance()
+	postingdate := r.URL.Query().Get("postingdate")
+
+	accounts, err := app.account.TrialBalance(postingdate)
 	if err != nil {
 		app.serverError(w, err)
 		return

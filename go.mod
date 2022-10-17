@@ -13,7 +13,7 @@ require (
 	github.com/justinas/alice v1.2.0
 	github.com/kr/text v0.2.0 // indirect
 	github.com/ssrdive/mysequel v1.0.0
-	github.com/ssrdive/scribe v0.0.14 // indirect
+	github.com/ssrdive/scribe v0.0.16 // indirect
 	github.com/ssrdive/sprinter v1.0.0
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/net v0.0.0-20201216054612-986b41b23924 // indirect
