@@ -68,6 +68,8 @@ github.com/ssrdive/scribe v0.0.16 h1:RblXGFfjwnyND0GP+R9QoWHxDPQbk+z1FvvShBoMfE4
 github.com/ssrdive/scribe v0.0.16/go.mod h1:YQkUFRe/hPGym2NrN8+ruTnZ1E5fUzp/gK41sIWrXn4=
 github.com/ssrdive/scribe v0.0.17 h1:9w8ZKlHxi4DLBMaturEViHXgRa38gU10jDMRIfgTB6o=
 github.com/ssrdive/scribe v0.0.17/go.mod h1:YQkUFRe/hPGym2NrN8+ruTnZ1E5fUzp/gK41sIWrXn4=
+github.com/ssrdive/scribe v0.0.18 h1:Ny17BeF0oSr6a7szV9/CUeC5Btcgsh9K9ZIbjrHD5nA=
+github.com/ssrdive/scribe v0.0.18/go.mod h1:YQkUFRe/hPGym2NrN8+ruTnZ1E5fUzp/gK41sIWrXn4=
 github.com/ssrdive/sprinter v0.0.0-20210101155910-5159af252574 h1:sH9xfkuRSBCgQu49XzC8MU5qqUvQ8jV3NKGeLZLe5KU=
 github.com/ssrdive/sprinter v0.0.0-20210101155910-5159af252574/go.mod h1:97CNQTK2ynSBcV2If6lnqRPgcsQ3WlSrNMwfXPa2gBY=
 github.com/ssrdive/sprinter v0.0.0-20210103133305-c9b54276eda0 h1:OBF4+mlfz/GSDaGP7mW/L/QvNEbKf2jpbMC7m/qe91g=
