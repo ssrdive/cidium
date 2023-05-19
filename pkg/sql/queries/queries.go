@@ -419,7 +419,7 @@ const SEARCH_OLD = `
 	GROUP BY C.id`
 
 const SEARCH = `
-	SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable,  COALESCE(SUM(CI.agreed_installment), 0) AS total_agreement, COALESCE(SUM(CI.installment_paid), 0) AS total_paid, COALESCE(SUM(CI.defalut_interest_paid), 0) AS total_di_paid, 
+	SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable, COALESCE(CD.amount, 0) AS default_charges,  COALESCE(SUM(CI.agreed_installment), 0) AS total_agreement, COALESCE(SUM(CI.installment_paid), 0) AS total_paid, COALESCE(SUM(CI.defalut_interest_paid), 0) AS total_di_paid, 
 	( CASE WHEN (MAX(DATE(CR.datetime)) IS NULL AND MAX(DATE(CRL.legacy_payment_date)) IS NULL) THEN 'N/A' ELSE GREATEST(COALESCE(MAX(DATE(CR.datetime)), '1900-01-01'), COALESCE(MAX(DATE(CRL.legacy_payment_date)), '1900-01-01')) END ) as last_payment_date
 	FROM contract C
 	LEFT JOIN user U ON U.id = C.recovery_officer_id
@@ -427,6 +427,7 @@ const SEARCH = `
 	LEFT JOIN contract_batch CB ON CB.id = C.contract_batch_id
 	LEFT JOIN state S ON S.id = CS.state_id
 	LEFT JOIN model M ON C.model_id = M.id
+	LEFT JOIN contract_default CD ON CD.contract_id = C.id
 	LEFT JOIN (SELECT CR.contract_id, MAX(CR.datetime) AS datetime FROM contract_receipt CR WHERE CR.legacy_payment_date IS NULL GROUP BY CR.contract_id) CR ON CR.contract_id = C.id
 	LEFT JOIN (SELECT CRL.contract_id, MAX(CRL.legacy_payment_date) as legacy_payment_date FROM contract_receipt CRL GROUP BY CRL.contract_id) CRL ON CRL.contract_id = C.id
 	LEFT JOIN (SELECT CI.id, CI.contract_id, CI.capital+CI.interest+CI.default_interest AS installment, CI.capital+CI.interest AS agreed_installment, SUM(COALESCE(CCP.amount, 0)+COALESCE(CIP.amount, 0)) AS installment_paid, COALESCE(SUM(CDIP.amount), 0) as defalut_interest_paid, CI.due_date
@@ -449,24 +450,25 @@ const SEARCH = `
 	GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
 	ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
 	WHERE C.lkas_17_compliant = 0 AND (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND C.non_performing = 0 AND C.archived = 0
-	GROUP BY C.id
+	GROUP BY C.id, CD.amount
 
 	UNION
 
-	SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, COALESCE(SUM((CSH.marketed_capital+CSH.marketed_interest)-(CSH.marketed_capital_paid+CSH.marketed_interest_paid)), 0) AS amount_pending, COALESCE((agreed_capital-CF.capital_paid)+(agreed_interest-CF.interest_paid), 0) AS total_payable, COALESCE(agreed_capital+agreed_interest, 0) AS total_agreement, COALESCE(CF.capital_paid+CF.interest_paid+CF.charges_debits_paid, 0) AS total_paid, 0 AS total_di_paid, 'N/A' AS last_payment_date
+	SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, COALESCE(SUM((CSH.marketed_capital+CSH.marketed_interest)-(CSH.marketed_capital_paid+CSH.marketed_interest_paid)), 0) AS amount_pending, COALESCE((agreed_capital-CF.capital_paid)+(agreed_interest-CF.interest_paid), 0) AS total_payable, COALESCE(CD.amount, 0) AS default_charges, COALESCE(agreed_capital+agreed_interest, 0) AS total_agreement, COALESCE(CF.capital_paid+CF.interest_paid+CF.charges_debits_paid, 0) AS total_paid, 0 AS total_di_paid, 'N/A' AS last_payment_date
 	FROM contract C
 	LEFT JOIN user U ON U.id = C.recovery_officer_id
 	LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
 	LEFT JOIN contract_batch CB ON CB.id = C.contract_batch_id
 	LEFT JOIN state S ON S.id = CS.state_id
 	LEFT JOIN model M ON C.model_id = M.id
+	LEFT JOIN contract_default CD ON CD.contract_id = C.id
 	LEFT JOIN contract_state_transition CST ON CST.to_contract_state_id = C.contract_state_id
 	LEFT JOIN contract_financial CF ON CF.contract_id = C.id
 	LEFT JOIN contract_schedule CSH ON CSH.contract_id = C.id AND CSH.marketed_installment = 1 AND CSH.daily_entry_issued = 1
 	LEFT JOIN (SELECT CR.contract_id, MAX(CR.datetime) AS datetime FROM contract_receipt CR WHERE CR.legacy_payment_date IS NULL AND CR.is_customer_payment = 1 GROUP BY CR.contract_id) CR ON CR.contract_id = C.id
 	LEFT JOIN (SELECT CRL.contract_id, MAX(CRL.legacy_payment_date) as legacy_payment_date FROM contract_receipt CRL WHERE CRL.is_customer_payment = 1 GROUP BY CRL.contract_id) CRL ON CRL.contract_id = C.id
 	WHERE C.lkas_17_compliant = 1 AND (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND C.non_performing = 0 AND C.archived = 0
-	GROUP BY C.id, C.agrivest, recovery_officer, state, model, batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, CF.agreed_capital, CF.capital_paid, CF.agreed_interest, CF.interest_paid, CF.charges_debits_paid, CF.capital_arrears, CF.interest_arrears, CF.payment
+	GROUP BY C.id, C.agrivest, recovery_officer, state, model, batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, CF.agreed_capital, CF.capital_paid, CF.agreed_interest, CF.interest_paid, CF.charges_debits_paid, CF.capital_arrears, CF.interest_arrears, CF.payment, CD.amount
 	`
 
 const SEARCH_V2 = `

@@ -226,6 +226,7 @@ type SearchResult struct {
 	CustomerContact string  `json:"customer_contact"`
 	AmountPending   float64 `json:"amount_pending"`
 	TotalPayable    float64 `json:"total_payable"`
+	DefaultCharges  float64 `json:"default_charges"`
 	TotalAgreement  float64 `json:"total_agreement"`
 	TotalPaid       float64 `json:"total_paid"`
 	TotalDIPaid     float64 `json:"total_di_paid"`
