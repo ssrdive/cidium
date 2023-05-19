@@ -419,7 +419,7 @@ const SEARCH_OLD = `
 	GROUP BY C.id`
 
 const SEARCH = `
-	SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) AS total_payable, COALESCE(CD.amount, 0) AS default_charges,  COALESCE(SUM(CI.agreed_installment), 0) AS total_agreement, COALESCE(SUM(CI.installment_paid), 0) AS total_paid, COALESCE(SUM(CI.defalut_interest_paid), 0) AS total_di_paid, 
+	SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, SUM(CASE WHEN (CI.due_date < NOW() AND CI.installment_paid < CI.installment) THEN CI.installment - CI.installment_paid ELSE 0 END) as amount_pending, COALESCE(SUM(CI.installment-CI.installment_paid), 0) + COALESCE(CD.amount, 0) AS total_payable, COALESCE(CD.amount, 0) AS default_charges,  COALESCE(SUM(CI.agreed_installment), 0) AS total_agreement, COALESCE(SUM(CI.installment_paid), 0) AS total_paid, COALESCE(SUM(CI.defalut_interest_paid), 0) AS total_di_paid, 
 	( CASE WHEN (MAX(DATE(CR.datetime)) IS NULL AND MAX(DATE(CRL.legacy_payment_date)) IS NULL) THEN 'N/A' ELSE GREATEST(COALESCE(MAX(DATE(CR.datetime)), '1900-01-01'), COALESCE(MAX(DATE(CRL.legacy_payment_date)), '1900-01-01')) END ) as last_payment_date
 	FROM contract C
 	LEFT JOIN user U ON U.id = C.recovery_officer_id
@@ -454,7 +454,7 @@ const SEARCH = `
 
 	UNION
 
-	SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, COALESCE(SUM((CSH.marketed_capital+CSH.marketed_interest)-(CSH.marketed_capital_paid+CSH.marketed_interest_paid)), 0) AS amount_pending, COALESCE((agreed_capital-CF.capital_paid)+(agreed_interest-CF.interest_paid), 0) AS total_payable, COALESCE(CD.amount, 0) AS default_charges, COALESCE(agreed_capital+agreed_interest, 0) AS total_agreement, COALESCE(CF.capital_paid+CF.interest_paid+CF.charges_debits_paid, 0) AS total_paid, 0 AS total_di_paid, 'N/A' AS last_payment_date
+	SELECT C.id, C.agrivest, U.name as recovery_officer, S.name as state, M.name as model, CB.name as batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, COALESCE(SUM((CSH.marketed_capital+CSH.marketed_interest)-(CSH.marketed_capital_paid+CSH.marketed_interest_paid)), 0) AS amount_pending, COALESCE((agreed_capital-CF.capital_paid)+(agreed_interest-CF.interest_paid), 0) + COALESCE(CD.amount, 0) AS total_payable, COALESCE(CD.amount, 0) AS default_charges, COALESCE(agreed_capital+agreed_interest, 0) AS total_agreement, COALESCE(CF.capital_paid+CF.interest_paid+CF.charges_debits_paid, 0) AS total_paid, 0 AS total_di_paid, 'N/A' AS last_payment_date
 	FROM contract C
 	LEFT JOIN user U ON U.id = C.recovery_officer_id
 	LEFT JOIN contract_state CS ON CS.id = C.contract_state_id
