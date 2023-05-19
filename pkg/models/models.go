@@ -66,6 +66,7 @@ type WorkQuestion struct {
 
 type ContractDetail struct {
 	ID                 int            `json:"id"`
+	HoldDefault        int            `json:"hold_default"`
 	ContractState      string         `json:"contract_state"`
 	ContractBatch      string         `json:"contract_batch"`
 	ModelName          string         `json:"model_name"`
@@ -83,6 +84,7 @@ type ContractDetail struct {
 	RecoveryOfficer    string         `json:"recovery_officer"`
 	AmountPending      float64        `json:"amount_pending"`
 	TotalPayable       float64        `json:"total_payable"`
+	DefaultCharges     float64        `json:"default_charges"`
 	TotalPaid          float64        `json:"total_paid"`
 	LastPaymentDate    string         `json:"last_payment_date"`
 	OverdueIndex       string         `json:"overdue_index"`
@@ -247,6 +249,7 @@ type SearchResultV2 struct {
 	CustomerContact string         `json:"customer_contact"`
 	AmountPending   float64        `json:"amount_pending"`
 	TotalPayable    float64        `json:"total_payable"`
+	DefaultCharges  float64        `json:"default_charges"`
 	TotalAgreement  float64        `json:"total_agreement"`
 	TotalPaid       float64        `json:"total_paid"`
 	TotalDIPaid     float64        `json:"total_di_paid"`
