@@ -1230,6 +1230,119 @@ func (m *ContractModel) DebitNote(rparams, oparams []string, form url.Values) (i
 	return dnid, nil
 }
 
+func (m *ContractModel) DebitNoteWithtTx(tx *sql.Tx, rparams, oparams []string, form url.Values) (int64, error) {
+	var lkas17Compliant int
+	err := tx.QueryRow(queries.LKAS_17_COMPLIANT, form.Get("contract_id")).Scan(&lkas17Compliant)
+	if err != nil {
+		return 0, err
+	}
+
+	if lkas17Compliant == 1 {
+		dnid, err := mysequel.Insert(mysequel.Table{
+			TableName: "contract_schedule",
+			Columns:   []string{"contract_id", "contract_installment_type_id", "capital", "installment", "monthly_date", "daily_entry_issued", "marketed_installment", "marketed_capital", "marketed_due_date"},
+			Vals:      []interface{}{form.Get("contract_id"), form.Get("contract_installment_type_id"), form.Get("capital"), form.Get("capital"), time.Now().Format("2006-01-02"), 1, 1, form.Get("capital"), time.Now().Format("2006-01-02")},
+			Tx:        tx,
+		})
+		if err != nil {
+			return 0, err
+		}
+
+		form.Set("contract_schedule_id", fmt.Sprintf("%d", dnid))
+		_, err = mysequel.Insert(mysequel.FormTable{
+			TableName: "contract_schedule_charges_debits_details",
+			RCols:     []string{"contract_schedule_id", "user_id", "notes"},
+			OCols:     []string{},
+			Form:      form,
+			Tx:        tx,
+		})
+		if err != nil {
+			return 0, err
+		}
+
+		_, err = tx.Exec("UPDATE contract_financial SET charges_debits_arrears = charges_debits_arrears + ? WHERE contract_id = ?", form.Get("capital"), form.Get("contract_id"))
+		if err != nil {
+			return 0, err
+		}
+
+		tid, err := mysequel.Insert(mysequel.Table{
+			TableName: "transaction",
+			Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
+			Vals:      []interface{}{form.Get("user_id"), time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), form.Get("contract_id"), fmt.Sprintf("DEBIT NOTE %d [%s]", dnid, form.Get("contract_id"))},
+			Tx:        tx,
+		})
+		if err != nil {
+			return 0, err
+		}
+
+		var expenseAccount, receivableAccount int
+		err = tx.QueryRow(queries.GET_DEBIT_TYPE_EXPENSE_RECEIVABLE_ACCOUNT, form.Get("contract_installment_type_id")).Scan(&expenseAccount, &receivableAccount)
+		if err != nil {
+			return 0, err
+		}
+
+		journalEntries := []smodels.JournalEntry{
+			{Account: fmt.Sprintf("%d", expenseAccount), Debit: form.Get("capital"), Credit: ""},
+			{Account: fmt.Sprintf("%d", receivableAccount), Debit: "", Credit: form.Get("capital")},
+		}
+
+		err = scribe.IssueJournalEntries(tx, tid, journalEntries)
+		if err != nil {
+			return 0, err
+		}
+
+		return dnid, nil
+	}
+
+	dnid, err := mysequel.Insert(mysequel.FormTable{
+		TableName: "contract_installment",
+		RCols:     rparams,
+		OCols:     oparams,
+		Form:      form,
+		Tx:        tx,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	form.Set("contract_installment_id", fmt.Sprintf("%d", dnid))
+	_, err = mysequel.Insert(mysequel.FormTable{
+		TableName: "contract_installment_details",
+		RCols:     []string{"contract_installment_id", "user_id", "notes"},
+		OCols:     []string{},
+		Form:      form,
+		Tx:        tx,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	var unearnedAccountID int
+	err = tx.QueryRow(queries.DEBIT_NOTE_UNEARNED_ACC_NO, form.Get("contract_installment_type_id")).Scan(&unearnedAccountID)
+
+	tid, err := mysequel.Insert(mysequel.Table{
+		TableName: "transaction",
+		Columns:   []string{"user_id", "datetime", "posting_date", "contract_id", "remark"},
+		Vals:      []interface{}{form.Get("user_id"), time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02"), form.Get("contract_id"), fmt.Sprintf("DEBIT NOTE %d", dnid)},
+		Tx:        tx,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	journalEntries := []smodels.JournalEntry{
+		{Account: fmt.Sprintf("%d", 25), Debit: form.Get("capital"), Credit: ""},
+		{Account: fmt.Sprintf("%d", unearnedAccountID), Debit: "", Credit: form.Get("capital")},
+	}
+
+	err = scribe.IssueJournalEntries(tx, tid, journalEntries)
+	if err != nil {
+		return 0, err
+	}
+
+	return dnid, nil
+}
+
 func (m *ContractModel) LKAS17Rebate(userID, cid int, amount float64) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {

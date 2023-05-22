@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -122,6 +123,68 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		}
 	}
 	requestURL := fmt.Sprintf("https://richcommunication.dialog.lk/api/sms/inline/send.php?destination=%s&q=%s&message=%s", telephone, apiKey, url.QueryEscape(message))
+
+	var holdDefault int
+	tx.QueryRow("SELECT hold_default FROM contract WHERE id = ?", cid).Scan(&holdDefault)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	if holdDefault == 0 {
+		var defaultEntryPresent int32
+		err = tx.QueryRow("SELECT COUNT(*) AS entry_present FROM contract_default WHERE contract_id = ?", cid).Scan(&defaultEntryPresent)
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+
+		if defaultEntryPresent == 1 {
+			var currentDefault float64
+			err = tx.QueryRow("SELECT amount FROM contract_default WHERE contract_id = ?", cid).Scan(&currentDefault)
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+
+			var defaultForCurrentReceipt float64
+			defaultForCurrentReceipt = 0
+
+			if amount > currentDefault || amount == currentDefault {
+				defaultForCurrentReceipt = currentDefault
+
+				_, err = tx.Exec("UPDATE contract_default SET amount = 0 WHERE contract_id = ?", cid)
+				if err != nil {
+					tx.Rollback()
+					return 0, err
+				}
+			} else if amount < currentDefault {
+				defaultForCurrentReceipt = amount
+
+				_, err = tx.Exec("UPDATE contract_default SET amount = amount - ? WHERE contract_id = ?", amount, cid)
+				if err != nil {
+					tx.Rollback()
+					return 0, err
+				}
+			}
+
+			if defaultForCurrentReceipt != 0 {
+				var form url.Values
+				form = make(url.Values)
+				form.Set("user_id", "1")
+				form.Set("contract_id", strconv.Itoa(cid))
+				form.Set("capital", fmt.Sprintf("%v", defaultForCurrentReceipt))
+				form.Set("contract_installment_type_id", "9")
+				form.Set("due_date", time.Now().Format("2006-01-02 15:04:05"))
+
+				_, err = m.DebitNoteWithtTx(tx, []string{"contract_id", "contract_installment_type_id", "capital"}, []string{"due_date"}, form)
+				if err != nil {
+					tx.Rollback()
+					return 0, err
+				}
+			}
+		}
+	}
 
 	var contractTotalPayable float64
 	if lkas17Compliant == 1 {
