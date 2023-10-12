@@ -397,7 +397,7 @@ const CONTRACT_CHANGES = `
 		
 	UNION ALL
 
-		SELECT CR.contract_id, 'Receipt' AS type, CR.amount, DATE(CR.datetime)
+		SELECT CR.contract_id, 'Receipt' AS type, CR.amount, CASE WHEN CR.legacy_payment_date  IS NOT NULL THEN DATE(CR.legacy_payment_date) ELSE DATE(CR.datetime) END AS date
 		FROM contract_receipt CR
 		WHERE contract_id = ? AND DATE(CR.datetime) <= DATE(NOW())
 		
