@@ -533,7 +533,7 @@ func (m *ContractModel) Commitments(cid int) ([]models.Commitment, error) {
 // Timeline returns contract timeline
 func (m *ContractModel) Timeline(cid int) ([]models.TimelineRow, error) {
 	var contractChanges []models.ContractBalanceChangeRow
-	err := mysequel.QueryToStructs(&contractChanges, m.DB, queries.CONTRACT_CHANGES, cid, cid)
+	err := mysequel.QueryToStructs(&contractChanges, m.DB, queries.CONTRACT_CHANGES, cid, cid, cid)
 	if err != nil {
 		return nil, err
 	}

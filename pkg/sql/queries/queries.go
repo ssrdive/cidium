@@ -381,14 +381,27 @@ const CONTRACT_COMMITMENTS = `
 `
 
 const CONTRACT_CHANGES = `
-	SELECT T.* FROM (SELECT CS.contract_id, CIT.name AS type, CS.marketed_capital+CS.marketed_interest AS amount, CS.marketed_due_date AS date
-	FROM contract_schedule CS
-	LEFT JOIN contract_installment_type CIT ON CIT.id = CS.contract_installment_type_id 
-	WHERE contract_id = ? AND marketed_installment = 1 AND CS.marketed_due_date <= DATE(NOW())
-	UNION
-	SELECT CR.contract_id, 'Receipt' AS type, CR.amount, DATE(CR.datetime)
-	FROM contract_receipt CR
-	WHERE contract_id = ? AND DATE(CR.datetime) <= DATE(NOW())) T ORDER BY T.date
+		SELECT T.* FROM 
+	(
+		SELECT CI.contract_id, CIT.name AS type, CI.capital+CI.interest+CI.default_interest AS amount, DATE(CI.due_date) AS date
+		FROM contract_installment CI
+		LEFT JOIN contract_installment_type CIT ON CIT.id = CI.contract_installment_type_id
+		WHERE CI.contract_id = ?
+
+	UNION ALL
+
+		SELECT CS.contract_id, CIT.name AS type, CS.marketed_capital+CS.marketed_interest AS amount, CS.marketed_due_date AS date
+		FROM contract_schedule CS
+		LEFT JOIN contract_installment_type CIT ON CIT.id = CS.contract_installment_type_id 
+		WHERE contract_id = ? AND marketed_installment = 1 AND CS.marketed_due_date <= DATE(NOW())
+		
+	UNION ALL
+
+		SELECT CR.contract_id, 'Receipt' AS type, CR.amount, DATE(CR.datetime)
+		FROM contract_receipt CR
+		WHERE contract_id = ? AND DATE(CR.datetime) <= DATE(NOW())
+		
+	) T ORDER BY T.date
 `
 
 const TRANSITIONABLE_STATES = `
