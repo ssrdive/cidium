@@ -530,6 +530,181 @@ func (m *ContractModel) Commitments(cid int) ([]models.Commitment, error) {
 	return res, nil
 }
 
+// Timeline returns contract timeline
+func (m *ContractModel) Timeline(cid int) ([]models.TimelineRow, error) {
+	var contractChanges []models.ContractBalanceChangeRow
+	err := mysequel.QueryToStructs(&contractChanges, m.DB, queries.CONTRACT_CHANGES, cid, cid)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(contractChanges) <= 1 {
+		return []models.TimelineRow{}, nil
+	}
+
+	var lines []models.TimelineRow
+
+	location, _ := time.LoadLocation("Asia/Colombo")
+
+	for _, line := range contractChanges {
+		parsedDate, _ := time.ParseInLocation("2006-01-02", line.Date[0:10], location)
+		lines = append(lines, models.TimelineRow{
+			ContractID: line.ContractID,
+			Type:       line.Type,
+			Amount:     line.Amount,
+			Date:       parsedDate,
+		})
+	}
+
+	lines[0].Grouping = 0
+
+	for i := 1; i < len(lines); i++ {
+		if lines[i-1].Date.Equal(lines[i].Date) {
+			lines[i].Grouping = lines[i-1].Grouping
+		} else {
+			lines[i].Grouping = lines[i-1].Grouping + 1
+		}
+	}
+
+	due := 0.0
+	payments := 0.0
+
+	var returnLines []models.TimelineRow
+
+	if lines[0].Type == "Receipt" {
+		payments = math.Round((payments+lines[0].Amount)*100) / 100
+	} else {
+		due = math.Round((due+lines[0].Amount)*100) / 100
+	}
+
+	returnLines = append(returnLines, lines[0])
+
+	cumulativeArrears := 0
+	prevArrears := 0.0
+
+	for i := 1; i < len(lines); i++ {
+		if lines[i-1].Grouping == lines[i].Grouping {
+			if lines[i].Type == "Receipt" {
+				payments = math.Round((payments+lines[i].Amount)*100) / 100
+			} else {
+				due = math.Round((due+lines[i].Amount)*100) / 100
+			}
+			//fmt.Println(lines[i])
+			returnLines = append(returnLines, lines[i])
+		} else {
+			duration := lines[i].Date.Sub(lines[i-1].Date)
+			days := int(duration.Hours() / 24)
+
+			balance := math.Round((due-payments)*100) / 100
+
+			if balance > 0 {
+				cumulativeArrears += days
+				arrearsChange := math.Round((balance-prevArrears)*100) / 100
+				returnLines = append(returnLines, models.TimelineRow{
+					Grouping:       0,
+					ContractID:     lines[i].ContractID,
+					Type:           "Overdue",
+					Amount:         balance,
+					Date:           time.Time{},
+					Change:         arrearsChange,
+					Days:           days,
+					DaysCumulative: cumulativeArrears,
+				})
+				//fmt.Println("Arrears amount: ", balance, " for ", days, " days cumalative arrears = ", cumulativeArrears)
+				//fmt.Println("Arrears change: ", arrearsChange)
+				prevArrears = balance
+			} else if balance < 0 {
+				//fmt.Println("Overpayment: ", balance, " for ", days, " days")
+				returnLines = append(returnLines, models.TimelineRow{
+					Grouping:       0,
+					ContractID:     lines[i].ContractID,
+					Type:           "Overpayment",
+					Amount:         balance,
+					Date:           time.Time{},
+					Change:         0,
+					Days:           days,
+					DaysCumulative: 0,
+				})
+				cumulativeArrears = 0
+				prevArrears = 0
+			} else {
+				//fmt.Println("Zero balance", " for ", days, " days")
+				returnLines = append(returnLines, models.TimelineRow{
+					Grouping:       0,
+					ContractID:     lines[i].ContractID,
+					Type:           "Zero Balance",
+					Amount:         0,
+					Date:           time.Time{},
+					Change:         0,
+					Days:           days,
+					DaysCumulative: 0,
+				})
+				cumulativeArrears = 0
+				prevArrears = 0
+			}
+
+			if lines[i].Type == "Receipt" {
+				payments = math.Round((payments+lines[i].Amount)*100) / 100
+			} else {
+				due = math.Round((due+lines[i].Amount)*100) / 100
+			}
+
+			returnLines = append(returnLines, lines[i])
+		}
+	}
+
+	currentBalance := due - payments
+	duration := time.Now().Sub(lines[len(lines)-1].Date)
+	days := int(duration.Hours() / 24)
+	if currentBalance > 0 {
+		arrersChange := currentBalance - prevArrears
+		cumulativeArrears += days
+		//fmt.Println("Arrears amount: ", currentBalance, " for ", days, " days cumalative arrears = ", cumulativeArrears)
+		//fmt.Println("Arrears change: ", arrersChange)
+		returnLines = append(returnLines, models.TimelineRow{
+			Grouping:       0,
+			ContractID:     lines[0].ContractID,
+			Type:           "Overdue",
+			Amount:         currentBalance,
+			Date:           time.Time{},
+			Change:         arrersChange,
+			Days:           days,
+			DaysCumulative: cumulativeArrears,
+		})
+	} else if currentBalance > 0 {
+		//fmt.Println("Overpayment: ", currentBalance, " for ", days, " days")
+		returnLines = append(returnLines, models.TimelineRow{
+			Grouping:       0,
+			ContractID:     lines[0].ContractID,
+			Type:           "Overpayment",
+			Amount:         currentBalance,
+			Date:           time.Time{},
+			Change:         0,
+			Days:           days,
+			DaysCumulative: 0,
+		})
+	} else {
+		//fmt.Println("Zero balance", " for ", days, " days")
+		returnLines = append(returnLines, models.TimelineRow{
+			Grouping:       0,
+			ContractID:     lines[0].ContractID,
+			Type:           "Zero Balance",
+			Amount:         0,
+			Date:           time.Time{},
+			Change:         0,
+			Days:           days,
+			DaysCumulative: 0,
+		})
+	}
+
+	for _, line := range returnLines {
+		fmt.Printf("%+v", line)
+		fmt.Println()
+	}
+
+	return returnLines, nil
+}
+
 // DashboardCommitmentsByOfficer returns commitments related to an officer
 func (m *ContractModel) DashboardCommitmentsByOfficer(ctype, officer string) ([]models.DashboardCommitment, error) {
 	var results *sql.Rows

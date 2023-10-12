@@ -318,6 +318,24 @@ type Commitment struct {
 	FulfilledOn sql.NullTime   `json:"fulfilled_on"`
 }
 
+type TimelineRow struct {
+	Grouping       int16
+	ContractID     int16
+	Type           string
+	Amount         float64
+	Date           time.Time
+	Change         float64
+	Days           int
+	DaysCumulative int
+}
+
+type ContractBalanceChangeRow struct {
+	ContractID int16
+	Type       string
+	Amount     float64
+	Date       string
+}
+
 type DashboardCommitment struct {
 	ContractID int    `json:"contract_id"`
 	DueIn      int    `json:"due_in"`

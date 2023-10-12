@@ -1350,6 +1350,24 @@ func (app *application) contractCommitment(w http.ResponseWriter, r *http.Reques
 	fmt.Fprintf(w, "%v", comid)
 }
 
+func (app *application) contractTimeline(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cid, err := strconv.Atoi(vars["cid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	commitments, err := app.contract.Timeline(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(commitments)
+}
+
 func (app *application) contractCommitments(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	cid, err := strconv.Atoi(vars["cid"])
