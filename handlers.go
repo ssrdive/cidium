@@ -270,7 +270,17 @@ func (app *application) newContract(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	id, err := app.contract.Insert("Start", requiredParams, optionalParams, r.PostForm)
+	ctidStr := r.PostForm.Get("contract_type_id")
+	ctid, _ := strconv.Atoi(ctidStr)
+
+	var id int64
+
+	if ctid == 1 {
+		id, err = app.contract.Insert("Start", requiredParams, optionalParams, r.PostForm)
+	} else if ctid == 2 {
+		id, err = app.contract.Insert("Data Collection", requiredParams, optionalParams, r.PostForm)
+	}
+
 	if err != nil {
 		app.serverError(w, err)
 		return

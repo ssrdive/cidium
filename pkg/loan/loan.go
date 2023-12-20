@@ -246,6 +246,44 @@ func Create(capital, rate float64, installments, installmentInterval, structured
 		}
 		capitalDiff = math.Round((P-capitalTotal)*100) / 100
 		financialSchedule[n-1].Capital = math.Round((financialSchedule[n-1].Capital+capitalDiff)*100) / 100
+	} else if method == "SM" {
+		realRate := math.Round((rate*0.01)*100) / 100
+
+		interest := (realRate * (float64(installments) * float64(7) / float64(365))) * capital
+		instInterest := math.Round((interest/float64(installments))*100) / 100
+
+		for i := 0; i < installments; i++ {
+			initDate = initDate.AddDate(0, 0, 7)
+
+			if initDate.Month() == 4 && initDate.Day() >= 10 && initDate.Day() <= 16 {
+				initDate = initDate.AddDate(0, 0, 7)
+			}
+
+			if initDate.Month() == 12 && initDate.Day() >= 23 && initDate.Day() <= 29 {
+				initDate = initDate.AddDate(0, 0, 7)
+			}
+
+			marketedSchedule[i] = Installment{
+				Capital:         installmentCapital,
+				Interest:        instInterest,
+				DefaultInterest: 0,
+				DueDate:         initDate.Format("2006-01-02"),
+			}
+		}
+
+		capitalTotal := installmentCapital * float64(installments)
+		capitalDiff := math.Round((capital-capitalTotal)*100) / 100
+		marketedSchedule[installments-1].Capital = math.Round((marketedSchedule[installments-1].Capital+capitalDiff)*100) / 100
+
+		for i := 0; i < len(financialSchedule); i++ {
+			financialSchedule[i].Capital = marketedSchedule[i].Capital
+			financialSchedule[i].Interest = marketedSchedule[i].Interest
+			financialSchedule[i].MonthlyDate = marketedSchedule[i].DueDate
+			financialSchedule[i].MarketedInstallment = 1
+			financialSchedule[i].MarketedCapital = marketedSchedule[i].Capital
+			financialSchedule[i].MarketedInterest = marketedSchedule[i].Interest
+			financialSchedule[i].MarketedDueDate = marketedSchedule[i].DueDate
+		}
 	}
 
 	return marketedSchedule, financialSchedule, nil
