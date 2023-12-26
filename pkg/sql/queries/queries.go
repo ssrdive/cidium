@@ -381,10 +381,8 @@ const CONTRACT_MICRO_LOAN_DETAILS = `
 `
 
 const CONTRACT_STATE_DOC_GEN = `
-	SELECT SDG.* FROM contract C 
-	LEFT JOIN contract_state CS ON C.contract_state_id = CS.id
-	LEFT JOIN state_document_generation SDG ON SDG.state_id = CS.state_id
-	WHERE C.id = ?
+	SELECT SDG.state_id, SDG.name, SDG.generation_url FROM state_document_generation SDG 
+	WHERE SDG.state_id = (SELECT CS.state_id FROM contract C LEFT JOIN contract_state CS ON CS.id = C.contract_state_id WHERE C.id = ?)
 `
 
 const CONTRACT_OFFICER_RECEIPTS = `
