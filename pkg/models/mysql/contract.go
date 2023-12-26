@@ -475,6 +475,80 @@ func (m *ContractModel) Installment(cid int) ([]models.ActiveInstallment, error)
 	return res, nil
 }
 
+// MicroLoanDetails returns params for micro loan agreement
+func (m *ContractModel) MicroLoanDetails(cid int) ([]models.Question, error) {
+	var res []models.Question
+	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_MICRO_LOAN_DETAILS, cid)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := m.DB.Query(queries.PARAMS_FOR_CONTRACT_INITIATION_BY_ID, cid)
+	if err != nil {
+		return nil, err
+	}
+
+	var params []models.Dropdown
+	for results.Next() {
+		var p models.Dropdown
+		err = results.Scan(&p.ID, &p.Name)
+		if err != nil {
+			return nil, err
+		}
+		params = append(params, p)
+	}
+
+	details := make(map[string]string)
+	for _, param := range params {
+		details[param.ID] = param.Name
+	}
+
+	capital, err := strconv.ParseFloat(details["Capital"], 32)
+	rate, err := strconv.ParseFloat(details["Interest Rate"], 32)
+	installments, err := strconv.Atoi(details["Installments"])
+	installmentInterval, err := strconv.Atoi(details["Installment Interval"])
+	method := details["Interest Method"]
+	initiationDate, err := time.Parse("2006-01-02", details["Initiation Date"])
+	structuredMonthlyRental, err := strconv.Atoi(details["Structured Monthly Rental"])
+	if err != nil {
+		return nil, err
+	}
+
+	_, financialSchedule, err := loan.Create(capital, rate, installments, installmentInterval, structuredMonthlyRental, initiationDate.Format("2006-01-02"), method)
+	if err != nil {
+		return nil, err
+	}
+
+	intstallment := financialSchedule[0].Capital + financialSchedule[0].Interest
+	installmentStr := strconv.FormatFloat(intstallment, 'f', -1, 64)
+
+	res = append(res, models.Question{
+		Question: "Installment",
+		Answer:   installmentStr,
+	})
+	res = append(res, models.Question{
+		Question: "First Installment Date",
+		Answer:   financialSchedule[0].MarketedDueDate,
+	})
+	res = append(res, models.Question{
+		Question: "Last Installment Date",
+		Answer:   financialSchedule[len(financialSchedule)-1].MarketedDueDate,
+	})
+
+	return res, nil
+}
+
+// DocGen returns document generation options for state
+func (m *ContractModel) DocGen(cid int) ([]models.DocGen, error) {
+	var res []models.DocGen
+	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_STATE_DOC_GEN, cid)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
 // ReceiptsV2 returns v2 of receipts
 func (m *ContractModel) ReceiptsV2(cid int) ([]models.ReceiptV2, error) {
 	var res []models.ReceiptV2

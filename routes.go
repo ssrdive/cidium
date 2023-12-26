@@ -56,6 +56,8 @@ func (app *application) routes() http.Handler {
 	r.Handle("/contract/receiptsv2/{cid}", app.validateToken(http.HandlerFunc(app.contractReceiptsV2))).Methods("GET")
 	r.Handle("/contract/receipts/officer/{officer}/{date}", app.validateToken(http.HandlerFunc(app.contractOfficerReceipts))).Methods("GET")
 	r.Handle("/contract/requestability/{cid}", app.validateToken(http.HandlerFunc(app.contractRequestability))).Methods("GET")
+	r.Handle("/contract/statedocgen/{cid}", app.validateToken(http.HandlerFunc(app.contractStateDocGen))).Methods("GET")
+	r.Handle("/contract/microloandetails/{cid}", app.validateToken(http.HandlerFunc(app.contractMicroLoanDetails))).Methods("GET")
 	r.Handle("/contract/request", app.validateToken(http.HandlerFunc(app.contractRequest))).Methods("POST")
 	r.Handle("/contract/requests/{uid}", app.validateToken(http.HandlerFunc(app.contractRequests))).Methods("GET")
 	r.Handle("/seasonalincentive/{uid}", app.validateToken(http.HandlerFunc(app.contractSeasonalIncentive))).Methods("GET")

@@ -86,6 +86,9 @@ const REQUEST_NAME = `
 const PARAMS_FOR_CONTRACT_INITIATION = `
 	SELECT Q.name as id, CSQA.answer FROM contract_state_question_answer CSQA LEFT JOIN contract_state CS ON CS.id = CSQA.contract_state_id LEFT JOIN contract C ON C.id = CS.contract_id LEFT JOIN question Q ON Q.id = CSQA.question_id WHERE Q.name IN ('Capital', 'Interest Rate', 'Interest Method', 'Installments', 'Installment Interval', 'Initiation Date', 'Structured Monthly Rental') AND CSQA.deleted = 0 AND C.id = ( SELECT CS.contract_id FROM request R LEFT JOIN contract_state CS ON CS.id = R.to_contract_state_id WHERE R.id = ? )`
 
+const PARAMS_FOR_CONTRACT_INITIATION_BY_ID = `
+	SELECT Q.name as id, CSQA.answer FROM contract_state_question_answer CSQA LEFT JOIN contract_state CS ON CS.id = CSQA.contract_state_id LEFT JOIN contract C ON C.id = CS.contract_id LEFT JOIN question Q ON Q.id = CSQA.question_id WHERE Q.name IN ('Capital', 'Interest Rate', 'Interest Method', 'Installments', 'Installment Interval', 'Initiation Date', 'Structured Monthly Rental') AND CSQA.deleted = 0 AND C.id = ?`
+
 const PARAMS_FOR_CREDIT_WORTHINESS_APPROVAL = `
 	SELECT C.id, C.customer_name, C.liaison_contact
 	FROM contract C 
@@ -357,6 +360,31 @@ const CONTRACT_RECEIPTS_V2 = `
 	FROM contract_receipt CR
 	LEFT JOIN contract_receipt_type CRT ON CRT.id = CR.contract_receipt_type_id
 	WHERE CR.contract_id = ?
+`
+
+const CONTRACT_MICRO_LOAN_DETAILS = `
+	SELECT Q.name as id, CSQA.answer 
+	FROM contract_state_question_answer CSQA 
+	LEFT JOIN contract_state CS ON CS.id = CSQA.contract_state_id 
+	LEFT JOIN contract C ON C.id = CS.contract_id 
+	LEFT JOIN question Q ON Q.id = CSQA.question_id 
+	WHERE Q.name IN ('Capital', 'Interest Rate', 'Installments', 'Initiation Date',
+	                 'Debtor Salutation', 'Debtor Full Name', 'Debtor Address', 'Debtor NIC', 
+	                 'Debtor Contact', 'Joint Borrower Salutation', 'Joint Borrower Full Name', 
+	                 'Joint Borrower Address', 'Joint Borrower NIC', 'Joint Borrower Contact', 
+	                 'First Guarantor Salutation', 'First Guarantor Full Name', 'First Guarantor Address', 
+	                 'First Guarantor NIC', 'First Guarantor Contact', 'Second Guarantor Salutation', 
+	                 'Second Guarantor Full Name', 'Second Guarantor Address', 'Second Guarantor NIC', 
+	                 'Second Guarantor Contact', 'Agreement Signing Location', 'First Witness Full Name', 
+	                 'First Witness NIC', 'Second Witness Full Name', 'Second Witness NIC', 'Debtor Bank', 
+	                 'Debtor Bank Branch', 'Debor Bank Account No') AND CSQA.deleted = 0 AND C.id = ?
+`
+
+const CONTRACT_STATE_DOC_GEN = `
+	SELECT SDG.* FROM contract C 
+	LEFT JOIN contract_state CS ON C.contract_state_id = CS.id
+	LEFT JOIN state_document_generation SDG ON SDG.state_id = CS.state_id
+	WHERE C.id = ?
 `
 
 const CONTRACT_OFFICER_RECEIPTS = `

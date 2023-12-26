@@ -298,6 +298,12 @@ type Receipt struct {
 	Notes  sql.NullString `json:"notes"`
 }
 
+type DocGen struct {
+	StateID       int    `json:"state_id"`
+	Name          string `json:"name"`
+	GenerationURL string `json:"generation_url"`
+}
+
 type ReceiptV2 struct {
 	ID     int            `json:"id"`
 	Date   time.Time      `json:"date"`
