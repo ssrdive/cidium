@@ -394,6 +394,7 @@ func (app *application) accountBalancesForReporting(w http.ResponseWriter, r *ht
 }
 
 func (app *application) searchContractV2(w http.ResponseWriter, r *http.Request) {
+	searchType := r.URL.Query().Get("searchtype")
 	search := r.URL.Query().Get("search")
 	state := r.URL.Query().Get("state")
 	officer := r.URL.Query().Get("officer")
@@ -405,7 +406,7 @@ func (app *application) searchContractV2(w http.ResponseWriter, r *http.Request)
 	endOd := r.URL.Query().Get("endod")
 	removeDeleted := r.URL.Query().Get("removedeleted")
 
-	results, err := app.contract.SearchV2(search, state, officer, batch, npl, lkas17, external, startOd, endOd, removeDeleted)
+	results, err := app.contract.SearchV2(searchType, search, state, officer, batch, npl, lkas17, external, startOd, endOd, removeDeleted)
 	if err != nil {
 		app.serverError(w, err)
 		return
