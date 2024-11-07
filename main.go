@@ -25,6 +25,7 @@ type application struct {
 	s3bucket   string
 	rAPIKey    string
 	aAPIKey    string
+	aAPIPass   string
 	runtimeEnv string
 	user       *mysql.UserModel
 	dropdown   *mysql.DropdownModel
@@ -43,7 +44,8 @@ func main() {
 	s3region := flag.String("region", "sgp1", "AWS S3 region")
 	s3bucket := flag.String("bucket", "agrivest", "AWS S3 bucket")
 	rAPIKey := flag.String("rAPIKey", "", "Randeepa Text Message API Key")
-	aAPIKey := flag.String("aAPIKey", "", "Randeepa Text Message API Key")
+	aAPIKey := flag.String("aAPIKey", "", "Agrivest Text Message API User")
+	aAPIPass := flag.String("aAPIPass", "", "Agrivest Text Message API Password")
 	runtimeEnv := flag.String("renv", "prod", "Runtime environment mode")
 	logPath := flag.String("logpath", "/var/www/agrivest.app/logs/", "Path to create or alter log files")
 	flag.Parse()
@@ -77,6 +79,7 @@ func main() {
 		s3bucket:   *s3bucket,
 		rAPIKey:    *rAPIKey,
 		aAPIKey:    *aAPIKey,
+		aAPIPass:   *aAPIPass,
 		runtimeEnv: *runtimeEnv,
 		user:       &mysql.UserModel{DB: db},
 		dropdown:   &mysql.DropdownModel{DB: db},

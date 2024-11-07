@@ -1323,7 +1323,7 @@ func (app *application) contractReceipt(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	rid, err := app.contract.Receipt(user_id, cid, amount, notes, due_date, app.rAPIKey, app.aAPIKey, app.runtimeEnv, checksum)
+	rid, err := app.contract.Receipt(user_id, cid, amount, notes, due_date, app.rAPIKey, app.aAPIKey, app.aAPIPass, app.runtimeEnv, checksum)
 	if err != nil {
 		app.serverError(w, err)
 		return

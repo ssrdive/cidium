@@ -62,7 +62,7 @@ type ContractFinancial struct {
 }
 
 // Receipt issues a receipt
-func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate, rAPIKey, aAPIKey, runtimeEnv, checksum string) (int64, error) {
+func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate, rAPIKey, aAPIKey, aAPIPass, runtimeEnv, checksum string) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -106,23 +106,23 @@ func (m *ContractModel) Receipt(userID, cid int, amount float64, notes, dueDate,
 		return 0, err
 	}
 
-	apiKey := ""
-	if managedByAgrivest == 0 {
-		apiKey = rAPIKey
-	} else {
-		apiKey = aAPIKey
-	}
 	message := fmt.Sprintf("Hithawath paribhogikaya, obage giwisum anka %d wetha gewu mudala Rs. %s. Sthuthiyi.", cid, humanize.Comma(int64(amount)))
 	if runtimeEnv == "dev" {
-		telephone = "768237192"
+		telephone = "94768237192"
 	} else {
 		if len(telephone) == 9 {
-			telephone = fmt.Sprintf("%s,768237192,703524330,703524420,775607777,703524278,703524333", telephone)
+			telephone = fmt.Sprintf("94%s,94768237192,94703524281,94768724555,94703524271,94703524420,94775607777,", telephone)
 		} else {
-			telephone = "768237192,703524330,703524420,775607777,703524278,703524333"
+			telephone = "94768237192,94703524281,94768724555,94703524271,94703524420,94775607777"
 		}
 	}
-	requestURL := fmt.Sprintf("https://richcommunication.dialog.lk/api/sms/inline/send.php?destination=%s&q=%s&message=%s", telephone, apiKey, url.QueryEscape(message))
+
+	requestURL := ""
+	if managedByAgrivest == 0 {
+		requestURL = fmt.Sprintf("https://richcommunication.dialog.lk/api/sms/inline/send.php?destination=%s&q=%s&message=%s", telephone, rAPIKey, url.QueryEscape(message))
+	} else {
+		requestURL = fmt.Sprintf("https://msmsenterpriseapi.mobitel.lk/EnterpriseSMSV3/esmsproxy.php?m=%s&r=%s&a=AGRIVEST&u=%s&p=%s&t=0", url.QueryEscape(message), telephone, aAPIKey, aAPIPass)
+	}
 
 	var holdDefault int
 	tx.QueryRow("SELECT hold_default FROM contract WHERE id = ?", cid).Scan(&holdDefault)
