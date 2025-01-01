@@ -387,11 +387,11 @@ const CONTRACT_STATE_DOC_GEN = `
 
 const CONTRACT_OFFICER_RECEIPTS = `
 	SELECT R.*
-	FROM ((SELECT CR.id, CR.datetime, CR.amount, CR.notes
+	FROM ((SELECT CR.id, CR.contract_id, CR.datetime, CR.amount, CR.notes
 	FROM contract_receipt CR
 	WHERE CR.user_id = ? AND DATE(CR.datetime) = ?)
 	UNION
-	(SELECT CRF.id, CRF.datetime, CRF.amount, NULL AS notes
+	(SELECT CRF.id, CRF.contract_id, CRF.datetime, CRF.amount, NULL AS notes
 	FROM contract_receipt_float CRF
 	WHERE CRF.user_id = ? AND CRF.cleared = 0 AND DATE(CRF.datetime) = ?)) R
 	ORDER BY R.datetime ASC

@@ -298,6 +298,14 @@ type Receipt struct {
 	Notes  sql.NullString `json:"notes"`
 }
 
+type AndroidReceipt struct {
+	ID         int            `json:"id"`
+	ContractID int            `json:"contract_id"`
+	Date       time.Time      `json:"date"`
+	Amount     float64        `json:"amount"`
+	Notes      sql.NullString `json:"notes"`
+}
+
 type DocGen struct {
 	StateID       int    `json:"state_id"`
 	Name          string `json:"name"`

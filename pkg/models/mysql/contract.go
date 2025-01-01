@@ -583,8 +583,8 @@ func (m *ContractModel) Receipts(cid int) ([]models.Receipt, error) {
 }
 
 // OfficerReceipts returns receipts issued on a date
-func (m *ContractModel) OfficerReceipts(oid int, date string) ([]models.Receipt, error) {
-	var res []models.Receipt
+func (m *ContractModel) OfficerReceipts(oid int, date string) ([]models.AndroidReceipt, error) {
+	var res []models.AndroidReceipt
 	err := mysequel.QueryToStructs(&res, m.DB, queries.CONTRACT_OFFICER_RECEIPTS, oid, date, oid, date)
 	if err != nil {
 		return nil, err
