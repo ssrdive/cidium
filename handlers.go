@@ -62,7 +62,7 @@ func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := models.UserResponse{u.ID, u.Username, u.Name, u.Type, ts}
+	user := models.UserResponse{u.ID, u.Username, u.Name, u.Type, ts, u.AccessKeys}
 	js, err := json.Marshal(user)
 	if err != nil {
 		app.serverError(w, err)
@@ -211,7 +211,6 @@ func (app *application) newAccountCategory(w http.ResponseWriter, r *http.Reques
 	optionalParams := []string{"datetime"}
 	for _, param := range requiredParams {
 		if v := r.PostForm.Get(param); v == "" {
-			fmt.Println(param)
 			app.clientError(w, http.StatusBadRequest)
 			return
 		}
@@ -1358,6 +1357,32 @@ func (app *application) contractDebitNote(w http.ResponseWriter, r *http.Request
 	fmt.Fprintf(w, "%v", dnid)
 }
 
+func (app *application) contractSetTemporaryOfficer(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"contract_id", "temporary_officer"}
+	optionalParams := []string{}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	comid, err := app.contract.SetTemporaryOfficer(requiredParams, optionalParams, r.PostForm)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", comid)
+}
+
 func (app *application) contractCommitment(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -1395,6 +1420,24 @@ func (app *application) contractCommitment(w http.ResponseWriter, r *http.Reques
 	}
 
 	fmt.Fprintf(w, "%v", comid)
+}
+
+func (app *application) contractTemporaryAssignment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cid, err := strconv.Atoi(vars["cid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	commitments, err := app.contract.TemporaryAssignment(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(commitments)
 }
 
 func (app *application) contractTimeline(w http.ResponseWriter, r *http.Request) {

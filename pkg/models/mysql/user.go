@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/ssrdive/mysequel"
 
 	"github.com/ssrdive/cidium/pkg/models"
 	"golang.org/x/crypto/bcrypt"
@@ -56,6 +57,14 @@ func (m *UserModel) Get(username, password string) (*models.JWTUser, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	var accessLevels []models.AccessLevels
+	err = mysequel.QueryToStructs(&accessLevels, m.DB, "SELECT access_type FROM user_access WHERE user_id = ?", u.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	(*u).AccessKeys = accessLevels
 
 	return u, nil
 }

@@ -397,6 +397,13 @@ const CONTRACT_OFFICER_RECEIPTS = `
 	ORDER BY R.datetime ASC
 `
 
+const TEMPORARY_ASSIGNMENT = `
+	SELECT COALESCE(U.name, 'Not_Set') AS recovery_officer
+	FROM contract C
+	LEFT JOIN user U ON U.id = C.temporary_officer
+	WHERE C.id = ?
+`
+
 const CONTRACT_COMMITMENTS = `
 	SELECT CM.id, U.name AS created_by, CM.created, CM.commitment, CM.fulfilled, DATEDIFF(CM.due_date, NOW()) AS due_in, CM.text, U2.name AS fulfilled_by, CM.fulfilled_on
 	FROM contract_commitment CM
@@ -501,7 +508,7 @@ const SEARCH = `
 	) CCP ON CCP.contract_installment_id = CI.id
 	GROUP BY CI.id, CI.contract_id, CI.capital, CI.interest, CI.interest, CI.default_interest, CI.due_date
 	ORDER BY CI.due_date ASC) CI ON CI.contract_id = C.id
-	WHERE C.lkas_17_compliant = 0 AND (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND C.non_performing = 0 AND C.archived = 0
+	WHERE (C.lkas_17_compliant = 0 AND (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND C.non_performing = 0 AND C.archived = 0) OR ((? IS NULL OR C.temporary_officer = ?) AND C.archived = 0 AND C.lkas_17_compliant = 0)
 	GROUP BY C.id, CD.amount
 
 	UNION
@@ -519,9 +526,8 @@ const SEARCH = `
 	LEFT JOIN contract_schedule CSH ON CSH.contract_id = C.id AND CSH.marketed_installment = 1 AND CSH.daily_entry_issued = 1
 	LEFT JOIN (SELECT CR.contract_id, MAX(CR.datetime) AS datetime FROM contract_receipt CR WHERE CR.legacy_payment_date IS NULL AND CR.is_customer_payment = 1 GROUP BY CR.contract_id) CR ON CR.contract_id = C.id
 	LEFT JOIN (SELECT CRL.contract_id, MAX(CRL.legacy_payment_date) as legacy_payment_date FROM contract_receipt CRL WHERE CRL.is_customer_payment = 1 GROUP BY CRL.contract_id) CRL ON CRL.contract_id = C.id
-	WHERE C.lkas_17_compliant = 1 AND (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND C.non_performing = 0 AND C.archived = 0
-	GROUP BY C.id, C.agrivest, recovery_officer, state, model, batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, CF.agreed_capital, CF.capital_paid, CF.agreed_interest, CF.interest_paid, CF.charges_debits_paid, CF.capital_arrears, CF.interest_arrears, CF.payment, CD.amount
-	`
+	WHERE (C.lkas_17_compliant = 1 AND (? IS NULL OR CONCAT(C.id, C.customer_name, C.chassis_number, C.customer_nic, C.customer_contact) LIKE ?) AND (? IS NULL OR S.id = ?) AND (? IS NULL OR C.recovery_officer_id = ?) AND (? IS NULL OR C.contract_batch_id = ?) AND C.non_performing = 0 AND C.archived = 0) OR ((? IS NULL OR C.temporary_officer = ?) AND C.archived = 0 AND C.lkas_17_compliant = 1)
+	GROUP BY C.id, C.agrivest, recovery_officer, state, model, batch, C.chassis_number, C.customer_name, C.customer_address, C.customer_contact, CF.agreed_capital, CF.capital_paid, CF.agreed_interest, CF.interest_paid, CF.charges_debits_paid, CF.capital_arrears, CF.interest_arrears, CF.payment, CD.amount`
 
 const SEARCH_V2 = `
 SELECT SR.*

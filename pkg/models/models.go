@@ -9,11 +9,12 @@ import (
 var ErrNoRecord = errors.New("models: no matching record found")
 
 type UserResponse struct {
-	ID       int    `json:"id"`
-	Username string `json:"username"`
-	Name     string `json:"name"`
-	Role     string `json:"role"`
-	Token    string `json:"token"`
+	ID         int            `json:"id"`
+	Username   string         `json:"username"`
+	Name       string         `json:"name"`
+	Role       string         `json:"role"`
+	Token      string         `json:"token"`
+	AccessKeys []AccessLevels `json:"access_keys"`
 }
 
 type User struct {
@@ -26,11 +27,12 @@ type User struct {
 }
 
 type JWTUser struct {
-	ID       int
-	Username string
-	Password string
-	Name     string
-	Type     string
+	ID         int
+	Username   string
+	Password   string
+	Name       string
+	Type       string
+	AccessKeys []AccessLevels `json:"access_keys"`
 }
 
 type Dropdown struct {
@@ -215,6 +217,10 @@ type SearchResultOld struct {
 	TotalDIPaid     float64 `json:"total_di_paid"`
 }
 
+type AccessLevels struct {
+	Level string `json:"level"`
+}
+
 type SearchResult struct {
 	ID              int     `json:"id"`
 	Agrivest        int     `json:"agrivest"`
@@ -318,6 +324,10 @@ type ReceiptV2 struct {
 	Amount float64        `json:"amount"`
 	Notes  sql.NullString `json:"notes"`
 	Type   string         `json:"type"`
+}
+
+type TemporaryAssignment struct {
+	RecoveryOfficer string `json:"recovery_officer"`
 }
 
 type Commitment struct {

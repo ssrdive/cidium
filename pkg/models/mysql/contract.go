@@ -604,6 +604,17 @@ func (m *ContractModel) Commitments(cid int) ([]models.Commitment, error) {
 	return res, nil
 }
 
+// Commitments returns contract commitments
+func (m *ContractModel) TemporaryAssignment(cid int) ([]models.TemporaryAssignment, error) {
+	var res []models.TemporaryAssignment
+	err := mysequel.QueryToStructs(&res, m.DB, queries.TEMPORARY_ASSIGNMENT, cid)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
 // Timeline returns contract timeline
 func (m *ContractModel) Timeline(cid int) ([]models.TimelineRow, error) {
 	var contractChanges []models.ContractBalanceChangeRow
@@ -769,11 +780,6 @@ func (m *ContractModel) Timeline(cid int) ([]models.TimelineRow, error) {
 			Days:           days,
 			DaysCumulative: 0,
 		})
-	}
-
-	for _, line := range returnLines {
-		fmt.Printf("%+v", line)
-		fmt.Println()
 	}
 
 	return returnLines, nil
@@ -1292,6 +1298,36 @@ func (m *ContractModel) DeleteStateInfo(form url.Values) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	return 0, nil
+}
+
+func (m *ContractModel) SetTemporaryOfficer(rparams, oparams []string, form url.Values) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	_, err = mysequel.Update(mysequel.UpdateTable{
+		Table: mysequel.Table{
+			TableName: "contract",
+			Columns:   []string{"temporary_officer"},
+			Vals:      []interface{}{form.Get("temporary_officer")},
+			Tx:        tx,
+		},
+		WColumns: []string{"id"},
+		WVals:    []string{form.Get("contract_id")},
+	})
+	if err != nil {
+		return 0, err
+	}
+
 	return 0, nil
 }
 
@@ -2018,7 +2054,7 @@ func (m *ContractModel) Search(search, state, officer, batch string) ([]models.S
 	b := mysequel.NewNullString(batch)
 
 	var res []models.SearchResult
-	err := mysequel.QueryToStructs(&res, m.DB, queries.SEARCH, k, k, s, s, o, o, b, b, k, k, s, s, o, o, b, b)
+	err := mysequel.QueryToStructs(&res, m.DB, queries.SEARCH, k, k, s, s, o, o, b, b, o, o, k, k, s, s, o, o, b, b, o, o)
 	if err != nil {
 		return nil, err
 	}
