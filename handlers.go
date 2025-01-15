@@ -1357,6 +1357,32 @@ func (app *application) contractDebitNote(w http.ResponseWriter, r *http.Request
 	fmt.Fprintf(w, "%v", dnid)
 }
 
+func (app *application) contractSetLegalCaseStatus(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"contract_id", "legal_case_status"}
+	optionalParams := []string{}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	comid, err := app.contract.SetLegalCaseStatus(requiredParams, optionalParams, r.PostForm)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", comid)
+}
+
 func (app *application) contractSetTemporaryOfficer(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -1431,6 +1457,24 @@ func (app *application) contractTemporaryAssignment(w http.ResponseWriter, r *ht
 	}
 
 	commitments, err := app.contract.TemporaryAssignment(cid)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(commitments)
+}
+
+func (app *application) contractLegalCaseStatus(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cid, err := strconv.Atoi(vars["cid"])
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	commitments, err := app.contract.LegalCaseStatus(cid)
 	if err != nil {
 		app.serverError(w, err)
 		return

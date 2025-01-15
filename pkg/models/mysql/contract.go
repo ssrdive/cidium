@@ -604,10 +604,21 @@ func (m *ContractModel) Commitments(cid int) ([]models.Commitment, error) {
 	return res, nil
 }
 
-// Commitments returns contract commitments
+// TemporaryAssignment returns contract temporary assignment
 func (m *ContractModel) TemporaryAssignment(cid int) ([]models.TemporaryAssignment, error) {
 	var res []models.TemporaryAssignment
 	err := mysequel.QueryToStructs(&res, m.DB, queries.TEMPORARY_ASSIGNMENT, cid)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+// LegalStatus returns contract legal status
+func (m *ContractModel) LegalCaseStatus(cid int) ([]models.LegalCaseStatusResponse, error) {
+	var res []models.LegalCaseStatusResponse
+	err := mysequel.QueryToStructs(&res, m.DB, queries.LEGAL_CASE_STATUS, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -1298,6 +1309,36 @@ func (m *ContractModel) DeleteStateInfo(form url.Values) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	return 0, nil
+}
+
+func (m *ContractModel) SetLegalCaseStatus(rparams, oparams []string, form url.Values) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	_, err = mysequel.Update(mysequel.UpdateTable{
+		Table: mysequel.Table{
+			TableName: "contract",
+			Columns:   []string{"legal_case"},
+			Vals:      []interface{}{form.Get("legal_case_status")},
+			Tx:        tx,
+		},
+		WColumns: []string{"id"},
+		WVals:    []string{form.Get("contract_id")},
+	})
+	if err != nil {
+		return 0, err
+	}
+
 	return 0, nil
 }
 

@@ -404,6 +404,10 @@ const TEMPORARY_ASSIGNMENT = `
 	WHERE C.id = ?
 `
 
+const LEGAL_CASE_STATUS = `
+	SELECT legal_case FROM contract WHERE id = ?
+`
+
 const CONTRACT_COMMITMENTS = `
 	SELECT CM.id, U.name AS created_by, CM.created, CM.commitment, CM.fulfilled, DATEDIFF(CM.due_date, NOW()) AS due_in, CM.text, U2.name AS fulfilled_by, CM.fulfilled_on
 	FROM contract_commitment CM

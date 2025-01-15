@@ -330,6 +330,10 @@ type TemporaryAssignment struct {
 	RecoveryOfficer string `json:"recovery_officer"`
 }
 
+type LegalCaseStatusResponse struct {
+	LegalCase int `json:"legal_case_status"`
+}
+
 type Commitment struct {
 	ID          int            `json:"id"`
 	CreatedBy   string         `json:"created_by"`
