@@ -1994,7 +1994,7 @@ func (m *ContractModel) PerformanceReview(startDate, endDate, state, officer, ba
 // SearchV2 returns V2 search results
 // Multiple search methods are implemented to support
 // different web and mobile versions
-func (m *ContractModel) SearchV2(searchType, search, state, officer, batch, npl, lkas17, external, startOd, endOd, removeDeleted string) ([]models.SearchResultV2, error) {
+func (m *ContractModel) SearchV2(searchType, search, state, officer, batch, npl, lkas17, external, startOd, endOd, legalCaseStatus string) ([]models.SearchResultV2, error) {
 	var k sql.NullString
 	if search == "" {
 		k = sql.NullString{}
@@ -2010,6 +2010,8 @@ func (m *ContractModel) SearchV2(searchType, search, state, officer, batch, npl,
 	n := mysequel.NewNullString(npl)
 	l := mysequel.NewNullString(lkas17)
 	e := mysequel.NewNullString(external)
+	lcs := mysequel.NewNullString(legalCaseStatus)
+
 	var sod, eod sql.NullFloat64
 	if startOd == "" {
 		sod = sql.NullFloat64{}
@@ -2030,18 +2032,50 @@ func (m *ContractModel) SearchV2(searchType, search, state, officer, batch, npl,
 		}
 	}
 
-	rd, err := strconv.Atoi(removeDeleted)
-	if err != nil {
-		rd = 0
-	}
+	var err error
 
 	var res []models.SearchResultV2
 	if searchType == "default" {
-		err = mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_V2, k, k, s, s, o, o, b, b, n, n, l, l, e, e, sod, eod, sod, eod, rd, k, k, s, s, o, o, b, b, n, n, l, l, e, e, sod, eod, sod, eod, rd)
+		err = mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_V2, k, k, s, s, o, o, b, b, n, n, l, l, e, e, lcs, lcs, sod, eod, sod, eod, k, k, s, s, o, o, b, b, n, n, l, l, e, e, lcs, lcs, sod, eod, sod, eod)
 	} else if searchType == "archived" {
-		err = mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_V2_ARCHIVED, k, k, s, s, o, o, b, b, n, n, l, l, e, e, sod, eod, sod, eod, rd, k, k, s, s, o, o, b, b, n, n, l, l, e, e, sod, eod, sod, eod, rd)
-	} else if searchType == "micro" {
-		err = mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_V2_MICRO, k, k, s, s, o, o, b, b, n, n, l, l, e, e, sod, eod, sod, eod, rd, k, k, s, s, o, o, b, b, n, n, l, l, e, e, sod, eod, sod, eod, rd)
+		err = mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_V2_ARCHIVED, k, k, s, s, o, o, b, b, n, n, l, l, e, e, lcs, lcs, sod, eod, sod, eod, k, k, s, s, o, o, b, b, n, n, l, l, e, e, lcs, lcs, sod, eod, sod, eod)
+	} else if searchType == "legal" {
+		err = mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_V2_LEGAL, k, k, s, s, o, o, b, b, n, n, l, l, e, e, lcs, lcs, sod, eod, sod, eod, k, k, s, s, o, o, b, b, n, n, l, l, e, e, lcs, lcs, sod, eod, sod, eod)
+	} else if searchType == "hp" {
+		err = mysequel.QueryToStructs(&res, m.DB, queries.SEARCH_V2_HP, k, k, s, s, o, o, b, b, n, n, l, l, e, e, lcs, lcs, sod, eod, sod, eod, k, k, s, s, o, o, b, b, n, n, l, l, e, e, lcs, lcs, sod, eod, sod, eod)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+// LKAS17SearchV2 returns V2 search results
+// Multiple search methods are implemented to support
+// different web and mobile versions
+func (m *ContractModel) LKAS17SearchV2(searchType, search, state, officer, batch, recoveryStatus, legalCaseStatus string) ([]models.SearchResultV2, error) {
+	var k sql.NullString
+	if search == "" {
+		k = sql.NullString{}
+	} else {
+		k = sql.NullString{
+			Valid:  true,
+			String: "%" + search + "%",
+		}
+	}
+	s := mysequel.NewNullString(state)
+	o := mysequel.NewNullString(officer)
+	b := mysequel.NewNullString(batch)
+	rs := mysequel.NewNullString(recoveryStatus)
+	lcs := mysequel.NewNullString(legalCaseStatus)
+
+	var err error
+
+	var res []models.SearchResultV2
+	if searchType == "micro" {
+		err = mysequel.QueryToStructs(&res, m.DB, queries.LKAS17_SEARCH_V2_MICRO, k, k, s, s, o, o, b, b, rs, rs, lcs, lcs)
 	}
 
 	if err != nil {

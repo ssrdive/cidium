@@ -403,9 +403,28 @@ func (app *application) searchContractV2(w http.ResponseWriter, r *http.Request)
 	external := r.URL.Query().Get("external")
 	startOd := r.URL.Query().Get("startod")
 	endOd := r.URL.Query().Get("endod")
-	removeDeleted := r.URL.Query().Get("removedeleted")
+	legalCaseStatus := r.URL.Query().Get("legalcasestatus")
 
-	results, err := app.contract.SearchV2(searchType, search, state, officer, batch, npl, lkas17, external, startOd, endOd, removeDeleted)
+	results, err := app.contract.SearchV2(searchType, search, state, officer, batch, npl, lkas17, external, startOd, endOd, legalCaseStatus)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
+func (app *application) lkas17SearchContractV2(w http.ResponseWriter, r *http.Request) {
+	searchType := r.URL.Query().Get("searchtype")
+	search := r.URL.Query().Get("search")
+	state := r.URL.Query().Get("state")
+	officer := r.URL.Query().Get("officer")
+	batch := r.URL.Query().Get("batch")
+	recoveryStatus := r.URL.Query().Get("recoverystatus")
+	legalCaseStatus := r.URL.Query().Get("legalcasestatus")
+
+	results, err := app.contract.LKAS17SearchV2(searchType, search, state, officer, batch, recoveryStatus, legalCaseStatus)
 	if err != nil {
 		app.serverError(w, err)
 		return
