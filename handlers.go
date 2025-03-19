@@ -275,9 +275,9 @@ func (app *application) newContract(w http.ResponseWriter, r *http.Request) {
 	var id int64
 
 	if ctid == 1 {
-		id, err = app.contract.Insert("Start", requiredParams, optionalParams, r.PostForm)
-	} else if ctid == 2 {
-		id, err = app.contract.Insert("Data Collection", requiredParams, optionalParams, r.PostForm)
+		id, err = app.contract.Insert("Start", ctid, requiredParams, optionalParams, r.PostForm)
+	} else if ctid == 2 || ctid == 3 {
+		id, err = app.contract.Insert("Data Collection", ctid, requiredParams, optionalParams, r.PostForm)
 	}
 
 	if err != nil {

@@ -27,7 +27,7 @@ type ContractModel struct {
 }
 
 // Insert creates a new contract
-func (m *ContractModel) Insert(initialState string, rparams, oparams []string, form url.Values) (int64, error) {
+func (m *ContractModel) Insert(initialState string, ctid int, rparams, oparams []string, form url.Values) (int64, error) {
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -63,7 +63,7 @@ func (m *ContractModel) Insert(initialState string, rparams, oparams []string, f
 	}
 
 	var isid int
-	err = tx.QueryRow(queries.STATE_ID_FROM_STATE, initialState).Scan(&isid)
+	err = tx.QueryRow(queries.STATE_ID_FROM_STATE, initialState, ctid).Scan(&isid)
 	if err != nil {
 		tx.Rollback()
 		return 0, err

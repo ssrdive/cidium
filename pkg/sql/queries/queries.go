@@ -3,7 +3,7 @@ package queries
 import "fmt"
 
 const STATE_ID_FROM_STATE = `
-	SELECT S.id FROM state S WHERE S.name = ?`
+	SELECT S.id FROM state S WHERE S.name = ? AND S.contract_type_id = ?`
 
 const WORK_DOCUMENTS = `
 	SELECT C.contract_state_id, D.id as document_id, D.name as document_name, CSD.id, CSD.source , CSD.s3bucket, CSD.s3region, SD.compulsory 
