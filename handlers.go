@@ -308,7 +308,10 @@ func (app *application) newLegacyContract(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	id, err := app.contract.Insert("Active", requiredContractParams, optionalParams, r.PostForm)
+	ctidStr := r.PostForm.Get("contract_type_id")
+	ctid, _ := strconv.Atoi(ctidStr)
+
+	id, err := app.contract.Insert("Active", ctid, requiredContractParams, optionalParams, r.PostForm)
 	if err != nil {
 		app.serverError(w, err)
 		return
