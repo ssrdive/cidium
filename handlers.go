@@ -1405,6 +1405,39 @@ func (app *application) contractSetLegalCaseStatus(w http.ResponseWriter, r *htt
 	fmt.Fprintf(w, "%v", comid)
 }
 
+func (app *application) contractSetDefault(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"contract_id", "amount"}
+	optionalParams := []string{}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	// amount must be >= 0
+	amt, err := strconv.ParseFloat(r.PostForm.Get("amount"), 64)
+	if err != nil || amt < 0 {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	_, err = app.contract.SetDefaultAmount(requiredParams, optionalParams, r.PostForm)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", 1)
+}
+
 func (app *application) contractSetTemporaryOfficer(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {

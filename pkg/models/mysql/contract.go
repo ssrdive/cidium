@@ -1372,6 +1372,50 @@ func (m *ContractModel) SetTemporaryOfficer(rparams, oparams []string, form url.
 	return 0, nil
 }
 
+// SetDefaultAmount upserts the default amount for a contract
+func (m *ContractModel) SetDefaultAmount(rparams, oparams []string, form url.Values) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	// Try to update existing row
+	res, err := mysequel.Update(mysequel.UpdateTable{
+		Table: mysequel.Table{
+			TableName: "contract_default",
+			Columns:   []string{"amount"},
+			Vals:      []interface{}{form.Get("amount")},
+			Tx:        tx,
+		},
+		WColumns: []string{"contract_id"},
+		WVals:    []string{form.Get("contract_id")},
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	if res == 0 { // insert if no row updated
+		_, err = mysequel.Insert(mysequel.Table{
+			TableName: "contract_default",
+			Columns:   []string{"contract_id", "amount"},
+			Vals:      []interface{}{form.Get("contract_id"), form.Get("amount")},
+			Tx:        tx,
+		})
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return 1, nil
+}
+
 // Commitment adds a commitment
 func (m *ContractModel) Commitment(rparams, oparams []string, form url.Values, specialMessage, aAPIKey string) (int64, error) {
 	tx, err := m.DB.Begin()
