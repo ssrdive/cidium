@@ -1438,6 +1438,39 @@ func (app *application) contractSetDefault(w http.ResponseWriter, r *http.Reques
 	fmt.Fprintf(w, "%v", 1)
 }
 
+func (app *application) contractHoldDefault(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	requiredParams := []string{"contract_id", "hold_default"}
+	optionalParams := []string{}
+	for _, param := range requiredParams {
+		if v := r.PostForm.Get(param); v == "" {
+			fmt.Println(param)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Validate hold_default value (must be 0 or 1)
+	holdDefault := r.PostForm.Get("hold_default")
+	if holdDefault != "0" && holdDefault != "1" {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	_, err = app.contract.HoldDefault(requiredParams, optionalParams, r.PostForm)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%v", 1)
+}
+
 func (app *application) contractSetTemporaryOfficer(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {

@@ -1416,6 +1416,38 @@ func (m *ContractModel) SetDefaultAmount(rparams, oparams []string, form url.Val
 	return 1, nil
 }
 
+// HoldDefault updates the hold_default field in the contract table
+func (m *ContractModel) HoldDefault(rparams, oparams []string, form url.Values) (int64, error) {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		_ = tx.Commit()
+	}()
+
+	// Update the hold_default field in the contract table
+	_, err = mysequel.Update(mysequel.UpdateTable{
+		Table: mysequel.Table{
+			TableName: "contract",
+			Columns:   []string{"hold_default"},
+			Vals:      []interface{}{form.Get("hold_default")},
+			Tx:        tx,
+		},
+		WColumns: []string{"id"},
+		WVals:    []string{form.Get("contract_id")},
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return 1, nil
+}
+
 // Commitment adds a commitment
 func (m *ContractModel) Commitment(rparams, oparams []string, form url.Values, specialMessage, aAPIKey string) (int64, error) {
 	tx, err := m.DB.Begin()
